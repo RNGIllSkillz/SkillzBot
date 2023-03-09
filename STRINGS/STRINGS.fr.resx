@@ -1,0 +1,444 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AddModSuccess" xml:space="preserve">
+    <value>L'utilisateur {0} a été ajouté en tant que modérateur de la chaîne.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="AddVIPSuccess" xml:space="preserve">
+    <value>L'utilisateur {0} a reçu un statut VIP.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="AntiBotLvl" xml:space="preserve">
+    <value>@{0}, le niveau de protection anti-bot est défini sur {1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_chatMessage" xml:space="preserve">
+    <value>@{0} L'utilisateur {1} a été interrompu pendant 1 heure et a également été mis sur liste noire. La piste est interdite.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_CoolDownmsg" xml:space="preserve">
+    <value>@{0} Commande au temps de recharge ({1} s)</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_DonatedTrack" xml:space="preserve">
+    <value>@{0} Suivi du don. La piste a été blacklistée.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BitsRecieved" xml:space="preserve">
+    <value>@{0} a fait don de {1} bits ! PogChamp</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval404" xml:space="preserve">
+    <value>@{0} ne trouve pas {1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_ChatMessage" xml:space="preserve">
+    <value>@{0}, {1} expirera pendant encore {2} secondes. Pour l'invoquer, vous avez besoin de {3} points de chaîne. Vérifiez à nouveau les récompenses, il y a une récompense pour l'invocation de {1} avec le prix actuel. La nouvelle récompense sera disponible pendant une minute.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_NotInTimeOut" xml:space="preserve">
+    <value>@{0}, {1} n'a pas expiré.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_TimeOut" xml:space="preserve">
+    <value>Le temps de récompense est écoulé</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CreateClipERROR" xml:space="preserve">
+    <value>@{0}, ERREUR : {1} Le flux est-il en ligne ?</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CreateClipSuccess" xml:space="preserve">
+    <value>@{0} Clip a été créé ! {1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="DeleteModSuccess" xml:space="preserve">
+    <value>L'utilisateur {0} a été supprimé des modérateurs de la chaîne.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="DeleteVIPSuccess" xml:space="preserve">
+    <value>L'utilisateur {0} a perdu son VIP.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="FindUser_ERROR404" xml:space="preserve">
+    <value>@{0}, impossible de trouver l'utilisateur nommé {1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetAllReward_chatMessage" xml:space="preserve">
+    <value>{0} récompenses reçues. {1} ID de récompense enregistrés dans les journaux.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetTrack404" xml:space="preserve">
+    <value>@{0}, pas de pistes personnalisées</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetTrackShow" xml:space="preserve">
+    <value>@{0}, {1} https://youtu.be/{2} Titre commandé par @{3}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GiftedSubMessage" xml:space="preserve">
+    <value>@{0} A reçu un sous-marin pour @{1} PogChamp (+600 points)</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="HelpMessage" xml:space="preserve">
+    <value>@{0}Commandes de bot⠀disponibles sur https://www.twitch.tv/bot_illskillz/about</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="InputERROR" xml:space="preserve">
+    <value>Entrée invalide.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="language" xml:space="preserve">
+    <value>La langue du bot a été définie sur Fr.</value>
+    <comment>language</comment>
+  </data>
+  <data name="loose" xml:space="preserve">
+    <value>Lâche</value>
+    <comment>vars</comment>
+  </data>
+  <data name="LPInaMatch" xml:space="preserve">
+    <value>@{0} pendant que l'invocateur est dans un match, il ne peut pas être changé.</value>
+  </data>
+  <data name="MatchHistoryMessage" xml:space="preserve">
+    <value>@{0} Champion {1} ({2}/{3}/{4}), {5}, match {6}, {7}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreadDownHighLP" xml:space="preserve">
+    <value>Terminé comme un héros EZ</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreadDownLowLP" xml:space="preserve">
+    <value>Terminé avec honte PoroSad</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreamUP" xml:space="preserve">
+    <value>La chaîne {0} est EN DIRECT !</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnUnban" xml:space="preserve">
+    <value>Le modérateur @{0} a donné la vie à @{1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OpGGMessage" xml:space="preserve">
+    <value>@{0} https://euw.op.gg/summoners/euw/{1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="PermaBanReason" xml:space="preserve">
+    <value>interdiction (a passé 5 vies)</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="PointsMessage" xml:space="preserve">
+    <value>@{0} vous avez {1} points. Votre place dans le classement : ({2}/{3}). Vous avez {4} points de quiz ({5}/{6}), au total vous avez gagné {7} points ({8}/{9})</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="PredictionStarted" xml:space="preserve">
+    <value>LA PRÉDICTION "{0}" EST LANCÉE !</value>
+    <comment>Announce</comment>
+  </data>
+  <data name="QuizStart" xml:space="preserve">
+    <value>QUESTIONNAIRE! {0}</value>
+    <comment>Announce</comment>
+  </data>
+  <data name="QuizTimeOut" xml:space="preserve">
+    <value>Personne n'a donné la bonne réponse.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="QuizWin" xml:space="preserve">
+    <value>Bonne réponse : {0} ! @{1} a gagné {2} point(s). Vous avez {3} points au total, tous les temps {4} points. Les points peuvent être dépensés pour commander une piste via la commande !sr Lien YouTube</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="role" xml:space="preserve">
+    <value>rôle {0}</value>
+    <comment>vars</comment>
+  </data>
+  <data name="RouletteCD" xml:space="preserve">
+    <value>@{0} Roulette sur CoolDown {1}s restants.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteLoose" xml:space="preserve">
+    <value>Boom! @{0} est décédé.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteLooseWs" xml:space="preserve">
+    <value>Boom! @{0} est mort lors de la {1}ème séquence de victoires.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteTimeOut" xml:space="preserve">
+    <value>Roulette</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="RouletteWin" xml:space="preserve">
+    <value>@{0} survécu EZ</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteWinStreak" xml:space="preserve">
+    <value>@{0} a survécu {1} fois de suite !!! Votre place dans le classement est {2} sur {3} ! La probabilité de cette séquence de victoires est {4} PogChamp PogChamp PogChamp</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="SendMessageERROR" xml:space="preserve">
+    <value>Erreur : Mot trop long pour être envoyé au chat</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLP" xml:space="preserve">
+    <value>@{0}, {1}, {2} {3}, {4} lp, WR {5} % {6} parties jouées aujourd'hui, {7} victoires / {8} défaites. {9} LP gagnés</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLPCalibration" xml:space="preserve">
+    <value>@{0} Summoner {1} est en cours de calibrage. {2} matchs joués aujourd'hui, {3} victoires / {4} défaites. {5} LP gagnés</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLPPromo" xml:space="preserve">
+    <value>@{0}, {1} PROMOTION À {2}, {3}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskERROR" xml:space="preserve">
+    <value>Entrée invalide. Veuillez utiliser le format : !CronEdit [taskName] [triggerName] [cronExpression]</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskERROR2" xml:space="preserve">
+    <value>Expression cron non valide.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskSuccess" xml:space="preserve">
+    <value>Horaire de travail mis à jour.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="SubMessage" xml:space="preserve">
+    <value>@{0} Merci de vous être abonné ! C'est votre {1}ème mois avec nous ! PogChamp +{2}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TimeOut1wReason" xml:space="preserve">
+    <value>jurer</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutBadPic" xml:space="preserve">
+    <value>18+ Image</value>
+  </data>
+  <data name="TimeOutPic" xml:space="preserve">
+    <value>Symboles dans le chat</value>
+  </data>
+  <data name="TimeOutReason_TimeOutBroadcaster" xml:space="preserve">
+    <value>Pour le streameur !</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutRootUser" xml:space="preserve">
+    <value>Carte inversée UNO !</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutSub" xml:space="preserve">
+    <value>TimeOut pour l'abonné</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutUnsub" xml:space="preserve">
+    <value>TimeOut pour le désabonnement</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutVIP" xml:space="preserve">
+    <value>Délai d'attente pour VIP</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_Track" xml:space="preserve">
+    <value>la chanson</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReward_chatMessage" xml:space="preserve">
+    <value>@{0}, {1} a expiré pendant {2} s. C'est son {3}-ième temps mort</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TimeOutSpam" xml:space="preserve">
+    <value>Courrier indésirable</value>
+  </data>
+  <data name="Top3Chat" xml:space="preserve">
+    <value>Top 3 des utilisateurs de chat : ТОП1 @{0}, {1} messages PogChamp ТОП2 @{2}, {3} messages EZ ТОП3 @{4}, {5} messages BloodTrail</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Top3Roulette" xml:space="preserve">
+    <value>Топ 3 joueurs de roulette : ТОП1 @{0} séquence de victoires {1} {2} PogChamp ТОП2 @{3} séquence de victoires {4} {5} EZ ТОП3 @{6} séquence de victoires {7} {8} BloodTrail</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track200_Success" xml:space="preserve">
+    <value>@{0} Piste {1} ajoutée à la file d'attente</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track400_ERROR" xml:space="preserve">
+    <value>@{0} Une erreur s'est produite. La piste n'a pas été ajoutée à la file d'attente</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track404" xml:space="preserve">
+    <value>@{0} Il n'y a rien à publier dans les vidéos trouvées.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track500_bannedTrack" xml:space="preserve">
+    <value>@{0}, cette piste n'est pas autorisée.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track500_bannedUser" xml:space="preserve">
+    <value>@{0} Vous n'êtes pas autorisé à ajouter des pistes</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Age" xml:space="preserve">
+    <value>@{0} Les vidéos de plus de 18 ans ne sont pas autorisées.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Duration" xml:space="preserve">
+    <value>@{0} La durée maximale de la vidéo est de 6 minutes !</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Embedded" xml:space="preserve">
+    <value>@{0} Cette vidéo ne peut être visionnée que sur YouTube</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_ViewCount" xml:space="preserve">
+    <value>@{0} Vues doivent être supérieures à 300 000</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TrackUserSuccess" xml:space="preserve">
+    <value>L'utilisateur {0} a chatté sur {1} flux</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track_Esception" xml:space="preserve">
+    <value>@{0} Une exception s'est produite dans l'ordre de suivi</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="UpdateRewardPromptOrig" xml:space="preserve">
+    <value>Ecrivez le pseudo de l'utilisateur qui est en timeout. Le bot calculera le coût et écrira d'autres actions dans le chat. Vous aurez une minute pour les compléter.</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="UpdateRewardTitleNew" xml:space="preserve">
+    <value>Délai d'attente {0}</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="UpdateRewardTitleOrig" xml:space="preserve">
+    <value>Utilisateur hors délai</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="Uval500_IsSub" xml:space="preserve">
+    <value>@{0}, {1} sub/vip</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Uval500_IsVIP" xml:space="preserve">
+    <value>@{0}, {1} vip</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="win" xml:space="preserve">
+    <value>Gagner</value>
+    <comment>vars</comment>
+  </data>
+</root>

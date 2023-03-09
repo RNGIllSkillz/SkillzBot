@@ -1,0 +1,140 @@
+{
+  "format": 1,
+  "restore": {
+    "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj": {}
+  },
+  "projects": {
+    "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj",
+        "projectName": "SkillzBot",
+        "projectPath": "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj",
+        "packagesPath": "C:\\Users\\atras\\.nuget\\packages\\",
+        "outputPath": "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\atras\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp3.1"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp3.1": {
+            "targetAlias": "netcoreapp3.1",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netcoreapp3.1": {
+          "targetAlias": "netcoreapp3.1",
+          "dependencies": {
+            "F23.StringSimilarity": {
+              "target": "Package",
+              "version": "[5.1.0, )"
+            },
+            "Google.Apis.YouTube.v3": {
+              "target": "Package",
+              "version": "[1.60.0.2945, )"
+            },
+            "MySql.Data": {
+              "target": "Package",
+              "version": "[8.0.32, )"
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.2, )"
+            },
+            "Quartz": {
+              "target": "Package",
+              "version": "[3.6.2, )"
+            },
+            "TwitchLib": {
+              "target": "Package",
+              "version": "[3.5.3, )"
+            },
+            "TwitchLib.Api": {
+              "target": "Package",
+              "version": "[3.8.0, )"
+            },
+            "TwitchLib.Api.Core": {
+              "target": "Package",
+              "version": "[3.8.0, )"
+            },
+            "TwitchLib.Api.Core.Enums": {
+              "target": "Package",
+              "version": "[3.8.0, )"
+            },
+            "TwitchLib.Api.Core.Interfaces": {
+              "target": "Package",
+              "version": "[3.8.0, )"
+            },
+            "TwitchLib.Api.Helix": {
+              "target": "Package",
+              "version": "[3.8.0, )"
+            },
+            "TwitchLib.Communication": {
+              "target": "Package",
+              "version": "[1.0.6, )"
+            },
+            "TwitchLib.EventSub.Core": {
+              "target": "Package",
+              "version": "[2.3.0, )"
+            },
+            "TwitchLib.EventSub.Websockets": {
+              "target": "Package",
+              "version": "[0.3.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
+              "version": "[3.1.32, 3.1.32]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Host.linux-x64",
+              "version": "[3.1.32, 3.1.32]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.linux-x64",
+              "version": "[3.1.32, 3.1.32]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.200\\RuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "linux-x64": {
+          "#import": []
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,448 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AddModSuccess" xml:space="preserve">
+    <value>ユーザー {0} がチャンネル モデレーターとして追加されました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="AddVIPSuccess" xml:space="preserve">
+    <value>ユーザー {0} は VIP ステータスを受け取りました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="AntiBotLvl" xml:space="preserve">
+    <value>@{0}、アンチボット保護レベルは {1} に設定されています</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_chatMessage" xml:space="preserve">
+    <value>@{0} ユーザー {1} は 1 時間タイムアウトになり、ブラックリストにも登録されました。 トラックは禁止されています。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_CoolDownmsg" xml:space="preserve">
+    <value>@{0} クールダウン時のコマンド ({1} 秒)</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_DonatedTrack" xml:space="preserve">
+    <value>@{0} 寄付からの追跡。 トラックはブラックリストに登録されています。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BitsRecieved" xml:space="preserve">
+    <value>@{0} が {1} ビットを寄付しました! ポグチャンプ</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval404" xml:space="preserve">
+    <value>@{0} は {1} を見つけることができません</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_ChatMessage" xml:space="preserve">
+    <value>@{0}、{1} はさらに {2} 秒間タイムアウトします。 彼を召喚するには{3}チャンネルポイントが必要です。 報酬をもう一度確認してください。現在の価格で {1} を召喚するための報酬があります。 新しい報酬は 1 分間利用できます。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_NotInTimeOut" xml:space="preserve">
+    <value>@{0}、{1} はタイムアウトしていません。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_TimeOut" xml:space="preserve">
+    <value>報酬時間終了</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CreateClipERROR" xml:space="preserve">
+    <value>@{0}、エラー: {1} ストリームはオンラインですか?</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CreateClipSuccess" xml:space="preserve">
+    <value>@{0} クリップが作成されました! {1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="DeleteModSuccess" xml:space="preserve">
+    <value>ユーザー {0} はチャンネル モデレーターから削除されました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="DeleteVIPSuccess" xml:space="preserve">
+    <value>ユーザー {0} は VIP を失いました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="FindUser_ERROR404" xml:space="preserve">
+    <value>@{0}、{1} という名前のユーザーが見つかりません</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetAllReward_chatMessage" xml:space="preserve">
+    <value>{0} の賞を受賞しました。 {1} ログに保存された報酬 ID。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetTrack404" xml:space="preserve">
+    <value>@{0}、カスタム トラックなし</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetTrackShow" xml:space="preserve">
+    <value>@{0}、{1} https://youtu.be/{2} @{3} が注文したトラック</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GiftedSubMessage" xml:space="preserve">
+    <value>@{0} @{1} PogChamp のサブスクを贈りました (+600 ポイント)</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="HelpMessage" xml:space="preserve">
+    <value>@{0} ボット コマンド⠀ https://www.twitch.tv/bot_illskillz/about で利用可能</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="InputERROR" xml:space="preserve">
+    <value>無効入力。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="language" xml:space="preserve">
+    <value>ボットの言語は日本語に設定されています。</value>
+    <comment>language</comment>
+  </data>
+  <data name="loose" xml:space="preserve">
+    <value>ゆるい</value>
+    <comment>vars</comment>
+  </data>
+  <data name="LPInaMatch" xml:space="preserve">
+    <value>@{0} サモナーが試合に参加している間、サモナーを変更することはできません。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="MatchHistoryMessage" xml:space="preserve">
+    <value>@{0} チャンプ {1} ({2}/{3}/{4})、{5}、マッチ {6}、{7}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreadDownHighLP" xml:space="preserve">
+    <value>ヒーローのように終わった EZ</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreadDownLowLP" xml:space="preserve">
+    <value>恥ずかしさで終わった PoroSad</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreamUP" xml:space="preserve">
+    <value>チャンネル {0} はライブです!</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnUnban" xml:space="preserve">
+    <value>モデレーター @{0} は @{1} に命を贈りました</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OpGGMessage" xml:space="preserve">
+    <value>@{0} https://euw.op.gg/summoners/euw/{1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="PermaBanReason" xml:space="preserve">
+    <value>禁止（ライフを5つ消費）</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="PointsMessage" xml:space="preserve">
+    <value>@{0} {1} ポイントあります。 リーダーボードでのあなたの順位: ({2}/{3})。 {4} クイズ ポイント ({5}/{6}) を獲得しました。合計で {7} ポイント ({8}/{9}) を獲得しました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="PredictionStarted" xml:space="preserve">
+    <value>予測「{0}」が開始されました!</value>
+    <comment>Announce</comment>
+  </data>
+  <data name="QuizStart" xml:space="preserve">
+    <value>クイズ！ {0}</value>
+    <comment>Announce</comment>
+  </data>
+  <data name="QuizTimeOut" xml:space="preserve">
+    <value>誰も正しい答えをくれませんでした。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="QuizWin" xml:space="preserve">
+    <value>正解: {0}! @{1} は {2} ポイントを獲得しました。 あなたの合計ポイントは{3}で、常に{4}ポイントです。 ポイントは、コマンド !sr YouTube リンクを使用してトラックを注文する際に使用できます。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="role" xml:space="preserve">
+    <value>役割 {0}</value>
+    <comment>vars</comment>
+  </data>
+  <data name="RouletteCD" xml:space="preserve">
+    <value>@{0} CoolDown {1} 秒のルーレットが残っています。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteLoose" xml:space="preserve">
+    <value>ブーム！ @{0} が死亡しました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteLooseWs" xml:space="preserve">
+    <value>ブーム！ @{0} は {1} 連勝で死亡しました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteTimeOut" xml:space="preserve">
+    <value>ルーレット</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="RouletteWin" xml:space="preserve">
+    <value>@{0}生き残ったEZ</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteWinStreak" xml:space="preserve">
+    <value>@{0} は {1} 回連続で生き残りました!!! リーダーボードでのあなたの順位は {3} 中 {2} です! この連勝の確率は{4} PogChamp PogChamp PogChamp</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="SendMessageERROR" xml:space="preserve">
+    <value>エラー: チャットに送信するには単語が長すぎます</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLP" xml:space="preserve">
+    <value>@{0}、{1}、{2} {3}、{4} lp、WR {5}% {6} 試合、今日は {7} 勝 / {8} 敗。 {9}LP獲得</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLPCalibration" xml:space="preserve">
+    <value>@{0} サモナー {1} は調整中です。 今日は {2} 試合、{3} 勝 / {4} 敗。 {5}LP獲得</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLPPromo" xml:space="preserve">
+    <value>@{0}、{1} {2}、{3} に宣伝</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskERROR" xml:space="preserve">
+    <value>無効入力。 次の形式を使用してください: !CronEdit [タスク名] [トリガー名] [cronExpression]</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskERROR2" xml:space="preserve">
+    <value>cron 式が無効です。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskSuccess" xml:space="preserve">
+    <value>ジョブスケジュールを更新しました。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="SubMessage" xml:space="preserve">
+    <value>@{0} 購読していただきありがとうございます。 入社して{1} 1 か月目です! ポグチャンプ +{2}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TimeOut1wReason" xml:space="preserve">
+    <value>宣誓</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutBadPic" xml:space="preserve">
+    <value>18歳以上の画像</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutPic" xml:space="preserve">
+    <value>チャットの記号</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutBroadcaster" xml:space="preserve">
+    <value>ストリーマーに！</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutRootUser" xml:space="preserve">
+    <value>UNOリバースカード！</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutSub" xml:space="preserve">
+    <value>サブスクライバのタイムアウト</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutUnsub" xml:space="preserve">
+    <value>登録解除のタイムアウト</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutVIP" xml:space="preserve">
+    <value>VIP のタイムアウト</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_Track" xml:space="preserve">
+    <value>音楽トラック</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReward_chatMessage" xml:space="preserve">
+    <value>@{0}、{1} が {2} 秒間タイムアウトしました。 彼の{3}回目のタイムアウトです</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TimeOutSpam" xml:space="preserve">
+    <value>タイムアウトスパム</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="Top3Chat" xml:space="preserve">
+    <value>上位 3 人のチャット ユーザー: TOP 1 @{0}、{1} メッセージ PogChamp TOP2 @{2}、{3} メッセージ EZ TOP 3 @{4}、{5} メッセージ BloodTrail</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Top3Roulette" xml:space="preserve">
+    <value>Топ 3 ルーレット プレイヤー: TOP 1 @{0} 連勝 {1} {2} PogChamp TOP 2 @{3} 連勝 {4} {5} EZ TOP 3 @{6} 連勝 {7} {8} BloodTrail</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track200_Success" xml:space="preserve">
+    <value>@{0} 音楽 トラック {1} がキューに追加されました</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track400_ERROR" xml:space="preserve">
+    <value>@{0} 何か問題が発生しました。 トラックはキューに追加されませんでした</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track404" xml:space="preserve">
+    <value>@{0} 投稿するビデオが見つかりませんでした。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track500_bannedTrack" xml:space="preserve">
+    <value>@{0}、このトラックは許可されていません。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track500_bannedUser" xml:space="preserve">
+    <value>@{0} トラックを追加する権限がありません</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Age" xml:space="preserve">
+    <value>@{0} 18 歳以上の動画は許可されていません。</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Duration" xml:space="preserve">
+    <value>@{0} 動画の長さは最大 6 分です!</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Embedded" xml:space="preserve">
+    <value>@{0} この動画は YouTube でのみ視聴できます</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_ViewCount" xml:space="preserve">
+    <value>@{0} ビューは 30 万回を超えている必要があります</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TrackUserSuccess" xml:space="preserve">
+    <value>ユーザー {0} が {1} ストリームでチャットしました</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track_Esception" xml:space="preserve">
+    <value>@{0} トラック順で例外が発生しました</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="UpdateRewardPromptOrig" xml:space="preserve">
+    <value>タイムアウトしているユーザーのニックネームを書きます。 ボットはコストを計算し、さらなるアクションをチャットに書き込みます。 それらを完了するのに 1 分かかります。</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="UpdateRewardTitleNew" xml:space="preserve">
+    <value>タイムアウト解除 {0}</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="UpdateRewardTitleOrig" xml:space="preserve">
+    <value>タイムアウトのないユーザー</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="Uval500_IsSub" xml:space="preserve">
+    <value>@{0}, {1} sub/vip</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Uval500_IsVIP" xml:space="preserve">
+    <value>@{0}, {1} vip</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="win" xml:space="preserve">
+    <value>勝つ</value>
+    <comment>vars</comment>
+  </data>
+</root>

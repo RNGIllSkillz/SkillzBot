@@ -1,0 +1,448 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AddModSuccess" xml:space="preserve">
+    <value>사용자 {0}이(가) 채널 운영자로 추가되었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="AddVIPSuccess" xml:space="preserve">
+    <value>사용자 {0}이(가) VIP 상태를 받았습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="AntiBotLvl" xml:space="preserve">
+    <value>@{0}, Anti Bot 보호 레벨이 {1}로 설정되었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_chatMessage" xml:space="preserve">
+    <value>@{0} 사용자 {1}은(는) 1시간 동안 시간 초과되었으며 블랙리스트에 올랐습니다. 트랙이 금지되었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_CoolDownmsg" xml:space="preserve">
+    <value>@{0} 쿨다운 명령({1}초)</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BanUserForTrack_DonatedTrack" xml:space="preserve">
+    <value>@{0} 기부 추적. 트랙이 블랙리스트에 올랐습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="BitsRecieved" xml:space="preserve">
+    <value>@{0}님이 {1}비트를 기부했습니다! 포그챔프</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval404" xml:space="preserve">
+    <value>@{0}이(가) {1}을(를) 찾을 수 없습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_ChatMessage" xml:space="preserve">
+    <value>@{0}, {1}은(는) {2}초 더 시간 초과됩니다. 그를 소환하려면 {3} 채널 포인트가 필요합니다. 보상을 다시 확인하십시오. 현재 가격으로 {1}을(를) 소환하는 보상이 있습니다. 새로운 보상은 1분 동안 사용할 수 있습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_NotInTimeOut" xml:space="preserve">
+    <value>@{0}, {1}이(가) 시간 초과되지 않았습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CencelUval_TimeOut" xml:space="preserve">
+    <value>보상 시간이 다 되었습니다</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CreateClipERROR" xml:space="preserve">
+    <value>@{0}, 오류: {1} 스트림이 온라인 상태입니까?</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="CreateClipSuccess" xml:space="preserve">
+    <value>@{0} 클립이 생성되었습니다! {1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="DeleteModSuccess" xml:space="preserve">
+    <value>사용자 {0}이(가) 채널 중재자에서 제거되었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="DeleteVIPSuccess" xml:space="preserve">
+    <value>사용자 {0}이(가) VIP를 잃었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="FindUser_ERROR404" xml:space="preserve">
+    <value>@{0}, 이름이 {1}인 사용자를 찾을 수 없습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetAllReward_chatMessage" xml:space="preserve">
+    <value>{0} 상을 받았습니다. {1} 로그에 저장된 보상 ID.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetTrack404" xml:space="preserve">
+    <value>@{0}, 맞춤 트랙 없음</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GetTrackShow" xml:space="preserve">
+    <value>@{0}, {1} https://youtu.be/{2} @{3}에서 주문한 트랙</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="GiftedSubMessage" xml:space="preserve">
+    <value>@{0} @{1} PogChamp의 서브를 선물했습니다(+600 포인트).</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="HelpMessage" xml:space="preserve">
+    <value>@{0} 봇 명령⠀https://www.twitch.tv/bot_illskillz/about 에서 사용 가능</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="InputERROR" xml:space="preserve">
+    <value>잘못된 입력.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="language" xml:space="preserve">
+    <value>봇 언어가 Ko로 설정되었습니다.</value>
+    <comment>language</comment>
+  </data>
+  <data name="loose" xml:space="preserve">
+    <value>헐렁한</value>
+    <comment>vars</comment>
+  </data>
+  <data name="LPInaMatch" xml:space="preserve">
+    <value>@{0} 소환사가 경기 중인 동안에는 변경할 수 없습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="MatchHistoryMessage" xml:space="preserve">
+    <value>@{0} 챔피언 {1}({2}/{3}/{4}), {5}, 경기 {6}, {7}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreadDownHighLP" xml:space="preserve">
+    <value>영웅처럼 끝났다 EZ</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreadDownLowLP" xml:space="preserve">
+    <value>부끄러움으로 끝남  PoroSad</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnStreamUP" xml:space="preserve">
+    <value>채널 {0}이(가) 생방송입니다!</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OnUnban" xml:space="preserve">
+    <value>중재자 @{0}님이 @{1}님에게 생명을 선물했습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="OpGGMessage" xml:space="preserve">
+    <value>@{0} https://euw.op.gg/summoners/euw/{1}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="PermaBanReason" xml:space="preserve">
+    <value>금지 (5 생명을 보냈습니다)</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="PointsMessage" xml:space="preserve">
+    <value>@{0} 당신은 {1} 포인트를 가지고 있습니다. 리더보드에서의 귀하의 위치: ({2}/{3}). 당신은 {4} 퀴즈 포인트({5}/{6})를 가지고 있고 총 {7} 포인트({8}/{9})를 얻었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="PredictionStarted" xml:space="preserve">
+    <value>예측 "{0}"이(가) 출시되었습니다!</value>
+    <comment>Announce</comment>
+  </data>
+  <data name="QuizStart" xml:space="preserve">
+    <value>퀴즈! {0}</value>
+    <comment>Announce</comment>
+  </data>
+  <data name="QuizTimeOut" xml:space="preserve">
+    <value>아무도 정답을 주지 않았습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="QuizWin" xml:space="preserve">
+    <value>정답: {0}! @{1}은(는) {2}포인트를 획득했습니다. 총 {3} 포인트, 모든 시간 {4} 포인트가 있습니다. !sr YouTube 링크 명령을 통해 트랙 주문에 포인트를 사용할 수 있습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="role" xml:space="preserve">
+    <value>역할 {0}</value>
+    <comment>vars</comment>
+  </data>
+  <data name="RouletteCD" xml:space="preserve">
+    <value>쿨다운 {1}남은 @{0} 룰렛.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteLoose" xml:space="preserve">
+    <value>팔! @{0}님이 사망했습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteLooseWs" xml:space="preserve">
+    <value>팔! @{0}님은 {1}번째 연승에 사망했습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteTimeOut" xml:space="preserve">
+    <value>룰렛</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="RouletteWin" xml:space="preserve">
+    <value>@{0} 살아남은 EZ</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="RouletteWinStreak" xml:space="preserve">
+    <value>@{0}은(는) {1}번 연속으로 생존했습니다!!! 리더보드에서 귀하의 위치는 {3}점 만점에 {2}점입니다! 이 연승 확률은 {4}입니다. PogChamp PogChamp PogChamp</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="SendMessageERROR" xml:space="preserve">
+    <value>오류: 단어가 너무 길어서 채팅에 보낼 수 없습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLP" xml:space="preserve">
+    <value>@{0}, {1}, {2} {3}, {4} lp, 오늘 플레이한 승률 {5}% {6} 게임, {7}승/{8}패. {9} LP 획득</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLPCalibration" xml:space="preserve">
+    <value>@{0} Summoner {1}이(가) 보정 중입니다. 오늘 플레이한 {2} 게임, {3}승/{4}패. {5} LP 획득</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="ShowLPPromo" xml:space="preserve">
+    <value>@{0}, {1} {2}, {3} 프로모션</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskERROR" xml:space="preserve">
+    <value>잘못된 입력. 형식을 사용하세요: !CronEdit [taskName] [triggerName] [cronExpression]</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskERROR2" xml:space="preserve">
+    <value>크론 표현식이 잘못되었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="StartCronTaskSuccess" xml:space="preserve">
+    <value>작업 일정이 업데이트되었습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="SubMessage" xml:space="preserve">
+    <value>@{0} 구독해주셔서 감사합니다! 저희와 함께하는 {1}번째 달입니다! 포그챔프 +{2}</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TimeOut1wReason" xml:space="preserve">
+    <value>서약</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutBadPic" xml:space="preserve">
+    <value>18+ 이미지</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutPic" xml:space="preserve">
+    <value>채팅의 기호</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutBroadcaster" xml:space="preserve">
+    <value>스트리머를 위해!</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutRootUser" xml:space="preserve">
+    <value>UNO 리버스 카드!</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutSub" xml:space="preserve">
+    <value>구독자에 대한 시간 초과</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutUnsub" xml:space="preserve">
+    <value>구독 취소 시간 제한</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_TimeOutVIP" xml:space="preserve">
+    <value>VIP를 위한 타임아웃</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReason_Track" xml:space="preserve">
+    <value>뮤직 트랙</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="TimeOutReward_chatMessage" xml:space="preserve">
+    <value>@{0}, {1}이(가) {2}초 동안 시간 초과되었습니다. 그의 {3}번째 타임아웃입니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TimeOutSpam" xml:space="preserve">
+    <value>스팸</value>
+    <comment>Reason</comment>
+  </data>
+  <data name="Top3Chat" xml:space="preserve">
+    <value>채팅 상위 3명: TOP 1 @{0}, {1} 메시지 PogChamp TOP2 @{2}, {3} 메시지 EZ TOP 3 @{4}, {5} 메시지 BloodTrail</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Top3Roulette" xml:space="preserve">
+    <value>Топ 3 룰렛 플레이어: TOP 1 @{0} 연승 {1} {2} PogChamp TOP 2 @{3} 연승 {4} {5} EZ TOP 3 @{6} 연승 {7} {8} BloodTrail</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track200_Success" xml:space="preserve">
+    <value>@{0} {1} 트랙이 대기열에 추가됨</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track400_ERROR" xml:space="preserve">
+    <value>@{0} 문제가 발생했습니다. 트랙이 대기열에 추가되지 않았습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track404" xml:space="preserve">
+    <value>@{0} 찾은 동영상에 게시할 항목이 없습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track500_bannedTrack" xml:space="preserve">
+    <value>@{0}, 이 트랙은 허용되지 않습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track500_bannedUser" xml:space="preserve">
+    <value>@{0} 트랙을 추가할 권한이 없습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Age" xml:space="preserve">
+    <value>@{0} 18개 이상의 동영상은 허용되지 않습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Duration" xml:space="preserve">
+    <value>@{0} 최대 동영상 길이는 6분입니다!</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_Embedded" xml:space="preserve">
+    <value>@{0} 이 동영상은 YouTube에서만 볼 수 있습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track510_ViewCount" xml:space="preserve">
+    <value>@{0} 조회수는 300k 이상이어야 합니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="TrackUserSuccess" xml:space="preserve">
+    <value>{0} 사용자가 {1} 스트림에서 채팅했습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Track_Esception" xml:space="preserve">
+    <value>@{0} 추적 순서에서 예외가 발생했습니다.</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="UpdateRewardPromptOrig" xml:space="preserve">
+    <value>타임아웃 중인 사용자의 닉네임을 적습니다. 봇은 비용을 계산하고 채팅에 추가 작업을 작성합니다. 완료하는 데 1분이 주어집니다.</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="UpdateRewardTitleNew" xml:space="preserve">
+    <value>시간 초과 {0}</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="UpdateRewardTitleOrig" xml:space="preserve">
+    <value>시간 초과되지 않은 사용자</value>
+    <comment>UpdateReward</comment>
+  </data>
+  <data name="Uval500_IsSub" xml:space="preserve">
+    <value>@{0}, {1} sub/vip</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="Uval500_IsVIP" xml:space="preserve">
+    <value>@{0}, {1} vip</value>
+    <comment>ChatMessage</comment>
+  </data>
+  <data name="win" xml:space="preserve">
+    <value>이기다</value>
+    <comment>vars</comment>
+  </data>
+</root>
