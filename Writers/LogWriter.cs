@@ -28,12 +28,12 @@ namespace SkillzBot.WRITERS
                 if (ex != null)
                 {
                     writer.WriteLine(ex.Message);
+                    writer.WriteLine(ex.StackTrace);
                     if (ex.InnerException != null)
                     {
                         writer.WriteLine($"Inner: {ex.InnerException.Message}");
                         writer.WriteLine($"Inner: {ex.InnerException.StackTrace}");
                     }
-                    writer.WriteLine(ex.StackTrace);
                 }
                 writer.WriteLine("////////////////////////////////////////////////////////////////");
             }

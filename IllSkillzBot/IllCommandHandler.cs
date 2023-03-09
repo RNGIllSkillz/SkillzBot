@@ -1,5 +1,4 @@
 ﻿using SkillzBot.IRC;
-using SkillzBot.JSON.MediaQueue;
 using SkillzBot.MODELS;
 using SkillzBot.Singleton;
 using SkillzBot.Utils;

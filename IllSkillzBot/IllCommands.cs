@@ -19,7 +19,6 @@ using System.Net;
 using SkillzBot.TtvClient.TTVRewards;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
-using MySqlX.XDevAPI.Common;
 
 namespace SkillzBot.IllSkillzBot
 {

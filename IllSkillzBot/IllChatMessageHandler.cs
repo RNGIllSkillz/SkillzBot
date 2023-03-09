@@ -10,8 +10,6 @@ using SkillzBot.Singleton;
 using SkillzBot.WRITERS;
 using TwitchLib.Client.Models;
 using F23.StringSimilarity;
-using System.Diagnostics;
-using SkillzBot.IRC;
 using SkillzBot.IllSTRINGS;
 
 namespace SkillzBot.IllSkillzBot

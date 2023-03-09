@@ -190,59 +190,37 @@ namespace SkillzBot.MYSQL
             using MySqlCommand Command = new MySqlCommand(SQL, Connect);
             Command.Parameters.AddWithValue("@ID", ttvUserID);
             using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
-            while (await sqlReader.ReadAsync().ConfigureAwait(false))
+            if (await sqlReader.ReadAsync().ConfigureAwait(false))
             {
-                Users.Add(new UserObject()
+                return new UserObject()
                 {
-                    dbID = Convert.ToInt32(sqlReader[0]),
-                    TwitchID = Convert.ToInt32(sqlReader[1]),
-                    Name = sqlReader[2].ToString(),
-                    isSub = Convert.ToInt32(sqlReader[3]),
-                    isVip = Convert.ToInt32(sqlReader[4]),
-                    isMod = Convert.ToInt32(sqlReader[5]),
-                    IsBroadcaster = Convert.ToInt32(sqlReader[6]),
-                    UvalCon = Convert.ToInt32(sqlReader[7]),
-                    messageCon = Convert.ToInt32(sqlReader[8]),
-                    roulettCon = Convert.ToInt32(sqlReader[9]),
-                    roulettCD = Convert.ToDouble(sqlReader[10]),
-                    UvalTimer = Convert.ToDouble(sqlReader[11]),
-                    banCount = Convert.ToInt32(sqlReader[12]),
-                    Points = Convert.ToInt32(sqlReader[13]),
-                    IsOnline = Convert.ToInt32(sqlReader[14]),
-                    QuizPoints = Convert.ToInt32(sqlReader[15]),
-                    QuizTotal = Convert.ToInt32(sqlReader[16]),
-                    isPartner = Convert.ToInt32(sqlReader[17])
-                });
-            }
-            await Connect.CloseAsync().ConfigureAwait(false);
-            if (Users.Count > 1)
-            {
-                UserObject user = new UserObject
-                {
-                    dbID = -500
+                    dbID = await sqlReader.GetFieldValueAsync<int>(0).ConfigureAwait(false),
+                    TwitchID = await sqlReader.GetFieldValueAsync<int>(1).ConfigureAwait(false),
+                    Name = await sqlReader.GetFieldValueAsync<string>(2).ConfigureAwait(false),
+                    isSub = await sqlReader.GetFieldValueAsync<int>(3).ConfigureAwait(false),
+                    isVip = await sqlReader.GetFieldValueAsync<int>(4).ConfigureAwait(false),
+                    isMod = await sqlReader.GetFieldValueAsync<int>(5).ConfigureAwait(false),
+                    IsBroadcaster = await sqlReader.GetFieldValueAsync<int>(6).ConfigureAwait(false),
+                    UvalCon = await sqlReader.GetFieldValueAsync<int>(7).ConfigureAwait(false),
+                    messageCon = await sqlReader.GetFieldValueAsync<int>(8).ConfigureAwait(false),
+                    roulettCon = await sqlReader.GetFieldValueAsync<int>(9).ConfigureAwait(false),
+                    roulettCD = await sqlReader.GetFieldValueAsync<double>(10).ConfigureAwait(false),
+                    UvalTimer = await sqlReader.GetFieldValueAsync<double>(11).ConfigureAwait(false),
+                    banCount = await sqlReader.GetFieldValueAsync<int>(12).ConfigureAwait(false),
+                    Points = await sqlReader.GetFieldValueAsync<int>(13).ConfigureAwait(false),
+                    IsOnline = await sqlReader.GetFieldValueAsync<int>(14).ConfigureAwait(false),
+                    QuizPoints = await sqlReader.GetFieldValueAsync<int>(15).ConfigureAwait(false),
+                    QuizTotal = await sqlReader.GetFieldValueAsync<int>(16).ConfigureAwait(false),
+                    isPartner = await sqlReader.GetFieldValueAsync<int>(17).ConfigureAwait(false)
                 };
-                return user;
-            }
-            else if (Users.Count == 1)
-            {
-                return Users[0];
-            }
-            else if (Users.Count == 0)
-            {
-                UserObject user = new UserObject
-                {
-                    dbID = -404
-                };
-                return user;
             }
             else
             {
-                UserObject user = new UserObject
+                return new UserObject()
                 {
-                    dbID = -800
+                    dbID = -404
                 };
-                return user;
-            }            
+            }
         }
         public static async Task<UserObject> GetUser(string name)
         {
@@ -278,7 +256,10 @@ namespace SkillzBot.MYSQL
             }
             else
             {
-                return null;
+                return new UserObject()
+                {
+                    dbID = -404
+                };
             }
         }
         public static async Task<UserObject> GetUser_old(string Name)

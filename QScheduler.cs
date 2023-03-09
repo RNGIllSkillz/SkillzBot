@@ -21,13 +21,13 @@ public class QuartzBackgroundTaskManager
 
     public async Task ScheduleTasks()
     {        
-        await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/2 * * * * ?");
-        await StackBackGroundTask("CalculatePoints", "TaskGroup", "CalculatePointsTrigger", "TriggerGroup", "0 */5 * * * ?");
-        await StackBackGroundTask("RunDaily", "TaskGroup", "RunDailyTrigger", "TriggerGroup", "0 0 0 * * ?");
-        await StackBackGroundTask("TopRuleteTask", "TaskGroup", "TopRuleteTaskTrigger", "TriggerGroup", "0 0 */3 * * ?");
-        await StackBackGroundTask("MediaQueueFlush", "TaskGroup", "MediaQueueFlushTrigger", "TriggerGroup", "0 */30 * * * ?");
-        await StackBackGroundTask("Quizz", "TaskGroup", "QuizzTrigger", "TriggerGroup", "0 */30 * * * ?");
-        //await StackBackGroundTask("CronTest", "TaskGroup", "CronTestTrigger", "TriggerGroup", "0/30 * * * * ?");
+        await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/2 * * * * ?").ConfigureAwait(false);
+        await StackBackGroundTask("CalculatePoints", "TaskGroup", "CalculatePointsTrigger", "TriggerGroup", "0 */5 * * * ?").ConfigureAwait(false);
+        await StackBackGroundTask("RunDaily", "TaskGroup", "RunDailyTrigger", "TriggerGroup", "0 0 0 * * ?").ConfigureAwait(false);
+        await StackBackGroundTask("TopRuleteTask", "TaskGroup", "TopRuleteTaskTrigger", "TriggerGroup", "0 0 */3 * * ?").ConfigureAwait(false);
+        await StackBackGroundTask("MediaQueueFlush", "TaskGroup", "MediaQueueFlushTrigger", "TriggerGroup", "0 */30 * * * ?").ConfigureAwait(false);
+        await StackBackGroundTask("Quizz", "TaskGroup", "QuizzTrigger", "TriggerGroup", "0 */30 * * * ?").ConfigureAwait(false);
+       //await StackBackGroundTask("CronTest", "TaskGroup", "CronTestTrigger", "TriggerGroup", "0/2 * * * * ?").ConfigureAwait(false);
     }
 
     private async Task StackBackGroundTask(string taskName, string taskGroupName, string triggerName, string triggerGroupName, string cronExpression)
@@ -41,10 +41,10 @@ public class QuartzBackgroundTaskManager
             .WithCronSchedule(cronExpression, x => x.InTimeZone(TimeZoneInfo.Local))
             .Build();
 
-        await _scheduler.ScheduleJob(job, trigger);
+        await _scheduler.ScheduleJob(job, trigger).ConfigureAwait(false);
         if (!_scheduler.IsStarted)
         {
-            await _scheduler.Start();
+            await _scheduler.Start().ConfigureAwait(false);
         }
     }
     public async Task UpdateJobSchedule(string taskName, string triggerName, string cronExpression)
@@ -52,13 +52,13 @@ public class QuartzBackgroundTaskManager
         var jobKey = new JobKey(taskName, "TaskGroup");
         var triggerKey = new TriggerKey(triggerName, "TriggerGroup");
 
-        var job = await _scheduler.GetJobDetail(jobKey);
+        var job = await _scheduler.GetJobDetail(jobKey).ConfigureAwait(false);
         if (job == null)
         {
             throw new InvalidOperationException($"Job {taskName} does not exist.");
         }
 
-        var trigger = await _scheduler.GetTrigger(triggerKey);
+        var trigger = await _scheduler.GetTrigger(triggerKey).ConfigureAwait(false);
         if (trigger == null)
         {
             throw new InvalidOperationException($"Trigger {triggerName} does not exist.");
@@ -68,11 +68,11 @@ public class QuartzBackgroundTaskManager
             .WithCronSchedule(cronExpression, x => x.InTimeZone(TimeZoneInfo.Local))
             .Build();
 
-        await _scheduler.RescheduleJob(triggerKey, updatedTrigger);
+        await _scheduler.RescheduleJob(triggerKey, updatedTrigger).ConfigureAwait(false);
     }
     public async Task<string> GetRunningJobs()
     {
-        var executingJobs = await _scheduler.GetCurrentlyExecutingJobs();
+        var executingJobs = await _scheduler.GetCurrentlyExecutingJobs().ConfigureAwait(false);
         if (executingJobs == null || executingJobs.Count == 0)
         {
             return "No running jobs found.";
@@ -92,7 +92,7 @@ public class QuartzBackgroundTaskManager
     }
     public async Task<string> GetAllJobsNames()
     {
-        var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+        var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup()).ConfigureAwait(false);
         if (jobKeys == null || jobKeys.Count == 0)
         {
             return "No jobs found.";
@@ -126,6 +126,7 @@ public class QuartzBackgroundTaskManager
     }
 }
 
+[DisallowConcurrentExecution]
 public class BGTasks : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -148,11 +149,10 @@ public class BGTasks : IJob
                 await BackGroundTasks.MediaQueueFlush().ConfigureAwait(false);
                 break;
             case "Quizz":
-                await IllGames.Quizz(false).ConfigureAwait(false);
+                await IllGames.Quizz(false).ConfigureAwait(false);                
                 break;
-
             case "CronTest":
-                BackGroundTasks.CronTest();
+                await BackGroundTasks.CronTest().ConfigureAwait(false);
                 break;
             default:
                 throw new InvalidOperationException($"Unknown job name {context.JobDetail.Key.Name}");

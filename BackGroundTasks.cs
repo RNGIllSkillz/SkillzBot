@@ -4,18 +4,15 @@ using SkillzBot.WRITERS;
 using SkillzBot.API.Riot;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using SkillzBot.MYSQL;
-using TwitchLib.Api;
 using SkillzBot.API.Twitch;
-using MySqlX.XDevAPI;
 using SkillzBot.IRC;
 
 namespace SkillzBot.Tasks
 {
     internal class BackGroundTasks
-    {
+    {        
         public static async Task RunDaily()
         {
             var t = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
@@ -92,9 +89,10 @@ namespace SkillzBot.Tasks
         {
            await MediaqueueWriter.MediaQueueFlush().ConfigureAwait(false);
         }
-        public static void CronTest()
+        public static async Task CronTest()
         {
-            TtvIRCClient.SendMessage("This message have been send by a CronTest method.");
+            TtvIRCClient.SendMessage("cron await test. 10s");
+            await Task.Delay(10000);
         }
     }
 }

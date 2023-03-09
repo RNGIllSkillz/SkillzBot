@@ -10,7 +10,6 @@ using SkillzBot.IRC;
 using SkillzBot.Utils;
 using SkillzBot.Singleton;
 using SkillzBot.IllSkillzBot;
-using System.Diagnostics;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
 
@@ -35,7 +34,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (user.dbID == -404)
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            //await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                         else
                         {
@@ -106,7 +105,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (user.dbID == -404)
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            //await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                         else
                         {
@@ -168,7 +167,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (user.dbID == -404)
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            //await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                         else
                         {
@@ -371,20 +370,19 @@ namespace SkillzBot.TtvClient.TTVRewards
                         {
                             CencelUvalUserName = uName;
                             CencelUvalIsWating = true;
-                            //await UpdateCustomRedemption(rewardID).ConfigureAwait(false);
-                            double startTime = Stopwatch.GetTimestamp();
+                            await TtvAPI.updateReward(rewardID, string.Format(STRINGS.UpdateRewardTitleNew, uName), (Convert.ToInt32(uvalTime) * 33), "", true, false).ConfigureAwait(false);
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.CencelUval_ChatMessage, UserName, uName, uvalTime, uvalTime * 33));
+                            double startTime = DateTimeOffset.Now.ToUnixTimeSeconds();
                             while (CencelUvalIsWating)
                             {
-                                if ((Stopwatch.GetTimestamp() - startTime) / TimeSpan.TicksPerSecond >= 60)
+                                if ((DateTimeOffset.Now.ToUnixTimeSeconds() - startTime) >= 60)
                                 {
                                     TtvIRCClient.SendMessage(STRINGS.CencelUval_TimeOut);
                                     await TtvAPI.updateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                                     CencelUvalIsWating = false;                                    
-                                }
+                                }                                
                                 await Task.Delay(250);
-                            }
-                            await TtvAPI.updateReward(rewardID, STRINGS.UpdateRewardTitleNew, (Convert.ToInt32(uvalTime) * 33), "", true, false).ConfigureAwait(false);
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.CencelUval_ChatMessage, UserName, uName, uvalTime, uvalTime * 33));
+                            }   
                         }
                         else
                         {
@@ -428,14 +426,14 @@ namespace SkillzBot.TtvClient.TTVRewards
         public static async Task EmoteOnlyReward(string UserName, string redemID, string rewardID)
         {
             await TtvAPI.SetEmoteOnlyMode(true);
-            long emoteModeTimer = Stopwatch.GetTimestamp();
+            long emoteModeTimer = DateTimeOffset.Now.ToUnixTimeSeconds();
             if (UserName != IllSingleton.GetInstance().rootUser)
                 await TtvAPI.ApproveReward(rewardID, redemID);
             else
                 await TtvAPI.CencelReward(rewardID, redemID);
             while (true)
             {
-                if ((Stopwatch.GetTimestamp() - emoteModeTimer) / TimeSpan.TicksPerSecond >= 180)
+                if ((DateTimeOffset.Now.ToUnixTimeSeconds() - emoteModeTimer)  >= 180)
                 {
                     await TtvAPI.SetEmoteOnlyMode(false);
                     break;

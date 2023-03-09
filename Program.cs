@@ -16,6 +16,7 @@ using SkillzBot.API.Twitch;
 using SkillzBot.API.YouTube;
 using System.Resources;
 using System.Globalization;
+using SkillzBot.IllSTRINGS;
 
 namespace IllSkillzBot
 {
@@ -87,11 +88,15 @@ namespace IllSkillzBot
                 string input = Console.ReadLine();
                 Console.Clear();
                 Console.WriteLine(channelName);
-                if (input == "connect")
+                switch (input)
                 {
-                    PubSubReconnect();
-                    //await PubSubClientInst.Connect(config);
-                }
+                    case "connect":
+                        PubSubReconnect();
+                        break;
+                    case "reward":
+                        await TtvAPI.updateReward(IllSingleton.GetInstance().CenceleUval, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
+                        break;
+                }                    
             }
         }
         private static async Task StartUpConfigs()
