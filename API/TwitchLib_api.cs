@@ -48,28 +48,27 @@ namespace SkillzBot.API.Twitch
 
         public static async ValueTask Start_2_Prediction(string Title, string blue, string red, int windowSec)
         {
+            if (!ValidToken) return;
             var request = new CreatePredictionRequest
             {
                 Title = Title,
                 Outcomes = new[]
                 {
-                    new Outcome 
-                    { 
-                        Title = blue 
+                    new Outcome
+                    {
+                        Title = blue
                     },
-                    new Outcome 
-                    { 
-                        Title = red 
+                    new Outcome
+                    {
+                        Title = red
                     }
                 },
                 PredictionWindowSeconds = windowSec,
                 BroadcasterId = BrodcasterID
             };
-            if (ValidToken)
-            {
-                await API.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
-                await GetCurrentPred().ConfigureAwait(false);
-            }
+            await API.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
+            await GetCurrentPred().ConfigureAwait(false);
+
         }
         public static async ValueTask Start_10_Prediction(List<string> Champs, string Title, int windowSec)
         {
@@ -239,14 +238,15 @@ namespace SkillzBot.API.Twitch
                         return responce;
                     }                    
                 }
-                responce.Add("Error 404");
+                responce.Add("404");
                 return responce;
             }
             else
             {
-                List<string> responce = new List<string>();
-                responce.Add("Error 500");
-                return responce;
+                return new List<string>
+                {
+                    "500"
+                };
             }
         }
         public static async Task<List<string>> getReward(string title, string fl)

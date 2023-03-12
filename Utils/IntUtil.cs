@@ -16,7 +16,7 @@ namespace SkillzBot.Utils
         }
         public static bool GetChance(int winChanse)
         {
-            int rnumber = IntUtil.Random(1, 100);
+            int rnumber = Random(1, 100);
             if (rnumber >= winChanse)
                 return false;
             else

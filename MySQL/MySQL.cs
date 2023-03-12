@@ -149,7 +149,7 @@ namespace SkillzBot.MYSQL
 
             for (int i = 0; i < Messages.Count; i++)
             {
-                IDParam.Value = Convert.ToInt32(Messages[i].TtvID);
+                IDParam.Value = int.Parse(Messages[i].TtvID);
                 nameParam.Value = Messages[i].Name;
                 MessageParam.Value = Messages[i].Message;
                 TimeParam.Value = Convert.ToDouble(Messages[i].TimeStamp);

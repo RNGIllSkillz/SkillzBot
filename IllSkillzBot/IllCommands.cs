@@ -110,7 +110,7 @@ namespace SkillzBot.IllSkillzBot
                             {
                                 try
                                 {
-                                    IllSingleton.GetInstance().startLP = Convert.ToInt32(Rank[1]);
+                                    IllSingleton.GetInstance().startLP = int.Parse(Rank[1]);
                                     IllSingleton.GetInstance().elo = Rank[0];
                                     IllSingleton.GetInstance().tier = Rank[2];                                    
                                 }
@@ -312,7 +312,7 @@ namespace SkillzBot.IllSkillzBot
                                 if (prog == 'N')
                                     promo.Add("➖");
                             }
-                            string tier = StringUtil.ConvertRank(Convert.ToString(Convert.ToInt32(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
+                            string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
                             char[] separators = new char[] { ' ' };
                             string[] subs = tier.Split(separators, StringSplitOptions.RemoveEmptyEntries);
                             var promoString = string.Join(" ", promo);

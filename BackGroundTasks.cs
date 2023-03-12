@@ -16,23 +16,24 @@ namespace SkillzBot.Tasks
         public static async Task RunDaily()
         {
             var t = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+            var singleton = IllSingleton.GetInstance();
             if (t != null)
             {
                 try
                 {
-                    IllSingleton.GetInstance().startLP = Convert.ToInt32(t[1]);
-                    IllSingleton.GetInstance().elo = t[0];
-                    IllSingleton.GetInstance().tier = t[2];
+                    singleton.startLP = int.Parse(t[1]);
+                    singleton.elo = t[0];
+                    singleton.tier = t[2];
                 }
                 catch (Exception e)
                 {
                     Log.WriteLog(e, "null");
                 }
             }
-            IllSingleton.GetInstance().earnedLP = 0;
-            IllSingleton.GetInstance().numLoose = 0;
-            IllSingleton.GetInstance().numGames = 0;
-            IllSingleton.GetInstance().numWins = 0;
+            singleton.earnedLP = 0;
+            singleton.numLoose = 0;
+            singleton.numGames = 0;
+            singleton.numWins = 0;
             IllCommands.SaveGameStats();
         }
         public static async Task CalculatePoints()

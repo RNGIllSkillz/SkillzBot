@@ -138,6 +138,7 @@ namespace IllSkillzBot
             IllSingleton.GetInstance().FirstQuizzOfTheDay = true;
             IllSingleton.GetInstance().autoPred = true;
             IllSingleton.GetInstance().AntiBotProtectionLvL = 1;
+            IllSingleton.GetInstance().wisEnabled = true;
             IllSingleton.GetInstance().rootUser = "rng_backtrack";
             await TempDataReader.ReadGameStats().ConfigureAwait(false);
         }

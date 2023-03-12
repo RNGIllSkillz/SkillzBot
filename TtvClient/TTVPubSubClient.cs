@@ -29,21 +29,20 @@ namespace SkillzBot.PubSub
         readonly string englishWis;
         readonly string BrodcasterId;
         bool lockPubSub = false;
-
         int tryes = 0;
 
         public PubSubClient()
         {
-            BrodcasterId = IllSingleton.GetInstance().BrodcasterId;
-           // zakazTreka = IllSingleton.GetInstance().ZakazTrekaId;
-            pi4ka = IllSingleton.GetInstance().Pi4KaId;
-            uval = IllSingleton.GetInstance().UvalId;
-            uvalSab = IllSingleton.GetInstance().UvalSabId;
-            uvalVIP = IllSingleton.GetInstance().UvalVipId;
-            emoteMode = IllSingleton.GetInstance().EmoteModeId;
-            cenceleUval = IllSingleton.GetInstance().CenceleUval;
-            englishWis = IllSingleton.GetInstance().EnglishWis;
-            accToken = IllSingleton.GetInstance().TApiAccessToken;
+            var singleton = IllSingleton.GetInstance();
+            BrodcasterId = singleton.BrodcasterId;
+            pi4ka = singleton.Pi4KaId;
+            uval = singleton.UvalId;
+            uvalSab = singleton.UvalSabId;
+            uvalVIP = singleton.UvalVipId;
+            emoteMode = singleton.EmoteModeId;
+            cenceleUval = singleton.CenceleUval;
+            englishWis = singleton.EnglishWis;
+            accToken = singleton.TApiAccessToken;
 
             client = new TwitchPubSub();
             client.OnPubSubServiceClosed += OnPubSubServiceClosed;
@@ -103,7 +102,7 @@ namespace SkillzBot.PubSub
             if (gifted)
             {
                 TtvIRCClient.SendMessage(string.Format(STRINGS.GiftedSubMessage, e.Subscription.DisplayName, e.Subscription.RecipientName));
-                await MySQL.AddPoints(600, Convert.ToInt32(e.Subscription.UserId)).ConfigureAwait(false);
+                await MySQL.AddPoints(600, int.Parse(e.Subscription.UserId)).ConfigureAwait(false);
             }
             else
             {
@@ -111,12 +110,12 @@ namespace SkillzBot.PubSub
                 if (cumulativeMonths != 0)
                 {
                     TtvIRCClient.SendMessage(string.Format(STRINGS.SubMessage, e.Subscription.DisplayName, cumulativeMonths, 450));
-                    await MySQL.AddPoints(450, Convert.ToInt32(e.Subscription.UserId)).ConfigureAwait(false);
+                    await MySQL.AddPoints(450, int.Parse(e.Subscription.UserId)).ConfigureAwait(false);
                 }
                 else
                 {
                     TtvIRCClient.SendMessage(string.Format(STRINGS.SubMessage, e.Subscription.DisplayName, 0, 550));
-                    await MySQL.AddPoints(550, Convert.ToInt32(e.Subscription.UserId)).ConfigureAwait(false);
+                    await MySQL.AddPoints(550, int.Parse(e.Subscription.UserId)).ConfigureAwait(false);
                 }
             }
         }
@@ -132,6 +131,7 @@ namespace SkillzBot.PubSub
         }
         private async void PubSub_OnChannelPointsRewardRedeemed(object sender, OnChannelPointsRewardRedeemedArgs e)
         {
+            if (lockPubSub) return;
             await RewardProcess
             (
                 e.RewardRedeemed.Redemption.Reward.Id,
@@ -306,42 +306,35 @@ namespace SkillzBot.PubSub
 
         private void OnPubSubServiceError(object sender, OnPubSubServiceErrorArgs e)
         {
+            if (lockPubSub) return;
             Log.WriteLog(e.Exception, "PubSub server Error!");
-            if (!lockPubSub)
-            {
-                lockPubSub = true;
-                client.Disconnect();
-                IllSkillzBotMain.PubSubReconnect();
-            }
+            lockPubSub = true;
+            client.Disconnect();
+            IllSkillzBotMain.PubSubReconnect();
         }
         private void OnPubSubServiceClosed(object sender, EventArgs e)
         {
             Log.WriteLog(null, $"PubSub connection closed!");
-            //IllSkillzBotMain.PubSubReconnect();
         }
         private void OnPubSubServiceConnected(object sender, EventArgs e)
         {
-            if (!lockPubSub)
-            {
-                Console.WriteLine("PubSub Connected");
-                client.SendTopics(accToken);
-            }
+            if (lockPubSub) return;
+            Console.WriteLine("PubSub Connected");
+            client.SendTopics(accToken);
         }
         private void OnListenResponse(object sender, OnListenResponseArgs e)
         {
-            if (!lockPubSub)
-            {
-                if (!e.Successful)
+            if (lockPubSub) return;
+            if (!e.Successful)
                     throw new Exception($"Failed to listen! Response: {e.Topic}");
-                else Console.WriteLine(e.Topic);
-            }
+                else Console.WriteLine(e.Topic);            
         }
         #endregion
         private async Task RewardProcess(string rewardID, string userName, string message, string redemID)
         {
             try
             {
-                if (rewardID == zakazTreka)                            
+                if (rewardID == zakazTreka)
                 {
                     await RewardsRedemption.ZakazTrekaReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }

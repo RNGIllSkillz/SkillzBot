@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using static Mysqlx.Crud.Order.Types;
 
 namespace SkillzBot.Utils
 {
@@ -176,7 +177,7 @@ namespace SkillzBot.Utils
             }
             return strOutput;
         }
-        public static string ConvertRank(string rank, bool direction)
+        public static string ConvertRankOld(string rank, bool direction)
         {
             string[] ranks = new string[36];
             ranks[0] = "Iron IV"; ranks[1] = "Iron III"; ranks[2] = "Iron II"; ranks[3] = "Iron I";
@@ -185,9 +186,7 @@ namespace SkillzBot.Utils
             ranks[12] = "Gold IV"; ranks[13] = "Gold III"; ranks[14] = "Gold II"; ranks[15] = "Gold I";
             ranks[16] = "Platinum IV"; ranks[17] = "Platinum III"; ranks[18] = "Platinum II"; ranks[19] = "Platinum I";
             ranks[20] = "Diamond IV"; ranks[21] = "Diamond III"; ranks[22] = "Diamond II"; ranks[23] = "Diamond I";
-            ranks[24] = "Master IV"; ranks[25] = "Master III"; ranks[26] = "Master II"; ranks[27] = "Master I";
-            ranks[28] = "Grandmaster IV"; ranks[29] = "Grandmaster III"; ranks[30] = "Grandmaster II"; ranks[31] = "Grandmaster I";
-            ranks[32] = "Challenger IV"; ranks[33] = "Challenger III"; ranks[34] = "Challenger II"; ranks[35] = "Challenger I";
+            ranks[24] = "Master"; ranks[25] = "Grandmaster"; ranks[26] = "Challenger";
             if (direction)
             {
                 int id = 0;
@@ -203,6 +202,55 @@ namespace SkillzBot.Utils
                 return Convert.ToString(ranks[Convert.ToInt32(rank)]);
             }
             return "0";
+        }
+        public static string ConvertRank(string rank, bool direction)
+        {
+            Dictionary<string, double> rankValues = new Dictionary<string, double>
+            {
+                { "Challenger", 27 }, { "Grandmaster", 26 }, { "Master", 25 }, { "Diamond I", 24 },
+                { "Diamond II", 23 }, { "Diamond III", 22 }, { "Diamond IV", 21 }, { "Platinum I", 20 },
+                { "Platinum II", 19 }, { "Platinum III", 18 }, { "Platinum IV", 17 }, { "Gold I", 16 },
+                { "Gold II", 15 }, { "Gold III", 14 }, { "Gold IV", 13 }, { "Silver I", 12 },
+                { "Silver II", 11 }, { "Silver III", 10 }, { "Silver IV", 9 }, { "Bronze I", 8 },
+                { "Bronze II", 7 }, { "Bronze III", 6 }, { "Bronze IV", 5 }, { "Iron I", 4 },
+                { "Iron II", 3 }, { "Iron III", 2 }, { "Iron IV", 1 }, { "Unranked", 0 }
+            };
+            if (!direction)
+            {
+                if (rankValues.ContainsKey(rank))
+                {
+                    return rankValues[rank].ToString();
+                }
+                else
+                {
+                    return "Unknown Rank";
+                }
+            }
+            else
+            {
+                if (double.TryParse(rank, out double rankValue))
+                {
+                    string[] rankNames = rankValues.Keys.ToArray();
+                    double[] rankPoints = rankValues.Values.ToArray();
+                    int index = 0;
+                    double minDiff = Math.Abs(rankPoints[0] - rankValue);
+                    for (int i = 1; i < rankPoints.Length; i++)
+                    {
+                        double diff = Math.Abs(rankPoints[i] - rankValue);
+                        if (diff < minDiff)
+                        {
+                            minDiff = diff;
+                            index = i;
+                        }
+                    }
+
+                    return rankNames[index];
+                }
+                else
+                {
+                    return "Unknown Rank";
+                }
+            }
         }
         private static char RandomA()
         {

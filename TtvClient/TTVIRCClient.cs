@@ -50,10 +50,9 @@ namespace SkillzBot.IRC
             if (user != null)
                 await MySQL.UpdateUser(user).ConfigureAwait(false);
         }                      
-        private static void Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
+        private static async void Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
-            Thread EventThread = new Thread(() => UserTimedoutEventTask(e).Wait());
-            EventThread.Start();
+            await UserTimedoutEventTask(e).ConfigureAwait(false);
         }
         private static void Client_OnDisconnected(object sender, OnDisconnectedEventArgs e)
         {
@@ -77,7 +76,7 @@ namespace SkillzBot.IRC
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "null");
+                Log.WriteLog(ex, "");
             }
         }  
         public static void OnStreamDown()

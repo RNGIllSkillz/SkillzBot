@@ -25,7 +25,7 @@ namespace SkillzBot.Readers
                 {
                     var t = userQ.Split(' ');
                     if (t[1] == treckID)
-                        return Convert.ToInt32(t[0]);
+                        return int.Parse(t[0]);
                 }
             }
             catch (Exception e)
@@ -39,29 +39,29 @@ namespace SkillzBot.Readers
         {
             try
             {
+                var singleton = IllSingleton.GetInstance();
                 IEnumerable<String> stats = File.ReadLines(dailyStatsDir);
                 if (stats.Count() == 0)
                 {
                     var t = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
-                    IllSingleton.GetInstance().startLP = Convert.ToInt32(t[1]);
-                    IllSingleton.GetInstance().elo = t[0];
-                    IllSingleton.GetInstance().earnedLP = 0;
-                    IllSingleton.GetInstance().numLoose = 0;
-                    IllSingleton.GetInstance().numGames = 0;
-                    IllSingleton.GetInstance().numWins = 0;
-                    IllSingleton.GetInstance().tier = t[2];
+                    singleton.startLP = int.Parse(t[1]);
+                    singleton.elo = t[0];
+                    singleton.earnedLP = 0;
+                    singleton.numLoose = 0;
+                    singleton.numGames = 0;
+                    singleton.numWins = 0;
+                    singleton.tier = t[2];
                 }
                 else
                 {
-                    char[] separators = new char[] { ' ' };
-                    string[] subs = stats.First().Split(separators, StringSplitOptions.RemoveEmptyEntries);
-                    IllSingleton.GetInstance().startLP = Convert.ToInt32(subs[0]);
-                    IllSingleton.GetInstance().elo = subs[1];
-                    IllSingleton.GetInstance().earnedLP = Convert.ToInt32(subs[2]);
-                    IllSingleton.GetInstance().numLoose = Convert.ToInt32(subs[3]);
-                    IllSingleton.GetInstance().numGames = Convert.ToInt32(subs[4]);
-                    IllSingleton.GetInstance().numWins = Convert.ToInt32(subs[5]);
-                    IllSingleton.GetInstance().tier = subs[6];
+                    string[] subs = stats.First().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    singleton.startLP = int.Parse(subs[0]);
+                    singleton.elo = subs[1];
+                    singleton.earnedLP = int.Parse(subs[2]);
+                    singleton.numLoose = int.Parse(subs[3]);
+                    singleton.numGames = int.Parse (subs[4]);
+                    singleton.numWins = int.Parse(subs[5]);
+                    singleton.tier = subs[6];
                 }
             }
             catch (Exception e)
