@@ -182,7 +182,7 @@ namespace SkillzBot.Utils
             rank = rank.ToLower();
             Dictionary<string, double> rankValues = new Dictionary<string, double>
             {
-                { "challenger", 27 }, { "grandmaster", 26 }, { "master", 25 }, { "diamond i", 24 },
+                { "challenger i", 27 }, { "grandmaster i", 26 }, { "master i", 25 }, { "diamond i", 24 },
                 { "diamond ii", 23 }, { "diamond iii", 22 }, { "diamond iv", 21 }, { "platinum i", 20 },
                 { "platinum ii", 19 }, { "platinum iii", 18 }, { "platinum iv", 17 }, { "gold i", 16 },
                 { "gold ii", 15 }, { "gold iii", 14 }, { "gold iv", 13 }, { "silver i", 12 },
@@ -198,7 +198,7 @@ namespace SkillzBot.Utils
                 }
                 else
                 {
-                    return "Unknown Rank";
+                    return "0";
                 }
             }
             else

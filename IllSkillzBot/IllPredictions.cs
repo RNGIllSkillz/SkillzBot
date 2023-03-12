@@ -9,6 +9,7 @@ using SkillzBot.Utils;
 using SkillzBot.WRITERS;
 using SkillzBot.Singleton;
 using SkillzBot.IRC;
+using Google.Protobuf.WellKnownTypes;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -983,7 +984,7 @@ namespace SkillzBot.IllSkillzBot
 
             foreach (var champ in champs)
             {
-                int[] data = await GettInfo();
+                int[] data = await GettInfo(champ.SummonerName).ConfigureAwait(false);
                 if (champ.TeamId == teamid)
                 {
                     teamWr += data[0];
@@ -1003,20 +1004,20 @@ namespace SkillzBot.IllSkillzBot
             string elo2 = StringUtil.ConvertRank(Convert.ToString(enemyElo), false);
             TtvIRCClient.SendMessage($"Среднее ило команды союзников: {elo}, средний WR {teamWr}%. Среднее ило команды противников {elo2}, средний WR {enemyWr}%");
         }
-        static private async Task<int[]> GettInfo()
+        static private async Task<int[]> GettInfo(string summonerName)
         {
             int[] data = new int[2];
             try
             {
                 bool isRanked = false;
-                string sRank = "0";
-                var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
+                var summoner = await RiotAPI.GetSummonerByNameAsync(summonerName).ConfigureAwait(false);
+                var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync(summoner.Id).ConfigureAwait(false);
                 foreach (var mType in rank)
                 {
                     if (mType.QueueType == "RANKED_SOLO_5x5")
                     {
-                        data[0] = mType.Wins * 100 / (mType.Wins + mType.Losses);
-                        sRank = $"{mType.Tier} {mType.Rank}";
+                        data[0] = (int)Math.Round((double)mType.Wins * 100 / (mType.Wins + mType.Losses), MidpointRounding.AwayFromZero);
+                        var sRank = $"{mType.Tier} {mType.Rank}";
                         data[1] = int.Parse(StringUtil.ConvertRank(sRank, true));
                         isRanked = true;
                     }

@@ -14,8 +14,8 @@ using RiotSharp.Endpoints.LeagueEndpoint;
 using RiotSharp.Endpoints.StaticDataEndpoint.Champion;
 using SkillzBot.Utils;
 using System.Globalization;
-
-
+using SkillzBot.JSON.MediaHistory;
+using Google.Protobuf.WellKnownTypes;
 
 namespace SkillzBot.API.Riot
 {
@@ -116,6 +116,14 @@ namespace SkillzBot.API.Riot
         public static async Task UpdateSummonerByNameAsync(string summonerName)
         {
             summoner = await riotApi.Summoner.GetSummonerByNameAsync(Region.Euw, summonerName).ConfigureAwait(false);
+        }
+        public static async Task<Summoner> GetSummonerByNameAsync(string summonerName)
+        {
+            return await riotApi.Summoner.GetSummonerByNameAsync(Region.Euw, summonerName).ConfigureAwait(false);
+        }
+        public static async Task<List<LeagueEntry>> GetLeagueEntriesBySummonerAsync(string summonerId)
+        {
+            return await riotApi.League.GetLeagueEntriesBySummonerAsync(Region.Euw, summonerId).ConfigureAwait(false);
         }
     }
 }

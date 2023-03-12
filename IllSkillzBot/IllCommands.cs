@@ -314,7 +314,7 @@ namespace SkillzBot.IllSkillzBot
                                 if (prog == 'N')
                                     promo.Add("➖");
                             }
-                            string tier = StringUtil.ConvertRank(Convert.ToString(Convert.ToInt32(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);                            
+                            string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);                            
                             string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                             var promoString = string.Join(" ", promo);
                             TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, mType.SummonerName, subs[0], promoString));
