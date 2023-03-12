@@ -1021,7 +1021,7 @@ namespace SkillzBot.IllSkillzBot
                         isRanked = true;
                     }
                 }
-                if (isRanked == false)
+                if (!isRanked)
                 {
                     data[0] = 0;
                     data[1] = 0;

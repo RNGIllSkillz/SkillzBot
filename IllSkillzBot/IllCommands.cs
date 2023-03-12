@@ -95,24 +95,25 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task LpCommand(UserObject user, string[] command)
         {
+            var singleton = IllSingleton.GetInstance();
             try
             {
                 if (command.Length > 1)
                 {
-                    if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == IllSingleton.GetInstance().rootUser)
+                    if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
                     {
-                        if (!IllSingleton.GetInstance().inAmatch)
+                        if (!singleton.inAmatch)
                         {
-                            IllSingleton.GetInstance().SUMMONER_NAME = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command));
-                            await RiotAPI.UpdateSummonerByNameAsync(IllSingleton.GetInstance().SUMMONER_NAME).ConfigureAwait(false);
+                            singleton.SUMMONER_NAME = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command));
+                            await RiotAPI.UpdateSummonerByNameAsync(singleton.SUMMONER_NAME).ConfigureAwait(false);
                             var Rank = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
                             if (Rank != null)
                             {
                                 try
                                 {
-                                    IllSingleton.GetInstance().startLP = int.Parse(Rank[1]);
-                                    IllSingleton.GetInstance().elo = Rank[0];
-                                    IllSingleton.GetInstance().tier = Rank[2];                                    
+                                    singleton.startLP = int.Parse(Rank[1]);
+                                    singleton.elo = Rank[0];
+                                    singleton.tier = Rank[2];                                    
                                 }
                                 catch (Exception ex)
                                 {
@@ -131,7 +132,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 else
                 {
-                    if (user.isVip == 1 || user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == IllSingleton.GetInstance().rootUser)
+                    if (user.isVip == 1 || user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
                         lpCD = 0;
                     if (DateTimeOffset.Now.ToUnixTimeSeconds() - lpCD >= 30)
                     {
@@ -291,6 +292,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task ShowLPAsync(string sender)
         {
+            var singleton = IllSingleton.GetInstance();
             try
             {
                 bool ranked = false;
@@ -312,23 +314,22 @@ namespace SkillzBot.IllSkillzBot
                                 if (prog == 'N')
                                     promo.Add("➖");
                             }
-                            string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
-                            char[] separators = new char[] { ' ' };
-                            string[] subs = tier.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                            string tier = StringUtil.ConvertRank(Convert.ToString(Convert.ToInt32(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);                            
+                            string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                             var promoString = string.Join(" ", promo);
                             TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, mType.SummonerName, subs[0], promoString));
                         }
                         else
                         {
                             int WR = (int)Math.Ceiling((double)(mType.Wins * 100) / (double)((mType.Wins + mType.Losses)));
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, mType.SummonerName, mType.Tier, mType.Rank, mType.LeaguePoints, WR, IllSingleton.GetInstance().numGames, IllSingleton.GetInstance().numWins, IllSingleton.GetInstance().numLoose, IllSingleton.GetInstance().earnedLP));
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, mType.SummonerName, mType.Tier, mType.Rank, mType.LeaguePoints, WR, singleton.numGames, singleton.numWins, singleton.numLoose, singleton.earnedLP));
                         }
                     }
                 }
 
-                if (ranked == false)
+                if (!ranked)
                 {
-                   TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, IllSingleton.GetInstance().SUMMONER_NAME, IllSingleton.GetInstance().numGames, IllSingleton.GetInstance().numWins, IllSingleton.GetInstance().numLoose, IllSingleton.GetInstance().earnedLP));
+                   TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, singleton.SUMMONER_NAME, singleton.numGames, singleton.numWins, singleton.numLoose, singleton.earnedLP));
                 }
             }
             catch (Exception ex)

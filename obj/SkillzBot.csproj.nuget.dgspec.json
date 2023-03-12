@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj": {}
+    "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj": {}
   },
   "projects": {
-    "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj": {
+    "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj",
+        "projectUniqueName": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
         "projectName": "SkillzBot",
-        "projectPath": "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj",
+        "projectPath": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
         "packagesPath": "C:\\Users\\atras\\.nuget\\packages\\",
-        "outputPath": "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\obj\\",
+        "outputPath": "Z:\\prj\\GitHub\\SkillzBot\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\atras\\AppData\\Roaming\\NuGet\\NuGet.Config",

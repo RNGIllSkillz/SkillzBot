@@ -199,23 +199,24 @@ namespace SkillzBot.Utils
             }
             else
             {
-                return Convert.ToString(ranks[Convert.ToInt32(rank)]);
+                return Convert.ToString(ranks[int.Parse(rank)]);
             }
             return "0";
         }
         public static string ConvertRank(string rank, bool direction)
         {
+            rank = rank.ToLower();
             Dictionary<string, double> rankValues = new Dictionary<string, double>
             {
-                { "Challenger", 27 }, { "Grandmaster", 26 }, { "Master", 25 }, { "Diamond I", 24 },
-                { "Diamond II", 23 }, { "Diamond III", 22 }, { "Diamond IV", 21 }, { "Platinum I", 20 },
-                { "Platinum II", 19 }, { "Platinum III", 18 }, { "Platinum IV", 17 }, { "Gold I", 16 },
-                { "Gold II", 15 }, { "Gold III", 14 }, { "Gold IV", 13 }, { "Silver I", 12 },
-                { "Silver II", 11 }, { "Silver III", 10 }, { "Silver IV", 9 }, { "Bronze I", 8 },
-                { "Bronze II", 7 }, { "Bronze III", 6 }, { "Bronze IV", 5 }, { "Iron I", 4 },
-                { "Iron II", 3 }, { "Iron III", 2 }, { "Iron IV", 1 }, { "Unranked", 0 }
+                { "challenger", 27 }, { "grandmaster", 26 }, { "master", 25 }, { "diamond i", 24 },
+                { "diamond ii", 23 }, { "diamond iii", 22 }, { "diamond iv", 21 }, { "platinum i", 20 },
+                { "platinum ii", 19 }, { "platinum iii", 18 }, { "platinum iv", 17 }, { "gold i", 16 },
+                { "gold ii", 15 }, { "gold iii", 14 }, { "gold iv", 13 }, { "silver i", 12 },
+                { "silver ii", 11 }, { "silver iii", 10 }, { "silver iv", 9 }, { "bronze i", 8 },
+                { "bronze ii", 7 }, { "bronze iii", 6 }, { "bronze iv", 5 }, { "iron i", 4 },
+                { "iron ii", 3 }, { "iron iii", 2 }, { "iron iv", 1 }, { "unranked", 0 }
             };
-            if (!direction)
+            if (direction)
             {
                 if (rankValues.ContainsKey(rank))
                 {
@@ -243,7 +244,6 @@ namespace SkillzBot.Utils
                             index = i;
                         }
                     }
-
                     return rankNames[index];
                 }
                 else

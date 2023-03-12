@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "NC0reY7xbwjweZHXEKsMMXT7YotoiVLx5VLH/0ozotyg+VxpLNEINHdtf9bEnTcbFCg01BwYxL6byTHQ3qgLFQ==",
+  "dgSpecHash": "h0xw4Y/ys/0NBm/OIzeWF+6yKVL8R6/Ydrg3IpbtiAod5Gz2MDBltPOQanTHWTqtbRU7JbzVtx8ve8qeGr9alw==",
   "success": true,
-  "projectFilePath": "Z:\\prj\\twitch\\chatTLBot\\SkillzBot_v13_linux\\SkillzBot\\SkillzBot.csproj",
+  "projectFilePath": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\atras\\.nuget\\packages\\f23.stringsimilarity\\5.1.0\\f23.stringsimilarity.5.1.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\google.apis\\1.60.0\\google.apis.1.60.0.nupkg.sha512",
