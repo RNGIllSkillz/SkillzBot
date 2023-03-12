@@ -91,7 +91,7 @@ namespace SkillzBot.IllSkillzBot
         }
         private static bool CheckQuizzAnswer(string message)
         {
-            if (message.ToLower().Contains(_Quizz.QuizzAnswer.ToLower()))
+            if (message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase))
             {
                 IllSingleton.GetInstance().QuizIsRunning = false;
                 if (IllSingleton.GetInstance().AntiBotProtectionLvL == 2)

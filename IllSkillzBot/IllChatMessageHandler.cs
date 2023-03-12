@@ -56,7 +56,7 @@ namespace SkillzBot.IllSkillzBot
             try
             {
                 SaveToBuffer(e);
-                if (e.ChatMessage.Username.ToLower() == "streamelements")
+                if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase))
                     return null;
                 var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
                 await AddMessage(e.ChatMessage.Username, e.ChatMessage.Message).ConfigureAwait(false);
@@ -71,7 +71,7 @@ namespace SkillzBot.IllSkillzBot
                     return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutPic).ConfigureAwait(false);
                 if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
                     return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
-                if (e.ChatMessage.Message.ToLower().Contains("хохол") || e.ChatMessage.Message.ToLower().Contains("хахол"))
+                if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))
                     return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOut1wReason).ConfigureAwait(false);
                 if (IllSingleton.GetInstance().QuizIsRunning)
                     user = IllGames.UserGuessAnswer(user, e.ChatMessage.Message);

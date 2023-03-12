@@ -10,10 +10,7 @@ namespace SkillzBot.Utils
     {
         public static string GetUserNameFromInput(string userInput)
         {
-            if (string.IsNullOrEmpty(userInput))
-            {
-                return null;
-            }
+            if (string.IsNullOrEmpty(userInput)) return null;
             string gName = userInput[(userInput.LastIndexOf('@') + 1)..];
             string[] subs2 = gName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             return subs2.First().ToLower();
@@ -98,82 +95,57 @@ namespace SkillzBot.Utils
             string strOutput = "";
             foreach (var letter in input)
             {
-                if (letter == 'а')
+                switch (letter)
                 {
-                    strOutput += RandomA();
-                    continue;
+                    case 'а':
+                        strOutput += RandomA();
+                        continue;
+                    case 'в':
+                        strOutput += RandomB();
+                        continue;
+                    case 'о':
+                        strOutput += RandomO();
+                        continue;
+                    case 'и':
+                        strOutput += RandomI();
+                        continue;
+                    case 'р':
+                        strOutput += RandomR();
+                        continue;
+                    case 'п':
+                        strOutput += RandomP();
+                        continue;
+                    case 'н':
+                        strOutput += RandomH();
+                        continue;
+                    case 'д':
+                        strOutput += RandomG();
+                        continue;
+                    case 'м':
+                        strOutput += RandomM();
+                        continue;
+                    case 'с':
+                        strOutput += RandomС();
+                        continue;
+                    case 'у':
+                        strOutput += RandomY();
+                        continue;
+                    case 'х':
+                        strOutput += RandomX();
+                        continue;
+                    case 'к':
+                        strOutput += RandomK();
+                        continue;
+                    case 'т':
+                        strOutput += RandomT();
+                        continue;
+                    case 'е':
+                        strOutput += RandomE();
+                        continue;
+                    default:
+                        strOutput += letter;
+                        continue;
                 }
-                if (letter == 'в')
-                {
-                    strOutput += RandomB();
-                    continue;
-                }
-                if (letter == 'о')
-                {
-                    strOutput += RandomO();
-                    continue;
-                }
-                if (letter == 'и')
-                {
-                    strOutput += RandomI();
-                    continue;
-                }
-                if (letter == 'р')
-                {
-                    strOutput += RandomR();
-                    continue;
-                }
-                if (letter == 'п')
-                {
-                    strOutput += RandomP();
-                    continue;
-                }
-                if (letter == 'н')
-                {
-                    strOutput += RandomH();
-                    continue;
-                }
-                if (letter == 'д')
-                {
-                    strOutput += RandomG();
-                    continue;
-                }
-                if (letter == 'м')
-                {
-                    strOutput += RandomM();
-                    continue;
-                }
-                if (letter == 'с')
-                {
-                    strOutput += RandomС();
-                    continue;
-                }
-                if (letter == 'у')
-                {
-                    strOutput += RandomY();
-                    continue;
-                }
-                if (letter == 'х')
-                {
-                    strOutput += RandomX();
-                    continue;
-                }
-                if (letter == 'к')
-                {
-                    strOutput += RandomK();
-                    continue;
-                }
-                if (letter == 'т')
-                {
-                    strOutput += RandomT();
-                    continue;
-                }
-                if (letter == 'е')
-                {
-                    strOutput += RandomE();
-                    continue;
-                }
-                strOutput += letter;
             }
             return strOutput;
         }        

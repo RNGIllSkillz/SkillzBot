@@ -98,7 +98,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                 var uName = StringUtil.GetUserNameFromInput(message);
                 var qUser = await MySQL.GetUser(UserName).ConfigureAwait(false);
                 var singleton = IllSingleton.GetInstance();
-                if (uName != singleton.rootUser.ToLower())
+                if (!singleton.rootUser.Equals(uName, StringComparison.OrdinalIgnoreCase))
                 {
                     if (uName != singleton.ChannelName)
                     {

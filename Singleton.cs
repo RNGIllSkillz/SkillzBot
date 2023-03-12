@@ -41,9 +41,7 @@ namespace SkillzBot.Singleton
         public bool QuizIsRunning { get; set; }
         public bool BroadcasterIsOnline { get; set; }
         public bool FirstQuizzOfTheDay { get; set; }
-        public bool ForcedQuizz { get; set; }
         public int AntiBotProtectionLvL { get; set; }
-        public string DataDragonLocalization { get; set; }
         private IllSingleton() { }
 
         public static IllSingleton GetInstance()

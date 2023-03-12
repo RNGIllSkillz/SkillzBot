@@ -45,8 +45,6 @@ namespace SkillzBot.API.Riot
                 return null;
             }
         }
-
-
         public static async Task<CurrentGame> GetCurrentGameAsync()
         {
             return await riotApi.Spectator.GetCurrentGameAsync(summoner.Region, summoner.Id).ConfigureAwait(false);

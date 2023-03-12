@@ -52,18 +52,8 @@ public class QuartzBackgroundTaskManager
         var jobKey = new JobKey(taskName, "TaskGroup");
         var triggerKey = new TriggerKey(triggerName, "TriggerGroup");
 
-        var job = await _scheduler.GetJobDetail(jobKey).ConfigureAwait(false);
-        if (job == null)
-        {
-            throw new InvalidOperationException($"Job {taskName} does not exist.");
-        }
-
-        var trigger = await _scheduler.GetTrigger(triggerKey).ConfigureAwait(false);
-        if (trigger == null)
-        {
-            throw new InvalidOperationException($"Trigger {triggerName} does not exist.");
-        }
-
+        var job = await _scheduler.GetJobDetail(jobKey).ConfigureAwait(false) ?? throw new InvalidOperationException($"Job {taskName} does not exist.");
+        var trigger = await _scheduler.GetTrigger(triggerKey).ConfigureAwait(false) ?? throw new InvalidOperationException($"Trigger {triggerName} does not exist.");
         var updatedTrigger = trigger.GetTriggerBuilder()
             .WithCronSchedule(cronExpression, x => x.InTimeZone(TimeZoneInfo.Local))
             .Build();

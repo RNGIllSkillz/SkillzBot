@@ -182,7 +182,6 @@ namespace SkillzBot.MYSQL
         }
         public static async Task<UserObject> GetUser(int ttvUserID)
         {
-            List<UserObject> Users = new List<UserObject>();
             string SQL = $"SELECT * FROM dbUserTable WHERE TwitchID = @ID";
 
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
@@ -261,62 +260,7 @@ namespace SkillzBot.MYSQL
                     dbID = -404
                 };
             }
-        }
-        public static async Task<UserObject> GetUser_old(string Name)
-        {
-            List<UserObject> Users = new List<UserObject>();
-            using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
-            string SQL = $"SELECT * FROM dbUserTable WHERE Name = @Name";
-            using MySqlCommand Command = new MySqlCommand(SQL, Connect);
-            Command.Parameters.AddWithValue("@Name", Name);
-            await Connect.OpenAsync().ConfigureAwait(false);
-            using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
-            while (await sqlReader.ReadAsync().ConfigureAwait(false))
-            {
-                Users.Add(new UserObject()
-                {
-                    dbID = Convert.ToInt32(sqlReader[0]),
-                    TwitchID = Convert.ToInt32(sqlReader[1]),
-                    Name = sqlReader[2].ToString(),
-                    isSub = Convert.ToInt32(sqlReader[3]),
-                    isVip = Convert.ToInt32(sqlReader[4]),
-                    isMod = Convert.ToInt32(sqlReader[5]),
-                    IsBroadcaster = Convert.ToInt32(sqlReader[6]),
-                    UvalCon = Convert.ToInt32(sqlReader[7]),
-                    messageCon = Convert.ToInt32(sqlReader[8]),
-                    roulettCon = Convert.ToInt32(sqlReader[9]),
-                    roulettCD = Convert.ToDouble(sqlReader[10]),
-                    UvalTimer = Convert.ToDouble(sqlReader[11]),
-                    banCount = Convert.ToInt32(sqlReader[12]),
-                    Points = Convert.ToInt32(sqlReader[13]),
-                    IsOnline = Convert.ToInt32(sqlReader[14]),
-                    QuizPoints = Convert.ToInt32(sqlReader[15]),
-                    QuizTotal = Convert.ToInt32(sqlReader[16]),
-                    isPartner = Convert.ToInt32(sqlReader[17])
-                });
-            }
-            await Connect.CloseAsync().ConfigureAwait(false);
-            if (Users.Count > 1)
-            {
-                UserObject user = new UserObject
-                {
-                    dbID = -500
-                };
-                return user;
-            }
-            else if (Users.Count == 1)
-            {
-                return Users[0];
-            }
-            else
-            {
-                UserObject user = new UserObject
-                {
-                    dbID = -404
-                };
-                return user;
-            }
-        }
+        }        
         public static async Task<List<UserObject>> TOP(string Flag)
         {
             if (Flag == "rtop")
