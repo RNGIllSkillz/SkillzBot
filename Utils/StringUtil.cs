@@ -176,33 +176,7 @@ namespace SkillzBot.Utils
                 strOutput += letter;
             }
             return strOutput;
-        }
-        public static string ConvertRankOld(string rank, bool direction)
-        {
-            string[] ranks = new string[36];
-            ranks[0] = "Iron IV"; ranks[1] = "Iron III"; ranks[2] = "Iron II"; ranks[3] = "Iron I";
-            ranks[4] = "Bronze IV"; ranks[5] = "Bronze III"; ranks[6] = "Bronze II"; ranks[7] = "Bronze I";
-            ranks[8] = "Silver IV"; ranks[9] = "Silver III"; ranks[10] = "Silver II"; ranks[11] = "Silver I";
-            ranks[12] = "Gold IV"; ranks[13] = "Gold III"; ranks[14] = "Gold II"; ranks[15] = "Gold I";
-            ranks[16] = "Platinum IV"; ranks[17] = "Platinum III"; ranks[18] = "Platinum II"; ranks[19] = "Platinum I";
-            ranks[20] = "Diamond IV"; ranks[21] = "Diamond III"; ranks[22] = "Diamond II"; ranks[23] = "Diamond I";
-            ranks[24] = "Master"; ranks[25] = "Grandmaster"; ranks[26] = "Challenger";
-            if (direction)
-            {
-                int id = 0;
-                foreach (string pos in ranks)
-                {
-                    if (pos.ToLower() == rank.ToLower())
-                        return Convert.ToString(id);
-                    id++;
-                }
-            }
-            else
-            {
-                return Convert.ToString(ranks[int.Parse(rank)]);
-            }
-            return "0";
-        }
+        }        
         public static string ConvertRank(string rank, bool direction)
         {
             rank = rank.ToLower();
