@@ -23,6 +23,7 @@ using SkillzBot.JSON.nChatters;
 using System.IO;
 using System.Net;
 using System.Security.Policy;
+using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
 
 namespace SkillzBot.API.Twitch
 {
@@ -162,6 +163,10 @@ namespace SkillzBot.API.Twitch
             PredID = Predictions.Data.First().Id;
             winID = Predictions.Data.First().Outcomes.First().Id;
             looseID = Predictions.Data.First().Outcomes.Last().Id;
+        }
+        public static async Task<GetPredictionsResponse> GetCurrentPredPublic()
+        {
+            return await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
         }
         public static async Task End_WinLoose_Prediction(bool win)
         {

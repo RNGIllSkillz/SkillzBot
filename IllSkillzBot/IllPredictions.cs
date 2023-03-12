@@ -23,12 +23,14 @@ namespace SkillzBot.IllSkillzBot
         {
             if (IllSingleton.GetInstance().inAmatch) return;                       
             try
-            {
+            {                
                 await EnableRewardAsync().ConfigureAwait(false);
                 var CurrentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
                 double mLength = CurrentGame.GameLength.TotalMilliseconds;
                 if (mLength < 30) 
                 {
+                    var pred = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
+                    if (pred != null) return;
                     await DisableRewardAsync().ConfigureAwait(false);
                     IllSingleton.GetInstance().inAmatch = true;
                     await CalculateGameStats(CurrentGame).ConfigureAwait(false);
