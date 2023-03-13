@@ -11,6 +11,7 @@ namespace SkillzBot.Singleton
         public string TApiAccessToken { get; set; }
         public string TApiClientId { get; set; }
         public string StreamElementsApiToken { get; set; }
+        public string StreamElementsID { get; set; }
         public string YouTubeApiToken { get; set; }
         public string RiotApiToken { get; set; }
         public string BrodcasterId { get; set; }

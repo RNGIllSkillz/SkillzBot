@@ -22,10 +22,11 @@ namespace SkillzBot.API.StreamElements
     internal class StreamElementsAPI
     {
         private static readonly HttpClient httpClient = new HttpClient();
+        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         static StreamElementsAPI()
         {
             httpClient.BaseAddress = new Uri("https://api.streamelements.com/kappa/v2/");
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", IllSingleton.GetInstance().StreamElementsApiToken);
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", singleton.StreamElementsApiToken);
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
         public static async Task<bool> SendMediaAsync(string youTubeVideoId, CancellationToken cancellationToken = default)
@@ -34,7 +35,7 @@ namespace SkillzBot.API.StreamElements
             {
                 var payload = new { video = youTubeVideoId };
                 var jsonPayload = JsonConvert.SerializeObject(payload);
-                using var request = new HttpRequestMessage(HttpMethod.Post, "songrequest/5de7b07e268e83750da21881/queue")
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"songrequest/{singleton.StreamElementsID}/queue")
                 {
                     Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
                 };
@@ -61,7 +62,7 @@ namespace SkillzBot.API.StreamElements
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, "songrequest/5de7b07e268e83750da21881/history?limit=1&offset=0");
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/history?limit=1&offset=0");
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -85,7 +86,7 @@ namespace SkillzBot.API.StreamElements
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, "songrequest/5de7b07e268e83750da21881/queue");
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/queue");
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -109,7 +110,7 @@ namespace SkillzBot.API.StreamElements
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, "songrequest/5de7b07e268e83750da21881/playing");
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/playing");
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -127,32 +128,7 @@ namespace SkillzBot.API.StreamElements
             {
                 Log.WriteLog(ex, "GetCurrentSong()");
                 return null;
-            }
-            /*
-            try
-            {
-                String url = "https://api.streamelements.com/kappa/v2/songrequest/5de7b07e268e83750da21881/playing";
-                HttpWebRequest HttpWebRequest = (HttpWebRequest)WebRequest.Create(url);
-                HttpWebRequest.UserAgent = "<Linux>:<IllSkillz_bot>:<v1.5>";
-                using HttpWebResponse HttpWebResponse = (HttpWebResponse)HttpWebRequest.GetResponse();
-                Stream streamResponse = HttpWebResponse.GetResponseStream();
-                using StreamReader streamRead = new StreamReader(streamResponse);
-                Char[] readBuff = new Char[256];
-                string JSONResponse = "";
-                int count = await streamRead.ReadAsync(readBuff, 0, 256).ConfigureAwait(false);
-                while (count > 0)
-                {
-                    String outputData = new String(readBuff, 0, count);
-                    JSONResponse += outputData;
-                    count = await streamRead.ReadAsync(readBuff, 0, 256).ConfigureAwait(false);
-                }
-                return JsonConvert.DeserializeObject<StreamElementsJSON>(JSONResponse);
-            }
-            catch (Exception e)
-            {
-                Log.WriteLog(e, "getTreck()");
-                return null;
-            }*/
+            }            
         }
     }
 }

@@ -134,6 +134,7 @@ namespace IllSkillzBot
             IllSingleton.GetInstance().MySQL_User = config.GetBotConfigs().MySQL_User;
             IllSingleton.GetInstance().MySQL_password = config.GetBotConfigs().MySQL_password;
             IllSingleton.GetInstance().StreamElementsApiToken = config.GetBotConfigs().StreamElementsApiToken;
+            IllSingleton.GetInstance().StreamElementsID = config.GetBotConfigs().StreamElementsID;
             IllSingleton.GetInstance().BroadcasterIsOnline = false;
             IllSingleton.GetInstance().FirstQuizzOfTheDay = true;
             IllSingleton.GetInstance().autoPred = true;

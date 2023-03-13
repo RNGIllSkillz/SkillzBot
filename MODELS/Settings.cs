@@ -44,5 +44,6 @@ namespace SkillzBot.MODELS
 
         public string MySQL_password { get; set; }
         public string StreamElementsApiToken { get; set; }
+        public string StreamElementsID { get; set; }
     }
 }

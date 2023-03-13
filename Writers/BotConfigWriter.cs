@@ -12,9 +12,10 @@ namespace SkillzBot.Writers
 {
     internal class BotConfigWriter
     {
-        static readonly Mutex mutexObj = new Mutex();
-        static readonly string dataPath = IllSkillzBotMain.GetChannelName();
-        static readonly string filePath = Path.Combine(dataPath, $"{IllSingleton.GetInstance().ChannelName}.ini");
+        private static readonly Mutex mutexObj = new Mutex();
+        private static readonly string dataPath = IllSkillzBotMain.GetChannelName();
+        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
+        private static readonly string filePath = Path.Combine(dataPath, $"{singleton.ChannelName}.ini");
 
         public static void Write()
         {
@@ -32,26 +33,27 @@ namespace SkillzBot.Writers
             {
                 SettingsObject Settings = new SettingsObject
                 {
-                    Summoner_Name = IllSingleton.GetInstance().SUMMONER_NAME,
-                    ChannelName = IllSingleton.GetInstance().ChannelName,
-                    BotTwitchName = IllSingleton.GetInstance().BotTwitchName,
-                    BotTwitchAuth = IllSingleton.GetInstance().BotTwitchAuth,
-                    TApiAccessToken = IllSingleton.GetInstance().TApiAccessToken,
-                    TApiClientId = IllSingleton.GetInstance().TApiClientId,
-                    YouTubeApiToken = IllSingleton.GetInstance().YouTubeApiToken,
-                    RiotApiToken = IllSingleton.GetInstance().RiotApiToken,
-                    BrodcasterId = IllSingleton.GetInstance().BrodcasterId,
-                    CenceleUval = IllSingleton.GetInstance().CenceleUval,
-                    EmoteModeId = IllSingleton.GetInstance().EmoteModeId,
-                    EnglishWis = IllSingleton.GetInstance().EnglishWis,
-                    UvalId = IllSingleton.GetInstance().UvalId,
-                    Pi4KaId = IllSingleton.GetInstance().Pi4KaId,
-                    ZakazTrekaId = IllSingleton.GetInstance().ZakazTrekaId,
-                    UvalSabId = IllSingleton.GetInstance().UvalSabId,
-                    UvalVipId = IllSingleton.GetInstance().UvalVipId,
-                    MySQL_User = IllSingleton.GetInstance().MySQL_User,
-                    MySQL_password = IllSingleton.GetInstance().MySQL_password,
-                    StreamElementsApiToken = IllSingleton.GetInstance().StreamElementsApiToken
+                    Summoner_Name = singleton.SUMMONER_NAME,
+                    ChannelName = singleton.ChannelName,
+                    BotTwitchName = singleton.BotTwitchName,
+                    BotTwitchAuth = singleton.BotTwitchAuth,
+                    TApiAccessToken = singleton.TApiAccessToken,
+                    TApiClientId = singleton.TApiClientId,
+                    YouTubeApiToken = singleton.YouTubeApiToken,
+                    RiotApiToken = singleton.RiotApiToken,
+                    BrodcasterId = singleton.BrodcasterId,
+                    CenceleUval = singleton.CenceleUval,
+                    EmoteModeId = singleton.EmoteModeId,
+                    EnglishWis = singleton.EnglishWis,
+                    UvalId = singleton.UvalId,
+                    Pi4KaId = singleton.Pi4KaId,
+                    ZakazTrekaId = singleton.ZakazTrekaId,
+                    UvalSabId = singleton.UvalSabId,
+                    UvalVipId = singleton.UvalVipId,
+                    MySQL_User = singleton.MySQL_User,
+                    MySQL_password = singleton.MySQL_password,
+                    StreamElementsApiToken = singleton.StreamElementsApiToken,
+                    StreamElementsID = singleton.StreamElementsID
                 };
                 File.WriteAllText(filePath, JsonConvert.SerializeObject(Settings, Formatting.Indented));               
             }
