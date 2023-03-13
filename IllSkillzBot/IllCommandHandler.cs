@@ -162,6 +162,9 @@ namespace SkillzBot.IllSkillzBot
                 case "!lang":
                     IllCommands.ChangeLanguage(user, Command);
                     break;
+                case "!test":
+                    IllCommands.TestingMethod(user, Command);
+                    break;
 
                 default:
                     break;

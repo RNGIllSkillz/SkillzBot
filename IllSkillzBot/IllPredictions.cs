@@ -27,7 +27,9 @@ namespace SkillzBot.IllSkillzBot
                 var CurrentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
                 if (CurrentGame.GameLength.TotalMilliseconds < 30) 
                 {
-                    if (await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false) != null) return;
+                    var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
+                    if (predictions != null)                    
+                        if (predictions.Data[0].Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED || predictions.Data[0].Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;                    
                     await DisableRewardAsync().ConfigureAwait(false);
                     singleton.inAmatch = true;
                     await CalculateGameStats(CurrentGame).ConfigureAwait(false);

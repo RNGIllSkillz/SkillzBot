@@ -37,13 +37,15 @@ namespace SkillzBot.IllSkillzBot
         private static readonly TimeSpan ClipCooldown = TimeSpan.FromSeconds(30);
         private static DateTimeOffset LastClipTime = DateTimeOffset.MinValue;
 
+        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
+
         readonly List<string> popMessages = new List<string>();
         public static void Help(UserObject user)
         {
             int secCD = 300;
             if (Convert.ToBoolean(user.isSub)) secCD = 300;
             if (Convert.ToBoolean(user.isVip)) secCD = 30;
-            if (Convert.ToBoolean(user.isMod) || user.Name == IllSingleton.GetInstance().rootUser) secCD = 0;
+            if (Convert.ToBoolean(user.isMod) || user.Name == singleton.rootUser) secCD = 0;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - helpCD >= secCD)
             {
                 TtvIRCClient.SendMessage(string.Format(STRINGS.HelpMessage, user.Name));
@@ -66,20 +68,20 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void Prediction(UserObject user, string[] command)
         {
-            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
             {
                 if (command.Length > 1)
                 {
                     switch (command[1])
                     {
                         case "off":
-                            IllSingleton.GetInstance().autoPred = false;
+                            singleton.autoPred = false;
                             TtvIRCClient.SendMessage($"@{user.Name} Автоставки Выключены!");
                             Log.WriteLog(null, $"{user.Name} Выключил ставки!");
                             break;
 
                         case "on":
-                            IllSingleton.GetInstance().autoPred = true;
+                            singleton.autoPred = true;
                             TtvIRCClient.SendMessage($"@{user.Name} Автоставки Включены!");
                             Log.WriteLog(null, $"{user.Name} Включил ставки!");
                             break;
@@ -95,7 +97,6 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task LpCommand(UserObject user, string[] command)
         {
-            var singleton = IllSingleton.GetInstance();
             try
             {
                 if (command.Length > 1)
@@ -151,7 +152,7 @@ namespace SkillzBot.IllSkillzBot
             int secCD = 600;
             if (user.isSub == 1) secCD = 300;
             if (user.isVip == 1) secCD = 100;
-            if (user.isMod == 1 || user.Name == IllSingleton.GetInstance().rootUser) secCD = 0;
+            if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - rtoppCD >= secCD)
             {
                 rtoppCD = DateTimeOffset.Now.ToUnixTimeSeconds();
@@ -160,7 +161,7 @@ namespace SkillzBot.IllSkillzBot
         }       
         public static async Task AddModerator(UserObject user, string[] UserInput)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 if (UserInput.Length == 2)
                 {
@@ -178,7 +179,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task AddVIP(UserObject user, string[] UserInput)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 if (UserInput.Length == 2)
                 {
@@ -197,7 +198,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task DeleteVIP(UserObject user, string[] UserInput)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 if (UserInput.Length == 2)
                 {
@@ -215,7 +216,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task DeleteModerator(UserObject user, string[] UserInput)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 if (UserInput.Length == 2)
                 {
@@ -233,7 +234,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task<TrackUser> TrackUser(UserObject user, string[] UserInput)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 try
                 {
@@ -292,7 +293,6 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task ShowLPAsync(string sender)
         {
-            var singleton = IllSingleton.GetInstance();
             try
             {
                 bool ranked = false;
@@ -350,7 +350,7 @@ namespace SkillzBot.IllSkillzBot
             int secCD = 120;
             if (user.isSub == 1) secCD = 60;
             if (user.isVip == 1) secCD = 30;
-            if (user.isMod == 1 || user.Name == IllSingleton.GetInstance().rootUser) secCD = 0;
+            if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - matchCD >= secCD)
             {
                 matchCD = DateTimeOffset.Now.ToUnixTimeSeconds();
@@ -406,7 +406,7 @@ namespace SkillzBot.IllSkillzBot
         }        
         public static async Task GetTopChat(UserObject user)
         {
-            if (user.IsBroadcaster == 1 || user.isMod == 1 || user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.IsBroadcaster == 1 || user.isMod == 1 || user.Name == singleton.rootUser)
             {
                 try
                 {
@@ -429,13 +429,13 @@ namespace SkillzBot.IllSkillzBot
         {
             GameStatsWriter.Write
                 (
-                $"{IllSingleton.GetInstance().startLP} " +
-                $"{IllSingleton.GetInstance().elo} " +
-                $"{IllSingleton.GetInstance().earnedLP} " +
-                $"{IllSingleton.GetInstance().numLoose} " +
-                $"{IllSingleton.GetInstance().numGames} " +
-                $"{IllSingleton.GetInstance().numWins} " +
-                $"{IllSingleton.GetInstance().tier}"
+                $"{singleton.startLP} " +
+                $"{singleton.elo} " +
+                $"{singleton.earnedLP} " +
+                $"{singleton.numLoose} " +
+                $"{singleton.numGames} " +
+                $"{singleton.numWins} " +
+                $"{singleton.tier}"
                 );
         }
         static void SaveAppConfig()
@@ -494,13 +494,13 @@ namespace SkillzBot.IllSkillzBot
                     user.isSub == 1 ||
                     user.isMod == 1 ||
                     user.IsBroadcaster == 1 ||
-                    user.Name == IllSingleton.GetInstance().rootUser
+                    user.Name == singleton.rootUser
                 )
                     secCD = 0;
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() - getmmrCD >= secCD)
                 {
                     getmmrCD = DateTimeOffset.Now.ToUnixTimeSeconds();
-                    var result = await MyLOLMMRApi.GetMMR(IllSingleton.GetInstance().SUMMONER_NAME).ConfigureAwait(false);
+                    var result = await MyLOLMMRApi.GetMMR(singleton.SUMMONER_NAME).ConfigureAwait(false);
                     if (result.Count == 2) 
                         TtvIRCClient.SendMessage($"@{user.Name} {result[0]}: mmr:{result[1]}");
                 }
@@ -516,11 +516,11 @@ namespace SkillzBot.IllSkillzBot
             int secCD = 30;
             if (user.isSub == 1) secCD = 15;
             if (user.isVip == 1) secCD = 5;
-            if (user.isMod == 1 || user.Name == IllSingleton.GetInstance().rootUser) secCD = 0;
+            if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - opggCD >= secCD)
             {
                 opggCD = DateTimeOffset.Now.ToUnixTimeSeconds();
-                TtvIRCClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, IllSingleton.GetInstance().SUMMONER_NAME));
+                TtvIRCClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, singleton.SUMMONER_NAME));
             }
         }
         public static async Task GetTreck(UserObject user)
@@ -528,7 +528,7 @@ namespace SkillzBot.IllSkillzBot
             int secCD = 10;
             if (user.isSub == 1) secCD = 10;
             if (user.isVip == 1) secCD = 5;
-            if (user.isMod == 1 || user.Name == IllSingleton.GetInstance().rootUser) secCD = 0;
+            if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - treckCD >= secCD)
             {
                 treckCD = DateTimeOffset.Now.ToUnixTimeSeconds();
@@ -563,8 +563,8 @@ namespace SkillzBot.IllSkillzBot
             int secCD = 60;
             if (user.isSub == 1) secCD = 30;
             if (user.isVip == 1) secCD = 15;
-            if (user.isMod == 1 || user.Name == IllSingleton.GetInstance().rootUser) secCD = 0;
-            if (DateTimeOffset.Now.ToUnixTimeSeconds() - treckCD >= secCD)
+            if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
+            if (DateTimeOffset.Now.ToUnixTimeSeconds() - treckQCD >= secCD)
             {
                 treckQCD = DateTimeOffset.Now.ToUnixTimeSeconds();
                 try
@@ -610,7 +610,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task FlushChat(UserObject user)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 await TtvAPI.DeleteAllMessages().ConfigureAwait(false);
             }
@@ -636,7 +636,7 @@ namespace SkillzBot.IllSkillzBot
         }       
         public static async Task BanUserForTrack(UserObject user)
         {
-            if (user.isMod == 1 || user.Name == IllSingleton.GetInstance().rootUser || user.IsBroadcaster == 1)
+            if (user.isMod == 1 || user.Name == singleton.rootUser || user.IsBroadcaster == 1)
             {
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() - banCD >= 30)
                 {
@@ -679,7 +679,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task FindUser(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 if (input.Length > 1)
                 {
@@ -711,7 +711,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task DisableReward(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 /*
                 try
@@ -755,7 +755,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task CreateReward(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 //try
                 //{
@@ -783,7 +783,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task DeleteReward(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 //try
                 //{
@@ -818,7 +818,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task UpdateReward(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 //try
                 //{
@@ -845,7 +845,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task EnableReward(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 //try
                 //{
@@ -886,7 +886,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task InjectSQL(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 //try
                 //{
@@ -932,23 +932,23 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void SetAntiBotLvl(UserObject user, string[] input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 if (input.Length > 1)
                 {
                     switch (input[1])
                     {
                         case "0":
-                            IllSingleton.GetInstance().AntiBotProtectionLvL = 0;
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.GetInstance().AntiBotProtectionLvL));
+                            singleton.AntiBotProtectionLvL = 0;
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, singleton.AntiBotProtectionLvL));
                             break;
                         case "1":
-                            IllSingleton.GetInstance().AntiBotProtectionLvL = 1;
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.GetInstance().AntiBotProtectionLvL));
+                            singleton.AntiBotProtectionLvL = 1;
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, singleton.AntiBotProtectionLvL));
                             break;
                         case "2":
-                            IllSingleton.GetInstance().AntiBotProtectionLvL = 2;
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.GetInstance().AntiBotProtectionLvL));
+                            singleton.AntiBotProtectionLvL = 2;
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, singleton.AntiBotProtectionLvL));
                             break;
                         default:
                             TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -961,7 +961,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task GetAllRewards(UserObject user)
         {
-            if (user.Name != IllSingleton.GetInstance().rootUser) return;
+            if (user.Name != singleton.rootUser) return;
 
             try
             {
@@ -978,7 +978,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task StartCronTask (UserObject user, string input)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
                 var inputParts = input.Split(' ');
@@ -1012,7 +1012,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task GetAllJobs(UserObject user)
         {
-            if (user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.Name == singleton.rootUser)
             {
                 QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
                 var jobs = await quartzBackgroundTaskManager.GetAllJobsNames().ConfigureAwait(false);
@@ -1021,7 +1021,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void ChangeLanguage(UserObject user, string[] input)
         {
-            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == IllSingleton.GetInstance().rootUser)
+            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
             {              
                 switch (input[1])
                 {
@@ -1054,6 +1054,11 @@ namespace SkillzBot.IllSkillzBot
                         break;
                 }
             }
+        }
+        public static async Task TestingMethod(UserObject user, string[] input)
+        {
+            if (user.Name != singleton.rootUser) return;
+            //test stuff here
         }
     }
 }
