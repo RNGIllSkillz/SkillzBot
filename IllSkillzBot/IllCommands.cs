@@ -1058,7 +1058,7 @@ namespace SkillzBot.IllSkillzBot
         public static async Task TestingMethod(UserObject user, string[] input)
         {
             if (user.Name != singleton.rootUser) return;
-            //test stuff here
+            //test stuff here           
         }
     }
 }

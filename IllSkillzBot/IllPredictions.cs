@@ -9,6 +9,7 @@ using SkillzBot.Utils;
 using SkillzBot.WRITERS;
 using SkillzBot.Singleton;
 using SkillzBot.IRC;
+using System.Linq;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -29,7 +30,7 @@ namespace SkillzBot.IllSkillzBot
                 {
                     var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
                     if (predictions != null)                    
-                        if (predictions.Data[0].Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED || predictions.Data[0].Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;                    
+                        if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return; 
                     await DisableRewardAsync().ConfigureAwait(false);
                     singleton.inAmatch = true;
                     await CalculateGameStats(CurrentGame).ConfigureAwait(false);
