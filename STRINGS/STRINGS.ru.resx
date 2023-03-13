@@ -210,7 +210,7 @@
     <comment>language</comment>
   </data>
   <data name="loose" xml:space="preserve">
-    <value>Луз</value>
+    <value>Поражение</value>
     <comment>vars</comment>
   </data>
   <data name="LPInaMatch" xml:space="preserve">
@@ -440,5 +440,8 @@
   <data name="Uval500_IsVIP" xml:space="preserve">
     <value>@{0}, {1} Вип</value>
     <comment>ChatMessage</comment>
+  </data>
+  <data name="win" xml:space="preserve">
+    <value>Победа</value>
   </data>
 </root>

@@ -268,7 +268,7 @@ namespace SkillzBot.IllSTRINGS {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Loose.
+        ///   Looks up a localized string similar to Defeat.
         /// </summary>
         internal static string loose {
             get {
@@ -790,7 +790,7 @@ namespace SkillzBot.IllSTRINGS {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Win.
+        ///   Looks up a localized string similar to Victory.
         /// </summary>
         internal static string win {
             get {

@@ -210,7 +210,7 @@
     <comment>language</comment>
   </data>
   <data name="loose" xml:space="preserve">
-    <value>Loose</value>
+    <value>Defeat</value>
     <comment>vars</comment>
   </data>
   <data name="LPInaMatch" xml:space="preserve">
@@ -442,7 +442,7 @@
     <comment>ChatMessage</comment>
   </data>
   <data name="win" xml:space="preserve">
-    <value>Win</value>
+    <value>Victory</value>
     <comment>vars</comment>
   </data>
 </root>
