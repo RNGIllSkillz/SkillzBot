@@ -25,7 +25,9 @@ namespace SkillzBot.WRITERS
             }
             try
             {
-                File.AppendAllText(filePath, Message, System.Text.Encoding.UTF8);
+                using var fileStream = File.Open(filePath, FileMode.Append, FileAccess.Write, FileShare.Read);
+                using var writer = new StreamWriter(fileStream);
+                writer.WriteLine(DateTime.Now + " " + Message);
             }
             catch (Exception e)
             {
