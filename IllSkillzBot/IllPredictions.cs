@@ -1071,29 +1071,60 @@ namespace SkillzBot.IllSkillzBot
         {
             var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
             if (buffdata == null) return;
-            int bufflp = int.Parse(buffdata[1]);
-            if (buffdata[2].Equals("master", StringComparison.OrdinalIgnoreCase) || 
-                buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) || 
-                buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase))
-            {
-                singleton.earnedLP += bufflp - singleton.startLP;
-                singleton.startLP = bufflp;
-            }
-            else
-            {
-                if (buffdata[0] != singleton.elo)
+            if (int.TryParse(buffdata[1], out int bufflp))
+                if (won)
                 {
-                    singleton.startLP = 100;
-                    singleton.elo = buffdata[0];
-                    singleton.tier = buffdata[2];
-                    singleton.earnedLP += won ? 0 : singleton.startLP;
+                    if (!buffdata[2].Equals("master", StringComparison.OrdinalIgnoreCase) &&
+                        !buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) &&
+                        !buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (buffdata[0] != singleton.elo || buffdata[2] != singleton.tier)
+                        {
+                            singleton.earnedLP += 100 - singleton.startLP + bufflp;
+                            singleton.startLP = 0;
+                            singleton.elo = buffdata[0];
+                            singleton.tier = buffdata[2];
+                        }
+                        else
+                        {
+                            singleton.earnedLP += bufflp - singleton.startLP;
+                            singleton.startLP = bufflp;
+                        }
+                    }
+                    else
+                    {
+                        if (singleton.tier.Equals("dimond", StringComparison.OrdinalIgnoreCase))
+                            singleton.earnedLP += 100 - singleton.startLP + bufflp;
+                        else
+                            singleton.earnedLP += bufflp - singleton.startLP;
+                        singleton.startLP = bufflp;
+                        singleton.elo = buffdata[0];
+                        singleton.tier = buffdata[2];
+                    }
                 }
                 else
                 {
-                    singleton.earnedLP += won ? bufflp - singleton.startLP : singleton.startLP - bufflp;
+                    if (!buffdata[2].Equals("master", StringComparison.OrdinalIgnoreCase) &&
+                        !buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) &&
+                        !buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (buffdata[0] != singleton.elo || buffdata[2] != singleton.tier)
+                        {
+                            singleton.startLP = 100;
+                            singleton.elo = buffdata[0];
+                            singleton.tier = buffdata[2];
+                        }
+                        singleton.earnedLP -= singleton.startLP - bufflp;
+                        singleton.startLP = bufflp;
+                    }
+                    else
+                    {
+                        singleton.earnedLP -= singleton.startLP - bufflp;
+                        singleton.startLP = bufflp;
+                    }
                 }
-                singleton.startLP = bufflp;
-            }
+            else            
+                Log.WriteLog(null, $"UpdateDailyStats() -> cant convert to int. buffdata: {string.Join(" ", buffdata)}");            
         }
     }
 }

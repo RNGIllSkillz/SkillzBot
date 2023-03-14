@@ -310,6 +310,7 @@ namespace SkillzBot.PubSub
             Log.WriteLog(e.Exception, "PubSub server Error!");
             lockPubSub = true;
             client.Disconnect();
+            Thread.Sleep(5000);
             IllSkillzBotMain.PubSubReconnect();
         }
         private void OnPubSubServiceClosed(object sender, EventArgs e)
