@@ -1,13 +1,12 @@
 ﻿using System;
-using TwitchLib.PubSub;
-using TwitchLib.PubSub.Events;
+using IllPubSub;
+using IllPubSub.Events;
 using System.Threading.Tasks;
-using System.Threading;
 using SkillzBot.WRITERS;
 using SkillzBot.IRC;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.API.Twitch;
-using TwitchLib.PubSub.Enums;
+using IllPubSub.Enums;
 using SkillzBot.MYSQL;
 using SkillzBot.Singleton;
 using SkillzBot.IllSTRINGS;
@@ -15,7 +14,7 @@ using IllSkillzBot;
 
 namespace SkillzBot.PubSub
 {
-    sealed class PubSubClient
+    class PubSubClient : IDisposable
     {
         private static TwitchPubSub client;
         readonly string accToken;
@@ -28,8 +27,9 @@ namespace SkillzBot.PubSub
         readonly string cenceleUval;
         readonly string englishWis;
         readonly string BrodcasterId;
+        private int tryes = 0;
+        private bool disposed = false;
         bool lockPubSub = false;
-        int tryes = 0;
 
         public PubSubClient()
         {
@@ -58,7 +58,6 @@ namespace SkillzBot.PubSub
             ListenToSubscriptions(BrodcasterId);
             ListenToVideoPlayback(BrodcasterId);
             client.Connect();
-            Task.Delay(Timeout.Infinite);
         }        
 
         #region Video Playback Events
@@ -307,10 +306,8 @@ namespace SkillzBot.PubSub
         private void OnPubSubServiceError(object sender, OnPubSubServiceErrorArgs e)
         {
             if (lockPubSub) return;
-            Log.WriteLog(e.Exception, "PubSub server Error!");
             lockPubSub = true;
-            client.Disconnect();
-            Thread.Sleep(5000);
+            Log.WriteLog(e.Exception, "PubSub server Error!"); 
             IllSkillzBotMain.PubSubReconnect();
         }
         private void OnPubSubServiceClosed(object sender, EventArgs e)
@@ -383,6 +380,59 @@ namespace SkillzBot.PubSub
                 tryes = 0;
                 Log.WriteLog(e, "rewardProcess()");
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed)
+                return;
+
+            if (disposing)
+            {
+                client.OnFollow -= PubSub_OnFollow;
+                client.OnPubSubServiceClosed -= OnPubSubServiceClosed;
+                client.OnListenResponse -= OnListenResponse;
+                client.OnPubSubServiceConnected -= OnPubSubServiceConnected;
+                client.OnPubSubServiceError -= OnPubSubServiceError;
+                client.OnStreamUp -= PubSub_OnStreamUp;
+                client.OnStreamDown -= PubSub_OnStreamDown;
+                client.OnViewCount -= PubSub_OnViewCount;
+                client.OnChannelSubscription -= PubSub_OnChannelSubscription;
+                client.OnChannelPointsRewardRedeemed -= PubSub_OnChannelPointsRewardRedeemed;
+                client.OnFollow -= PubSub_OnFollow;
+                client.OnPrediction -= PubSub_OnPrediction;
+                client.OnRaidUpdateV2 -= PubSub_OnRaidUpdateV2;
+                client.OnRaidGo -= PubSub_OnRaidGo;
+                client.OnTimeout -= PubSub_OnTimeout;
+                client.OnBan -= PubSub_OnBan;
+                client.OnMessageDeleted -= PubSub_OnMessageDeleted;
+                client.OnUnban -= PubSub_OnUnban;
+                client.OnUntimeout -= PubSub_OnUntimeout;
+                client.OnHost -= PubSub_OnHost;
+                client.OnSubscribersOnly -= PubSub_OnSubscribersOnly;
+                client.OnSubscribersOnlyOff -= PubSub_OnSubscribersOnlyOff;
+                client.OnClear -= PubSub_OnClear;
+                client.OnEmoteOnly -= PubSub_OnEmoteOnly;
+                client.OnEmoteOnlyOff -= PubSub_OnEmoteOnlyOff;
+                client.OnR9kBeta -= PubSub_OnR9kBeta;
+                client.OnR9kBetaOff -= PubSub_OnR9kBetaOff;
+                client.OnBitsReceived -= PubSub_OnBitsReceived;
+                client.Dispose();
+                client = null;
+            }
+            // Free any unmanaged objects here.
+            //
+            disposed = true;
+        }
+
+        ~PubSubClient()
+        {
+            Dispose(false);
         }
     }
 }

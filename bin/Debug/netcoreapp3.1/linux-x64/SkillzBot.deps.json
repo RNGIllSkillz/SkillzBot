@@ -11,18 +11,19 @@
         "dependencies": {
           "F23.StringSimilarity": "5.1.0",
           "Google.Apis.YouTube.v3": "1.60.0.2945",
-          "MySql.Data": "8.0.32",
-          "Newtonsoft.Json": "13.0.2",
+          "MySql.Data": "8.0.32.1",
+          "Newtonsoft.Json": "13.0.3",
           "Quartz": "3.6.2",
           "TwitchLib": "3.5.3",
-          "TwitchLib.Api": "3.8.0",
-          "TwitchLib.Api.Core": "3.8.0",
-          "TwitchLib.Api.Core.Enums": "3.8.0",
-          "TwitchLib.Api.Core.Interfaces": "3.8.0",
-          "TwitchLib.Api.Helix": "3.8.0",
+          "TwitchLib.Api": "3.9.0",
+          "TwitchLib.Api.Core": "3.9.0",
+          "TwitchLib.Api.Core.Enums": "3.9.0",
+          "TwitchLib.Api.Core.Interfaces": "3.9.0",
+          "TwitchLib.Api.Helix": "3.9.0",
           "TwitchLib.Communication": "1.0.6",
-          "TwitchLib.EventSub.Core": "2.3.0",
+          "TwitchLib.EventSub.Core": "2.3.1",
           "TwitchLib.EventSub.Websockets": "0.3.0",
+          "IllPubSub": "3.2.6.0",
           "RiotSharp": "5.0.0.0",
           "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64": "3.1.32"
         },
@@ -789,7 +790,7 @@
       },
       "Google.Apis.Core/1.60.0": {
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2"
+          "Newtonsoft.Json": "13.0.3"
         },
         "runtime": {
           "lib/netstandard2.0/Google.Apis.Core.dll": {
@@ -952,7 +953,7 @@
           }
         }
       },
-      "MySql.Data/8.0.32": {
+      "MySql.Data/8.0.32.1": {
         "dependencies": {
           "Google.Protobuf": "3.21.9",
           "K4os.Compression.LZ4.Streams": "1.2.6",
@@ -967,34 +968,15 @@
         "runtime": {
           "lib/netstandard2.1/MySql.Data.dll": {
             "assemblyVersion": "8.0.32.0",
-            "fileVersion": "8.0.32.0"
-          },
-          "lib/netstandard2.1/ZstdNet.dll": {
-            "assemblyVersion": "1.4.5.0",
-            "fileVersion": "1.4.5.0"
-          },
-          "lib/netstandard2.1/comerr64.dll": {
-            "fileVersion": "4.1.0.0"
-          },
-          "lib/netstandard2.1/gssapi64.dll": {
-            "fileVersion": "4.1.0.0"
-          },
-          "lib/netstandard2.1/k5sprt64.dll": {
-            "fileVersion": "4.1.0.0"
-          },
-          "lib/netstandard2.1/krb5_64.dll": {
-            "fileVersion": "4.1.0.0"
-          },
-          "lib/netstandard2.1/krbcc64.dll": {
-            "fileVersion": "4.1.0.0"
+            "fileVersion": "8.0.32.1"
           }
         }
       },
-      "Newtonsoft.Json/13.0.2": {
+      "Newtonsoft.Json/13.0.3": {
         "runtime": {
           "lib/netstandard2.0/Newtonsoft.Json.dll": {
             "assemblyVersion": "13.0.0.0",
-            "fileVersion": "13.0.2.27524"
+            "fileVersion": "13.0.3.27908"
           }
         }
       },
@@ -1657,99 +1639,99 @@
       },
       "TwitchLib/3.5.3": {
         "dependencies": {
-          "TwitchLib.Api": "3.8.0",
+          "TwitchLib.Api": "3.9.0",
           "TwitchLib.Client": "3.3.1",
           "TwitchLib.EventSub.Websockets": "0.3.0",
           "TwitchLib.PubSub": "3.2.6"
         }
       },
-      "TwitchLib.Api/3.8.0": {
+      "TwitchLib.Api/3.9.0": {
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2",
+          "Newtonsoft.Json": "13.0.3",
           "System.Net.Http": "4.3.4",
-          "TwitchLib.Api.Core": "3.8.0",
-          "TwitchLib.Api.Helix": "3.8.0"
+          "TwitchLib.Api.Core": "3.9.0",
+          "TwitchLib.Api.Helix": "3.9.0"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.Api.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
           }
         }
       },
-      "TwitchLib.Api.Core/3.8.0": {
+      "TwitchLib.Api.Core/3.9.0": {
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "7.0.0",
           "System.Threading.Tasks.Extensions": "4.5.4",
-          "TwitchLib.Api.Core.Enums": "3.8.0",
-          "TwitchLib.Api.Core.Interfaces": "3.8.0",
-          "TwitchLib.Api.Core.Models": "3.8.0"
+          "TwitchLib.Api.Core.Enums": "3.9.0",
+          "TwitchLib.Api.Core.Interfaces": "3.9.0",
+          "TwitchLib.Api.Core.Models": "3.9.0"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.Api.Core.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
           }
         }
       },
-      "TwitchLib.Api.Core.Enums/3.8.0": {
+      "TwitchLib.Api.Core.Enums/3.9.0": {
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2"
+          "Newtonsoft.Json": "13.0.3"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.Api.Core.Enums.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
           }
         }
       },
-      "TwitchLib.Api.Core.Interfaces/3.8.0": {
+      "TwitchLib.Api.Core.Interfaces/3.9.0": {
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2",
-          "TwitchLib.Api.Core.Enums": "3.8.0"
+          "Newtonsoft.Json": "13.0.3",
+          "TwitchLib.Api.Core.Enums": "3.9.0"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.Api.Core.Interfaces.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
           }
         }
       },
-      "TwitchLib.Api.Core.Models/3.8.0": {
+      "TwitchLib.Api.Core.Models/3.9.0": {
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2",
-          "TwitchLib.Api.Core.Enums": "3.8.0",
-          "TwitchLib.Api.Core.Interfaces": "3.8.0"
+          "Newtonsoft.Json": "13.0.3",
+          "TwitchLib.Api.Core.Enums": "3.9.0",
+          "TwitchLib.Api.Core.Interfaces": "3.9.0"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.Api.Core.Models.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
           }
         }
       },
-      "TwitchLib.Api.Helix/3.8.0": {
+      "TwitchLib.Api.Helix/3.9.0": {
         "dependencies": {
-          "TwitchLib.Api.Core": "3.8.0",
-          "TwitchLib.Api.Helix.Models": "3.8.0"
+          "TwitchLib.Api.Core": "3.9.0",
+          "TwitchLib.Api.Helix.Models": "3.9.0"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.Api.Helix.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
           }
         }
       },
-      "TwitchLib.Api.Helix.Models/3.8.0": {
+      "TwitchLib.Api.Helix.Models/3.9.0": {
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2",
-          "TwitchLib.Api.Core.Enums": "3.8.0",
-          "TwitchLib.Api.Core.Interfaces": "3.8.0"
+          "Newtonsoft.Json": "13.0.3",
+          "TwitchLib.Api.Core.Enums": "3.9.0",
+          "TwitchLib.Api.Core.Interfaces": "3.9.0"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.Api.Helix.Models.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
           }
         }
       },
@@ -1794,11 +1776,11 @@
           }
         }
       },
-      "TwitchLib.EventSub.Core/2.3.0": {
+      "TwitchLib.EventSub.Core/2.3.1": {
         "runtime": {
           "lib/netstandard2.1/TwitchLib.EventSub.Core.dll": {
-            "assemblyVersion": "2.3.0.0",
-            "fileVersion": "2.3.0.0"
+            "assemblyVersion": "2.3.1.0",
+            "fileVersion": "2.3.1.0"
           }
         }
       },
@@ -1807,7 +1789,7 @@
           "Microsoft.Extensions.Logging": "7.0.0",
           "System.Memory": "4.5.5",
           "System.Text.Json": "7.0.1",
-          "TwitchLib.EventSub.Core": "2.3.0"
+          "TwitchLib.EventSub.Core": "2.3.1"
         },
         "runtime": {
           "lib/netstandard2.1/TwitchLib.EventSub.Websockets.dll": {
@@ -1819,11 +1801,19 @@
       "TwitchLib.PubSub/3.2.6": {
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "7.0.0",
-          "Newtonsoft.Json": "13.0.2",
+          "Newtonsoft.Json": "13.0.3",
           "TwitchLib.Communication": "1.0.6"
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.PubSub.dll": {
+            "assemblyVersion": "3.2.6.0",
+            "fileVersion": "3.2.6.0"
+          }
+        }
+      },
+      "IllPubSub/3.2.6.0": {
+        "runtime": {
+          "IllPubSub.dll": {
             "assemblyVersion": "3.2.6.0",
             "fileVersion": "3.2.6.0"
           }
@@ -1990,19 +1980,19 @@
       "path": "microsoft.win32.systemevents/6.0.0",
       "hashPath": "microsoft.win32.systemevents.6.0.0.nupkg.sha512"
     },
-    "MySql.Data/8.0.32": {
+    "MySql.Data/8.0.32.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-SDzjcf0mVFtWfpEXJwOBYknskbN55H1WEpTzMnlKaaNrT6Mkz0/36NPdpxh7cRrW3cqbuDCFKsxM6rE0CRewhA==",
-      "path": "mysql.data/8.0.32",
-      "hashPath": "mysql.data.8.0.32.nupkg.sha512"
+      "sha512": "sha512-K5WkZz8hkiHyKSnEON5AER+oMxmwhRrSAy6/a7XnfWpytn8EyYLCFWe0lDNZqZJ/w79P1Qtw0TZvf3kP0a1fbg==",
+      "path": "mysql.data/8.0.32.1",
+      "hashPath": "mysql.data.8.0.32.1.nupkg.sha512"
     },
-    "Newtonsoft.Json/13.0.2": {
+    "Newtonsoft.Json/13.0.3": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-R2pZ3B0UjeyHShm9vG+Tu0EBb2lC8b0dFzV9gVn50ofHXh9Smjk6kTn7A/FdAsC8B5cKib1OnGYOXxRBz5XQDg==",
-      "path": "newtonsoft.json/13.0.2",
-      "hashPath": "newtonsoft.json.13.0.2.nupkg.sha512"
+      "sha512": "sha512-HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ==",
+      "path": "newtonsoft.json/13.0.3",
+      "hashPath": "newtonsoft.json.13.0.3.nupkg.sha512"
     },
     "Portable.BouncyCastle/1.9.0": {
       "type": "package",
@@ -2620,54 +2610,54 @@
       "path": "twitchlib/3.5.3",
       "hashPath": "twitchlib.3.5.3.nupkg.sha512"
     },
-    "TwitchLib.Api/3.8.0": {
+    "TwitchLib.Api/3.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-TwRP9Y7eB9sKX/NdGMDznNP+kl2CGq1JQB3i5ZxSe/dyE36zRqz/uPde4CtGweCgJrzOyIdkUatpQK+uVCnL6g==",
-      "path": "twitchlib.api/3.8.0",
-      "hashPath": "twitchlib.api.3.8.0.nupkg.sha512"
+      "sha512": "sha512-Ln9BXc2YmbW4RwkJWYKG0TWA1Io+z6SZOuN5v4c3LhnZcdb6CliWB/Axj8CC2cAcXdKu4nb1bS0OVHb9z+kmBg==",
+      "path": "twitchlib.api/3.9.0",
+      "hashPath": "twitchlib.api.3.9.0.nupkg.sha512"
     },
-    "TwitchLib.Api.Core/3.8.0": {
+    "TwitchLib.Api.Core/3.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-d658UjD5IYZc98vsUTTOxRQYYzoijN+Q6kns9Pv/1dhvs7nQdMperEX7yVOrSIbgd5sD+oP6Mwz0VWYeSjpdMg==",
-      "path": "twitchlib.api.core/3.8.0",
-      "hashPath": "twitchlib.api.core.3.8.0.nupkg.sha512"
+      "sha512": "sha512-cDTf/+21k1VtnqkGOPvCVweTS8ciw7vAI9+NeoY+GZQEbXPUfxZDFIgJy5FGCQ4OBRUwUkCmXk7pxgY6hALxGw==",
+      "path": "twitchlib.api.core/3.9.0",
+      "hashPath": "twitchlib.api.core.3.9.0.nupkg.sha512"
     },
-    "TwitchLib.Api.Core.Enums/3.8.0": {
+    "TwitchLib.Api.Core.Enums/3.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-PCvNCWYerEqvBy78cMTTHgGLm0gXHbVWAiNck5vLsA9b33sMW4nUJm4h+LGr2lKr/6YaphVPXoDzetk2znZMgA==",
-      "path": "twitchlib.api.core.enums/3.8.0",
-      "hashPath": "twitchlib.api.core.enums.3.8.0.nupkg.sha512"
+      "sha512": "sha512-XqXpiKv8ClbjSKzv9qPa7tJ7Fss3yF0mtg7iw9ISiYR8yMUU0QKeg1SilTwc63KLQN/TiqehHH/YDaGI+Acadg==",
+      "path": "twitchlib.api.core.enums/3.9.0",
+      "hashPath": "twitchlib.api.core.enums.3.9.0.nupkg.sha512"
     },
-    "TwitchLib.Api.Core.Interfaces/3.8.0": {
+    "TwitchLib.Api.Core.Interfaces/3.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-K4IhHJbrDz8M6Yb6a7foTBBbsH3+zKhO5PgGL7uNe8j6F184n5Dx+iesdREBr+1dUcH1aq1DEJe2JaJfWp7aIQ==",
-      "path": "twitchlib.api.core.interfaces/3.8.0",
-      "hashPath": "twitchlib.api.core.interfaces.3.8.0.nupkg.sha512"
+      "sha512": "sha512-IScldJpST1D8GmJtmzRmtrIZkX6bocmszctWn4vOHXJ0vImaJXl+YUj9cnQcZsxbAYpgWulpDhFpjZkJJr8P/Q==",
+      "path": "twitchlib.api.core.interfaces/3.9.0",
+      "hashPath": "twitchlib.api.core.interfaces.3.9.0.nupkg.sha512"
     },
-    "TwitchLib.Api.Core.Models/3.8.0": {
+    "TwitchLib.Api.Core.Models/3.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-i7v1bWxqadq3CStku1znAertbklAu+F+vGQRiiAVVna7Spvkx6VrwkNfF5J8IVEVsDqYBDqQ6TLRHKAZMb1/6A==",
-      "path": "twitchlib.api.core.models/3.8.0",
-      "hashPath": "twitchlib.api.core.models.3.8.0.nupkg.sha512"
+      "sha512": "sha512-5mYsyBEAn72PTuOK6JinmxwBKwM0JfARX1k34a3imi7Ul6KlFKEqecXE+s2weIVDBVmSArYkGwWXtLD9TtGfVQ==",
+      "path": "twitchlib.api.core.models/3.9.0",
+      "hashPath": "twitchlib.api.core.models.3.9.0.nupkg.sha512"
     },
-    "TwitchLib.Api.Helix/3.8.0": {
+    "TwitchLib.Api.Helix/3.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-/YBgHPc/G1j5RpXVtGsoLcPfwIUopQN6Kj92lQgGT59cx3rIl07Tq4xUiz9jEd/GoRLI9aiGv+j49zrDv/D/+A==",
-      "path": "twitchlib.api.helix/3.8.0",
-      "hashPath": "twitchlib.api.helix.3.8.0.nupkg.sha512"
+      "sha512": "sha512-Ok5M6Ey/J/4stny+KzlgV1iy4FWYYixMXoumTY8hr65HmMABtA0E3Ua3kxYPut20ApKI3fWmxnLVMh3y33Y6fw==",
+      "path": "twitchlib.api.helix/3.9.0",
+      "hashPath": "twitchlib.api.helix.3.9.0.nupkg.sha512"
     },
-    "TwitchLib.Api.Helix.Models/3.8.0": {
+    "TwitchLib.Api.Helix.Models/3.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-y73E6tzvyLWBIuVv/xI5eQgdEI347C1jb4AnWnW6ym2QKfQOMzXtiqpRm0rkkq2QBKfgGbI8OjMFSPFEmGEJFA==",
-      "path": "twitchlib.api.helix.models/3.8.0",
-      "hashPath": "twitchlib.api.helix.models.3.8.0.nupkg.sha512"
+      "sha512": "sha512-4xZKnSCAS+iYb8G8/ic6+0F+zQDbOF6L+Yn7XEA1p/j5IEqMzjHQ0HsUDFRl99NMSmpP1pBO7LNeiBfcMg/dKw==",
+      "path": "twitchlib.api.helix.models/3.9.0",
+      "hashPath": "twitchlib.api.helix.models.3.9.0.nupkg.sha512"
     },
     "TwitchLib.Client/3.3.1": {
       "type": "package",
@@ -2697,12 +2687,12 @@
       "path": "twitchlib.communication/1.0.6",
       "hashPath": "twitchlib.communication.1.0.6.nupkg.sha512"
     },
-    "TwitchLib.EventSub.Core/2.3.0": {
+    "TwitchLib.EventSub.Core/2.3.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-+AEDG90Z2UtpW6BPXeJ28dpLuCpc71TWogkO+Lzn4dGAa7RGq9NG2zaj6Q4s1RL9e7hf58a152r9uYMFv8Jgtg==",
-      "path": "twitchlib.eventsub.core/2.3.0",
-      "hashPath": "twitchlib.eventsub.core.2.3.0.nupkg.sha512"
+      "sha512": "sha512-6uoFu2k4Zw7X5ZPl5vf9bRM5rH3ET62ZykT8lsH/S6Wa47yNu2Jvd1WbmW4J9hWD/oDJM1jPBFH8QC/e+FKM2g==",
+      "path": "twitchlib.eventsub.core/2.3.1",
+      "hashPath": "twitchlib.eventsub.core.2.3.1.nupkg.sha512"
     },
     "TwitchLib.EventSub.Websockets/0.3.0": {
       "type": "package",
@@ -2717,6 +2707,11 @@
       "sha512": "sha512-WOGpQqG4D0BwgL7wvni8OcbCte7HMLYfKoTwwnFaNCzyeJgN1rtd1HtuGh0wLWcu/88qTdqmMTeAtdfjSL9OuA==",
       "path": "twitchlib.pubsub/3.2.6",
       "hashPath": "twitchlib.pubsub.3.2.6.nupkg.sha512"
+    },
+    "IllPubSub/3.2.6.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
     },
     "RiotSharp/5.0.0.0": {
       "type": "reference",

@@ -165,6 +165,9 @@ namespace SkillzBot.IllSkillzBot
                 case "!test":
                     IllCommands.TestingMethod(user, Command);
                     break;
+                case "!connect":
+                    IllCommands.ReconnectToPubSub(user);
+                    break;
 
                 default:
                     break;

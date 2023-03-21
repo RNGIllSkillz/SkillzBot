@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 using TwitchLib.Client;
@@ -7,7 +6,7 @@ using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
-using TwitchLib.PubSub.Events;
+using IllPubSub.Events;
 using TwitchLib.Communication.Events;
 
 using SkillzBot.WRITERS;
@@ -37,7 +36,7 @@ namespace SkillzBot.IRC
                 client.OnMessageReceived += Client_OnMessageReceived;
                 client.OnUserTimedout += Client_OnUserTimedout;
                 client.OnDisconnected += Client_OnDisconnected;
-                client.Connect();
+                client.Connect();                
             }
             catch (Exception e)
             {

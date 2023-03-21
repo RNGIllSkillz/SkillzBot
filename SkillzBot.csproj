@@ -12,21 +12,24 @@
   <ItemGroup>
     <PackageReference Include="F23.StringSimilarity" Version="5.1.0" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.60.0.2945" />
-    <PackageReference Include="MySql.Data" Version="8.0.32" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="MySql.Data" Version="8.0.32.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Quartz" Version="3.6.2" />
     <PackageReference Include="TwitchLib" Version="3.5.3" />
-    <PackageReference Include="TwitchLib.Api" Version="3.8.0" />
-    <PackageReference Include="TwitchLib.Api.Core" Version="3.8.0" />
-    <PackageReference Include="TwitchLib.Api.Core.Enums" Version="3.8.0" />
-    <PackageReference Include="TwitchLib.Api.Core.Interfaces" Version="3.8.0" />
-    <PackageReference Include="TwitchLib.Api.Helix" Version="3.8.0" />
+    <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
+    <PackageReference Include="TwitchLib.Api.Core" Version="3.9.0" />
+    <PackageReference Include="TwitchLib.Api.Core.Enums" Version="3.9.0" />
+    <PackageReference Include="TwitchLib.Api.Core.Interfaces" Version="3.9.0" />
+    <PackageReference Include="TwitchLib.Api.Helix" Version="3.9.0" />
     <PackageReference Include="TwitchLib.Communication" Version="1.0.6" />
-    <PackageReference Include="TwitchLib.EventSub.Core" Version="2.3.0" />
+    <PackageReference Include="TwitchLib.EventSub.Core" Version="2.3.1" />
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.3.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="IllPubSub">
+      <HintPath>..\TwitchLib.PubSub\TwitchLib.PubSub\bin\Debug\netstandard2.0\IllPubSub.dll</HintPath>
+    </Reference>
     <Reference Include="RiotSharp">
       <HintPath>\\192.168.255.10\pData\prj\twitch\chatTLBot\SkillzBot\SkillzBot\RiotSharp.dll</HintPath>
     </Reference>

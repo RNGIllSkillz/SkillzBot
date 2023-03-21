@@ -10,6 +10,7 @@ using SkillzBot.WRITERS;
 using SkillzBot.Singleton;
 using SkillzBot.IRC;
 using System.Linq;
+using RiotSharp.Endpoints.SpectatorEndpoint;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -19,6 +20,7 @@ namespace SkillzBot.IllSkillzBot
         private readonly static string tChannel = singleton.ChannelName;
         private readonly static string englishWis = singleton.EnglishWis;
         private static string lastErrorMessage = null;
+        private static string CurrentMatchID;
         public static async Task GetCurrentMatchTask()
         {            
             if (singleton.inAmatch) return;                       
@@ -26,8 +28,9 @@ namespace SkillzBot.IllSkillzBot
             {                
                 await EnableRewardAsync().ConfigureAwait(false);
                 var CurrentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
-                if (CurrentGame.GameLength.TotalMilliseconds < 30) 
+                if (CurrentMatchID != ("EUW1_" + Convert.ToString(CurrentGame.GameId)) && CurrentGame.GameLength.TotalMilliseconds < 30) 
                 {
+                    CurrentMatchID = "EUW1_" + Convert.ToString(CurrentGame.GameId);
                     var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
                     if (predictions != null)                    
                         if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return; 

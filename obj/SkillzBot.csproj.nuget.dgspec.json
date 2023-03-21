@@ -50,11 +50,11 @@
             },
             "MySql.Data": {
               "target": "Package",
-              "version": "[8.0.32, )"
+              "version": "[8.0.32.1, )"
             },
             "Newtonsoft.Json": {
               "target": "Package",
-              "version": "[13.0.2, )"
+              "version": "[13.0.3, )"
             },
             "Quartz": {
               "target": "Package",
@@ -66,23 +66,23 @@
             },
             "TwitchLib.Api": {
               "target": "Package",
-              "version": "[3.8.0, )"
+              "version": "[3.9.0, )"
             },
             "TwitchLib.Api.Core": {
               "target": "Package",
-              "version": "[3.8.0, )"
+              "version": "[3.9.0, )"
             },
             "TwitchLib.Api.Core.Enums": {
               "target": "Package",
-              "version": "[3.8.0, )"
+              "version": "[3.9.0, )"
             },
             "TwitchLib.Api.Core.Interfaces": {
               "target": "Package",
-              "version": "[3.8.0, )"
+              "version": "[3.9.0, )"
             },
             "TwitchLib.Api.Helix": {
               "target": "Package",
-              "version": "[3.8.0, )"
+              "version": "[3.9.0, )"
             },
             "TwitchLib.Communication": {
               "target": "Package",
@@ -90,7 +90,7 @@
             },
             "TwitchLib.EventSub.Core": {
               "target": "Package",
-              "version": "[2.3.0, )"
+              "version": "[2.3.1, )"
             },
             "TwitchLib.EventSub.Websockets": {
               "target": "Package",

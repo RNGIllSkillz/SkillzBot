@@ -27,12 +27,6 @@ Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Microsoft.Extensions.O
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Microsoft.Extensions.Primitives.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Microsoft.Win32.SystemEvents.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\MySql.Data.dll
-Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\ZstdNet.dll
-Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\comerr64.dll
-Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\gssapi64.dll
-Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\k5sprt64.dll
-Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\krb5_64.dll
-Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\krbcc64.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Newtonsoft.Json.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\BouncyCastle.Crypto.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Quartz.dll
@@ -261,3 +255,6 @@ Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.csproj.CopyC
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.dll
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.pdb
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.genruntimeconfig.cache
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\IllPubSub.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\IllPubSub.pdb
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\IllPubSub.xml

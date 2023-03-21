@@ -17,11 +17,13 @@ using SkillzBot.API.YouTube;
 using System.Resources;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
+using System.Threading;
 
 namespace IllSkillzBot
 {
     class IllSkillzBotMain
     {
+        static private int PubSubReconnects = 0;
         static string dataPath;
         private static PubSubClient PubSubClientInst;
         static async Task Main()
@@ -91,6 +93,7 @@ namespace IllSkillzBot
                 switch (input)
                 {
                     case "connect":
+                        PubSubReconnects = 0;
                         PubSubReconnect();
                         break;
                     case "reward":
@@ -232,9 +235,22 @@ namespace IllSkillzBot
         }       
         public static void PubSubReconnect()
         {
-            PubSubClientInst = null;
-            GC.Collect();
-            PubSubClientInst = new PubSubClient();
+            if (PubSubClientInst != null)
+            {
+                PubSubClientInst.Dispose();
+                PubSubClientInst = null;
+                GC.Collect();
+                Thread.Sleep(10000);
+                PubSubReconnects++;
+                if (PubSubReconnects < 15)
+                    PubSubClientInst = new PubSubClient();
+                else
+                    Log.WriteLog(null, "PubSub reconnection ERROR");
+            }
+            else
+            {
+                PubSubClientInst = new PubSubClient();
+            }
         }
     }
 }

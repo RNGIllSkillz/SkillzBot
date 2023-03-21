@@ -6,7 +6,6 @@ using SkillzBot.Singleton;
 using SkillzBot.WRITERS;
 using System.Threading.Tasks;
 using System.Threading;
-using SkillzBot.Readers;
 using RiotSharp.Endpoints.SpectatorEndpoint;
 using RiotSharp.Misc;
 using RiotSharp.Endpoints.MatchEndpoint;
@@ -14,8 +13,6 @@ using RiotSharp.Endpoints.LeagueEndpoint;
 using RiotSharp.Endpoints.StaticDataEndpoint.Champion;
 using SkillzBot.Utils;
 using System.Globalization;
-using SkillzBot.JSON.MediaHistory;
-using Google.Protobuf.WellKnownTypes;
 
 namespace SkillzBot.API.Riot
 {

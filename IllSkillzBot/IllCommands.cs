@@ -19,6 +19,7 @@ using System.Net;
 using SkillzBot.TtvClient.TTVRewards;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
+using IllSkillzBot;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -1059,6 +1060,11 @@ namespace SkillzBot.IllSkillzBot
         {
             if (user.Name != singleton.rootUser) return;
             //test stuff here           
+        }
+        public static void ReconnectToPubSub (UserObject user)
+        {
+            if (user.Name != singleton.rootUser) return;
+            IllSkillzBotMain.PubSubReconnect();
         }
     }
 }
