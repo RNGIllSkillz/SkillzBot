@@ -24,6 +24,7 @@ using System.IO;
 using System.Net;
 using System.Security.Policy;
 using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
+using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 
 namespace SkillzBot.API.Twitch
 {
@@ -449,11 +450,10 @@ namespace SkillzBot.API.Twitch
             user.UvalCon++;            
             return user;
         }
-        public static async Task<SChatters> GetChattersAsync()
+        public static async Task<SChatters> GetChattersAsyncDepricated()
         {
             try
             {
-                SChatters result = new SChatters();
                 String url = $"https://tmi.twitch.tv/group/user/{IllSingleton.GetInstance().ChannelName}/chatters";
                 HttpWebRequest HttpWebRequest = (HttpWebRequest)WebRequest.Create(url);
                 HttpWebRequest.UserAgent = "<Linux>:<IllSkillz_bot>:<v1.5>";
@@ -476,6 +476,10 @@ namespace SkillzBot.API.Twitch
                 Log.WriteLog(e, "getChateers()");
                 return null;
             }
+        }
+        public static async Task<GetChattersResponse> GetChattersAsync()
+        {
+            return await API.Helix.Chat.GetChattersAsync(BrodcasterID, BrodcasterID);
         }
     }
 }

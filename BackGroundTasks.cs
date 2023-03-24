@@ -47,17 +47,9 @@ namespace SkillzBot.Tasks
                 if (chatters != null)
                 {
                     List<string> lChatters = new List<string>();
-                    foreach (var chatter in chatters.Chatters.Vips)
+                    foreach (var chatter in chatters.Data)
                     {
-                        lChatters.Add(chatter);
-                    }
-                    foreach (var chatter in chatters.Chatters.Viewers)
-                    {
-                        lChatters.Add(chatter);
-                    }
-                    foreach (var chatter in chatters.Chatters.Moderators)
-                    {
-                        lChatters.Add(chatter);
+                        lChatters.Add(chatter.UserLogin);
                     }
 
                     await MySQL.UpdateOnlineStatus(lChatters).ConfigureAwait(false);
