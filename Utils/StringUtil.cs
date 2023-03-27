@@ -2,12 +2,56 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using static Mysqlx.Crud.Order.Types;
 
 namespace SkillzBot.Utils
 {
     internal sealed class StringUtil
     {
+        private readonly static Dictionary<string, double> rankValues;
+        private readonly static char[] a;
+        private readonly static char[] b;
+        private readonly static char[] o;
+        private readonly static char[] i;
+        private readonly static char[] r;
+        private readonly static char[] p;
+        private readonly static char[] h;
+        private readonly static char[] g;
+        private readonly static char[] m;
+        private readonly static char[] c;
+        private readonly static char[] y;
+        private readonly static char[] x;
+        private readonly static char[] k;
+        private readonly static char[] t;
+        private readonly static char[] e;
+
+        static StringUtil()
+        {
+            rankValues = new Dictionary<string, double>
+            {
+                { "challenger i", 27 }, { "grandmaster i", 26 }, { "master i", 25 }, { "diamond i", 24 },
+                { "diamond ii", 23 }, { "diamond iii", 22 }, { "diamond iv", 21 }, { "platinum i", 20 },
+                { "platinum ii", 19 }, { "platinum iii", 18 }, { "platinum iv", 17 }, { "gold i", 16 },
+                { "gold ii", 15 }, { "gold iii", 14 }, { "gold iv", 13 }, { "silver i", 12 },
+                { "silver ii", 11 }, { "silver iii", 10 }, { "silver iv", 9 }, { "bronze i", 8 },
+                { "bronze ii", 7 }, { "bronze iii", 6 }, { "bronze iv", 5 }, { "iron i", 4 },
+                { "iron ii", 3 }, { "iron iii", 2 }, { "iron iv", 1 }, { "unranked", 0 }
+            };
+            a = new char[] { 'a', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ', 'ã', 'æ', 'å', 'ā', 'ă', 'ǎ', 'ą', 'ȁ', 'ȃ', 'ǡ', 'ǟ', 'ǻ', 'ȧ', 'ȁ' };
+            b = new char[] { 'в', 'B', '฿', 'ᛒ', 'Ɓ', 'Ḅ', 'Ƃ', 'Ḇ', 'Ḃ', 'Ꞗ', 'Ƀ', 'ᛔ', 'v', 'ദ', '൫', 'ℬ', 'Ḇ' };
+            o = new char[] { 'o', '0', 'ó', 'ô', 'õ', 'ò', 'ó', 'ø', 'ö', 'ō', 'ŏ', 'ő', 'ȯ', 'ȫ', 'ȭ', 'ơ', 'ờ', 'ớ', 'ở', 'ỡ', 'ợ', 'ọ', 'ø', 'ǫ', 'ǭ', 'ǿ', 'ȍ', 'ȏ', 'ⓞ', '⒪', '○', '◯', '◎', '◌', '◍', '◐', '◑', '⚪', 'ꝋ', 'Ꝍ' };
+            i = new char[] { 'и', 'i', 'u', 'ⓤ', '⒰', 'υ', 'ṳ', 'ṵ', 'ṷ', 'ὓ', 'ὔ', 'ὕ', 'ὖ', 'ὗ' };
+            r = new char[] { 'p', 'r', 'ρ', 'ℛ', 'ℙ', 'ℜ', 'ℝ', 'Ⓟ', 'Ⓡ', 'Ɽ', 'ᖇ', '℞', '℟', 'Ṙ', 'Ṗ', 'Ṕ', 'Ṛ', 'Ṝ', 'Ṟ', 'ᴘ' };
+            p = new char[] { 'п', 'π', 'n', 'ń', 'ǹ', 'ṅ', 'ň', 'ñ', 'ņ', 'ƞ', 'ṇ', 'ṋ' };
+            h = new char[] { 'н', 'H', 'ℋ', 'ℍ', 'Ḥ', 'Ḧ', 'Ḩ', 'Ἢ', 'Ἡ', 'Ἦ', 'Ἠ', 'Ḫ', 'Ἤ', 'Ἥ', 'Ἧ', 'ᾘ', 'ᾙ', 'ᾟ', 'ᾞ', 'ᾝ', 'H', 'ᾜ', 'ᾛ', 'ᾚ' };
+            g = new char[] { 'д', 'g', 'D'};
+            m = new char[] { 'м', 'm', 'ⓜ', '⒨', 'ṃ', 'ḿ', 'ṁ', 'm', '♏', 'Ḿ', 'Ṁ', 'Ṃ', 'ന' };
+            c = new char[] { 'с', 'c', 'ⓒ', '⒞', 'ḉ', 'c', 'ℂ', '℃', '₡', '∁', 'C' };
+            y = new char[] { 'у', 'y', 'ⓨ', 'ẙ', 'ỳ', 'ỵ', 'ỷ', 'ỹ', 'ẏ', 'y' };
+            x = new char[] { 'х', 'x', 'ⓧ', '⒳', '✖', '✗', '✘', 'ẋ', 'ẍ', 'x', 'Ẍ', 'Ẋ', 'X', 'ⅹ', '乂','×','✕', '⨯', '⤫', '⤬'};            
+            k = new char[] { 'k', 'к', 'ⓚ', '⒦', 'к', 'ḱ', 'ḳ', 'ḵ', 'k', '₭', 'Ḱ', 'Ḳ', 'Ḵ', 'K' };
+            t = new char[] { 'T', 'Ṫ', 'Ṭ', 'Ť', 'Ţ', 'Ț', 'Ⱦ', 'Ƭ', 'ᴛ', 'Ｔ', 'т', '₮', 'Ṱ', 'Ṯ'};
+            e = new char[] { 'е', 'e', 'ⓔ', '⒠', 'ℯ', '∊', 'ḕ', '€', 'ḗ', 'ḙ', 'ḛ', 'ḝ', 'ẹ', 'ẻ', 'ẽ', 'ế', 'ề', 'ể', 'ễ', 'ệ', 'e', 'Ẹ', 'Ḝ', 'Ḛ', 'Ḙ', 'Ḗ', 'Ḕ', 'Ẽ', 'Ế', 'Ề', 'Ể', 'Ễ', 'Ἑ', 'Ἒ', 'Ἐ', 'Έ', 'Ὲ' };
+        }
         public static string GetUserNameFromInput(string userInput)
         {
             if (string.IsNullOrEmpty(userInput)) return null;
@@ -98,49 +142,49 @@ namespace SkillzBot.Utils
                 switch (letter)
                 {
                     case 'а':
-                        strOutput += RandomA();
+                        strOutput += a[IntUtil.Random(0, a.Length - 1)];
                         continue;
                     case 'в':
-                        strOutput += RandomB();
+                        strOutput += b[IntUtil.Random(0, b.Length - 1)];
                         continue;
                     case 'о':
-                        strOutput += RandomO();
+                        strOutput += o[IntUtil.Random(0, o.Length - 1)];
                         continue;
                     case 'и':
-                        strOutput += RandomI();
+                        strOutput += i[IntUtil.Random(0, i.Length - 1)];
                         continue;
                     case 'р':
-                        strOutput += RandomR();
+                        strOutput += r[IntUtil.Random(0, r.Length - 1)];
                         continue;
                     case 'п':
-                        strOutput += RandomP();
+                        strOutput += p[IntUtil.Random(0, p.Length - 1)];
                         continue;
                     case 'н':
-                        strOutput += RandomH();
+                        strOutput += h[IntUtil.Random(0, h.Length - 1)];
                         continue;
                     case 'д':
-                        strOutput += RandomG();
+                        strOutput += g[IntUtil.Random(0, g.Length - 1)];
                         continue;
                     case 'м':
-                        strOutput += RandomM();
+                        strOutput += m[IntUtil.Random(0, m.Length - 1)];
                         continue;
                     case 'с':
-                        strOutput += RandomС();
+                        strOutput += c[IntUtil.Random(0, c.Length - 1)];
                         continue;
                     case 'у':
-                        strOutput += RandomY();
+                        strOutput += y[IntUtil.Random(0, y.Length - 1)];
                         continue;
                     case 'х':
-                        strOutput += RandomX();
+                        strOutput += x[IntUtil.Random(0, x.Length - 1)];
                         continue;
                     case 'к':
-                        strOutput += RandomK();
+                        strOutput += k[IntUtil.Random(0, k.Length - 1)];
                         continue;
                     case 'т':
-                        strOutput += RandomT();
+                        strOutput += t[IntUtil.Random(0, t.Length - 1)];
                         continue;
                     case 'е':
-                        strOutput += RandomE();
+                        strOutput += e[IntUtil.Random(0, e.Length - 1)];
                         continue;
                     default:
                         strOutput += letter;
@@ -151,17 +195,7 @@ namespace SkillzBot.Utils
         }        
         public static string ConvertRank(string rank, bool direction)
         {
-            rank = rank.ToLower();
-            Dictionary<string, double> rankValues = new Dictionary<string, double>
-            {
-                { "challenger i", 27 }, { "grandmaster i", 26 }, { "master i", 25 }, { "diamond i", 24 },
-                { "diamond ii", 23 }, { "diamond iii", 22 }, { "diamond iv", 21 }, { "platinum i", 20 },
-                { "platinum ii", 19 }, { "platinum iii", 18 }, { "platinum iv", 17 }, { "gold i", 16 },
-                { "gold ii", 15 }, { "gold iii", 14 }, { "gold iv", 13 }, { "silver i", 12 },
-                { "silver ii", 11 }, { "silver iii", 10 }, { "silver iv", 9 }, { "bronze i", 8 },
-                { "bronze ii", 7 }, { "bronze iii", 6 }, { "bronze iv", 5 }, { "iron i", 4 },
-                { "iron ii", 3 }, { "iron iii", 2 }, { "iron iv", 1 }, { "unranked", 0 }
-            };
+            rank = rank.ToLower();            
             if (direction)
             {
                 if (rankValues.ContainsKey(rank))
@@ -197,81 +231,6 @@ namespace SkillzBot.Utils
                     return "Unknown Rank";
                 }
             }
-        }
-        private static char RandomA()
-        {
-            char[] a = { 'a', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ' };
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomB()
-        {
-            char[] a = { 'в', 'B', 'v', '฿', 'ദ', '൫', 'ℬ', 'Ḃ', 'Ḅ', 'B', 'Ḇ' };
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomO()
-        {
-            char[] a = {'о', 'o', '0', 'Ө', 'Ö', 'Ø', 'Ꝋ', 'ⓞ', '⒪', 'ọ', 'ṓ', 'ṑ', 'ṏ', 'ṍ', 'ố', 'ỏ', 'ồ', 'ổ', 'ỗ', 'ớ', 'ὁ', 'ὀ', 'ợ', 'ờ', 'ở', 'ὂ', 'ὃ', 'ὄ', 'ὅ', 'ộ', 'o', 'Ỏ', 'Ọ', 'Ṓ', 'Ṑ', 'Ṏ', 'Ṍ'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomI()
-        {
-            char[] a = {'и', 'i', 'u', 'ⓤ', '⒰', 'υ', 'ṳ', 'ṵ', 'ṷ', 'ὓ', 'ὔ', 'ὕ', 'ὖ', 'ὗ'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomR()
-        {
-            char[] a = {'р', 'p', 'r', 'ⓟ', '⒫', 'ṗ', 'ṕ', 'ῥ', 'ῤ', 'ℙ', 'Ṗ', 'Ῥ', 'Ṕ'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomP()
-        {
-            char[] a = {'п', 'π', 'n', 'ń', 'ǹ', 'ṅ', 'ň', 'ñ', 'ņ', 'ƞ', 'ṇ', 'ṋ'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomH()
-        {
-            char[] a = {'н', 'H', 'ℋ', 'ℍ', 'Ḥ', 'Ḧ', 'Ḩ', 'Ἢ', 'Ἡ', 'Ἦ', 'Ἠ', 'Ḫ', 'Ἤ', 'Ἥ', 'Ἧ', 'ᾘ', 'ᾙ', 'ᾟ', 'ᾞ', 'ᾝ', 'H', 'ᾜ', 'ᾛ', 'ᾚ'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomG()
-        {
-            char[] a = {'д', 'g'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomM()
-        {
-            char[] a = {'м', 'm', 'ⓜ', '⒨', 'ṃ', 'ḿ', 'ṁ', 'm', '♏', 'Ḿ', 'Ṁ', 'Ṃ', 'ന'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomС()
-        {
-            char[] a = {'с', 'c' , 'ⓒ', '⒞', 'ḉ', 'c', 'ℂ', '℃', '₡', '∁', 'C'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomY()
-        {
-            char[] a = {'у', 'y', 'ⓨ', 'ẙ', 'ỳ', 'ỵ', 'ỷ', 'ỹ', 'ẏ', 'y'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomX()
-        {
-            char[] a = { 'х', 'x', 'ⓧ', '⒳', '✖', '✗', '✘', 'ẋ', 'ẍ', 'x', 'Ẍ', 'Ẋ', 'X' };
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomK()
-        {
-            char[] a = {'k','к', 'ⓚ', '⒦', 'к', 'ḱ', 'ḳ', 'ḵ', 'k', '₭', 'Ḱ', 'Ḳ', 'Ḵ', 'K'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomT()
-        {
-            char[] a = { 'т','T', '₮', 'Ṫ', 'T', 'Ṱ', 'Ṯ', 'Ṭ'};
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
-        private static char RandomE()
-        {
-            char[] a = { 'е', 'e', 'ⓔ', '⒠', 'ℯ', '∊', 'ḕ', '€', 'ḗ', 'ḙ', 'ḛ', 'ḝ', 'ẹ', 'ẻ', 'ẽ', 'ế', 'ề', 'ể', 'ễ', 'ệ', 'e', 'Ẹ', 'Ḝ', 'Ḛ', 'Ḙ', 'Ḗ', 'Ḕ', 'Ẽ', 'Ế', 'Ề', 'Ể', 'Ễ', 'Ἑ', 'Ἒ', 'Ἐ', 'Έ','Ὲ' };
-            return a[IntUtil.Random(0, a.Length - 1)];
-        }
+        }       
     }
 }

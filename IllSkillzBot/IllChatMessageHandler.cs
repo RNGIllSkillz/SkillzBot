@@ -90,7 +90,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task SaveBuffer(bool IsForced)
         {
-            if (messagesBuffer.Count < 100 || IsForced) return;
+            if (messagesBuffer.Count < 100 || !IsForced) return;
             if (messagesBuffer.Count == 0) return;
             List<MessageBuffer> temp;
             lock (_LockBufferObject)

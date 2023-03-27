@@ -11,14 +11,14 @@ using System.Threading.Tasks;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal class IllGames
+    internal sealed class IllGames
     {
         private static QuizzObject _Quizz = new QuizzObject();  
-        private static List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
-
-        public IllGames()
+        private static readonly List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
+        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
+        static IllGames()
         {
-            IllSingleton.GetInstance().QuizIsRunning = false;
+            singleton.QuizIsRunning = false;
         }
         public static async Task<UserObject> Rulette(UserObject user)
         {
@@ -27,7 +27,6 @@ namespace SkillzBot.IllSkillzBot
                                      // if (Sender.ToLower() == rootUser)
                                      // winChanse = 100;            
             double cd = CoolDownMin - (DateTimeOffset.Now.ToUnixTimeSeconds() - user.roulettCD);
-
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - user.roulettCD >= CoolDownMin)
             {
                 user.roulettCD = DateTimeOffset.Now.ToUnixTimeSeconds();
@@ -69,85 +68,65 @@ namespace SkillzBot.IllSkillzBot
         #region Quizz
         public static async Task Quizz(bool isForced)
         {
-            if (IllSingleton.GetInstance().BroadcasterIsOnline || isForced)
+            if (!singleton.BroadcasterIsOnline || !isForced) return;
+            string SQL_string = "SELECT COUNT(*) FROM dbQuiz";
+            var results = await MySQL.SudoSQLReader(SQL_string).ConfigureAwait(false);
+            int questionID = IntUtil.Random(1, results[0].dbID);
+            _Quizz = await MySQL.GetQuiz(questionID).ConfigureAwait(false);
+            await TtvAPI.Announce(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion))).ConfigureAwait(false);
+            singleton.QuizIsRunning = true;
+            double QuizRunTimer = DateTimeOffset.Now.ToUnixTimeSeconds();
+            while (singleton.QuizIsRunning)
             {
-                string SQL_string = "SELECT COUNT(*) FROM dbQuiz";
-                var results = await MySQL.SudoSQLReader(SQL_string).ConfigureAwait(false);
-                int questionID = IntUtil.Random(1, results[0].dbID);
-                _Quizz = await MySQL.GetQuiz(questionID).ConfigureAwait(false);
-                await TtvAPI.Announce(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion))).ConfigureAwait(false);
-                IllSingleton.GetInstance().QuizIsRunning = true;
-                double QuizRunTimer = DateTimeOffset.Now.ToUnixTimeSeconds();
-                while (IllSingleton.GetInstance().QuizIsRunning)
+                if (DateTimeOffset.Now.ToUnixTimeSeconds() - QuizRunTimer >= 30)
                 {
-                    if (DateTimeOffset.Now.ToUnixTimeSeconds() - QuizRunTimer >= 30)
-                    {
-                        IllSingleton.GetInstance().QuizIsRunning = false;
-                        TtvIRCClient.SendMessage(STRINGS.QuizTimeOut);
-                    }
-                    await Task.Delay(1000).ConfigureAwait(false);
+                    singleton.QuizIsRunning = false;
+                    TtvIRCClient.SendMessage(STRINGS.QuizTimeOut);
                 }
+                await Task.Delay(1000).ConfigureAwait(false);
             }
         }
         private static bool CheckQuizzAnswer(string message)
         {
-            if (message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase))
-            {
-                IllSingleton.GetInstance().QuizIsRunning = false;
-                if (IllSingleton.GetInstance().AntiBotProtectionLvL == 2)
-                    Quizz_ActiveUsers_List.Clear();
-                return true;
-            }
-            else
-                return false;
+            if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return false;
+            singleton.QuizIsRunning = false;
+            if (singleton.AntiBotProtectionLvL == 2)
+                Quizz_ActiveUsers_List.Clear();
+            return true;
         }
         private static void QuizzActiveUser(string ttvID)
         {
-            bool found = false;
             foreach (var User in Quizz_ActiveUsers_List)
             {
-                if (User.TwitchID == ttvID)
-                {
-                    User.MessageCount++;
-                    found = true; break;
-                }
+                if (User.TwitchID != ttvID) continue;
+                User.MessageCount++;
+                return;
             }
-            if (!found)
+            Quizz_ActiveUsers_List.Add(new quizz_activeUser()
             {
-                Quizz_ActiveUsers_List.Add(new quizz_activeUser()
-                {
-                    TwitchID = ttvID,
-                    MessageCount = 0
-                });
-            }
+                TwitchID = ttvID,
+                MessageCount = 0
+            });
         }
         private static bool CheckQuizzActiveUser(string ttvID)
         {
             foreach (var user in Quizz_ActiveUsers_List)
             {
-                if (user.TwitchID == ttvID)
-                {
-                    if (IllSingleton.GetInstance().AntiBotProtectionLvL == 0)
-                        return true;
-                    if (user.MessageCount > 0)
-                        return true;
-                }
+                if (user.TwitchID != ttvID) continue;
+                if (singleton.AntiBotProtectionLvL == 0) return true;
+                if (user.MessageCount > 0) return true;
             }
             return false;
         }
         public static UserObject UserGuessAnswer(UserObject user, string message)
         {
             QuizzActiveUser(user.TwitchID.ToString());
-            if (IllSingleton.GetInstance().FirstQuizzOfTheDay || CheckQuizzActiveUser(user.TwitchID.ToString()))
-            {
-                if (CheckQuizzAnswer(message))
-                {
-                    IllSingleton.GetInstance().FirstQuizzOfTheDay = false;
-                    user.QuizPoints += _Quizz.QuizzCost;
-                    user.QuizTotal += _Quizz.QuizzCost;
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.QuizWin, _Quizz.QuizzAnswer, user.Name, _Quizz.QuizzCost, user.QuizPoints, user.QuizTotal));
-                }
-            }
+            if (!singleton.FirstQuizzOfTheDay || !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
+            if (!CheckQuizzAnswer(message)) return user;
+            singleton.FirstQuizzOfTheDay = false;
+            user.QuizPoints += _Quizz.QuizzCost;
+            user.QuizTotal += _Quizz.QuizzCost;
+            TtvIRCClient.SendMessage(string.Format(STRINGS.QuizWin, _Quizz.QuizzAnswer, user.Name, _Quizz.QuizzCost, user.QuizPoints, user.QuizTotal));
             return user;
         }
         public static void ClearQuizzActiveUsers()
