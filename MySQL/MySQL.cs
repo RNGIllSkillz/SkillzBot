@@ -141,12 +141,10 @@ namespace SkillzBot.MYSQL
             using MySqlCommand Command = new MySqlCommand(commandText, Connect);
             await Connect.OpenAsync().ConfigureAwait(false);
             using var con = await Connect.BeginTransactionAsync().ConfigureAwait(false);
-
             var IDParam = Command.Parameters.Add("TwitchID", MySqlDbType.Int32);
             var nameParam = Command.Parameters.Add("Name", MySqlDbType.VarChar);
             var MessageParam = Command.Parameters.Add("Message", MySqlDbType.VarChar);
             var TimeParam = Command.Parameters.Add("TimeStamp", MySqlDbType.Double);
-
             for (int i = 0; i < Messages.Count; i++)
             {
                 IDParam.Value = int.Parse(Messages[i].TtvID);
@@ -154,7 +152,7 @@ namespace SkillzBot.MYSQL
                 MessageParam.Value = Messages[i].Message;
                 TimeParam.Value = Convert.ToDouble(Messages[i].TimeStamp);
                 await Command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            }            
             await con.CommitAsync().ConfigureAwait(false);
         }
         public static async Task UpdateUser(UserObject User)

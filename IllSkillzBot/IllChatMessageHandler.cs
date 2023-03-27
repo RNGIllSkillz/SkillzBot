@@ -11,6 +11,7 @@ using SkillzBot.WRITERS;
 using TwitchLib.Client.Models;
 using F23.StringSimilarity;
 using SkillzBot.IllSTRINGS;
+using SkillzBot.IRC;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -92,9 +93,9 @@ namespace SkillzBot.IllSkillzBot
             if (messagesBuffer.Count < 100) return;
             List<MessageBuffer> temp;
             lock (_LockBufferObject)
-            {                
-                temp = messagesBuffer;
-                messagesBuffer.Clear();                
+            {
+                temp = new List<MessageBuffer>(messagesBuffer);
+                messagesBuffer.Clear();
             }
             await MySQL.SaveMessages(temp).ConfigureAwait(false);
         }
