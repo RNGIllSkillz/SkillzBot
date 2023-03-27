@@ -62,7 +62,7 @@ namespace SkillzBot.IllSkillzBot
                 var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
                 await AddMessage(e.ChatMessage.Username, e.ChatMessage.Message).ConfigureAwait(false);
                 user.messageCon++;
-                await SaveBuffer().ConfigureAwait(false);
+                await SaveBuffer(false).ConfigureAwait(false);
                 if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
                     return await IllCommands.IllBanUser(user).ConfigureAwait(false);
                 await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);                
@@ -88,9 +88,10 @@ namespace SkillzBot.IllSkillzBot
                 return null;
             }
         }
-        private static async Task SaveBuffer()
+        public static async Task SaveBuffer(bool IsForced)
         {
-            if (messagesBuffer.Count < 100) return;
+            if (messagesBuffer.Count < 100 || IsForced) return;
+            if (messagesBuffer.Count == 0) return;
             List<MessageBuffer> temp;
             lock (_LockBufferObject)
             {

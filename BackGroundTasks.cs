@@ -36,32 +36,32 @@ namespace SkillzBot.Tasks
             singleton.numWins = 0;
             IllCommands.SaveGameStats();
         }
-        public static async Task CalculatePoints()
+        public static async Task RunEvery5Min()
         {
-            //run every 5 min
+            //Save MessageBuffer
+            await IllChatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
+
+            //Calcucate Points
             //ToDo: Add timestamp to online status            
             try
             {
                 //var Chatters = await TtvAPI.GetChatters().ConfigureAwait(false);
                 var chatters = await TtvAPI.GetChattersAsync().ConfigureAwait(false);
-                if (chatters != null)
+                if (chatters == null) return;
+                List<string> lChatters = new List<string>();
+                foreach (var chatter in chatters.Data)
                 {
-                    List<string> lChatters = new List<string>();
-                    foreach (var chatter in chatters.Data)
-                    {
-                        lChatters.Add(chatter.UserLogin);
-                    }
-
-                    await MySQL.UpdateOnlineStatus(lChatters).ConfigureAwait(false);
-                    if (IllSingleton.GetInstance().BroadcasterIsOnline)
-                    {
-                        await MySQL.AddPoints(10).ConfigureAwait(false);
-                    }
+                    lChatters.Add(chatter.UserLogin);
+                }
+                await MySQL.UpdateOnlineStatus(lChatters).ConfigureAwait(false);
+                if (IllSingleton.GetInstance().BroadcasterIsOnline)
+                {
+                    await MySQL.AddPoints(10).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "CalculatePoints()");
+                Log.WriteLog(ex, "RunEvery5Min()");
             }
         }
         public static async Task TopRuleteTask()
