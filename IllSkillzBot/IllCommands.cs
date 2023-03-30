@@ -1072,7 +1072,7 @@ namespace SkillzBot.IllSkillzBot
             else
             {
                 ChatGPT.CreateNewChat();
-                return "404";
+                return await GetGPTResponce(userName, message).ConfigureAwait(false);
             }
         }
     }
