@@ -18,6 +18,7 @@ using System.Resources;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using System.Threading;
+using SkillzBot.JSON.Settings;
 
 namespace IllSkillzBot
 {
@@ -26,6 +27,7 @@ namespace IllSkillzBot
         static private int PubSubReconnects = 0;
         static string dataPath;
         private static PubSubClient PubSubClientInst;
+        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         static async Task Main()
         {
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
@@ -97,7 +99,7 @@ namespace IllSkillzBot
                         PubSubReconnect();
                         break;
                     case "reward":
-                        await TtvAPI.updateReward(IllSingleton.GetInstance().CenceleUval, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
+                        await TtvAPI.updateReward(singleton.CenceleUval, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                         break;
                 }                    
             }
@@ -106,44 +108,47 @@ namespace IllSkillzBot
         {            
             if (await TtvAPI.GetStreamStatus().ConfigureAwait(false))
             {
-                IllSingleton.GetInstance().BroadcasterIsOnline = true;
-                Console.WriteLine($"{IllSingleton.GetInstance().ChannelName} is LIVE!");
+                singleton.BroadcasterIsOnline = true;
+                Console.WriteLine($"{singleton.ChannelName} is LIVE!");
             }
             else
             {
-                IllSingleton.GetInstance().BroadcasterIsOnline = false;
-                Console.WriteLine($"{IllSingleton.GetInstance().ChannelName} is Offline!");
+                singleton.BroadcasterIsOnline = false;
+                Console.WriteLine($"{singleton.ChannelName} is Offline!");
             }
         }
         static async Task SetUpSingleton(Config config)
         {
-            IllSingleton.GetInstance().BotTwitchName = config.GetBotConfigs().BotTwitchName;
-            IllSingleton.GetInstance().BotTwitchAuth = config.GetBotConfigs().BotTwitchAuth;
-            IllSingleton.GetInstance().RiotApiToken = config.GetBotConfigs().RiotApiToken;
-            IllSingleton.GetInstance().YouTubeApiToken = config.GetBotConfigs().YouTubeApiToken;
-            IllSingleton.GetInstance().TApiClientId = config.GetBotConfigs().TApiClientId;
-            IllSingleton.GetInstance().TApiAccessToken = config.GetBotConfigs().TApiAccessToken;
-            IllSingleton.GetInstance().ChannelName = config.GetBotConfigs().ChannelName;
-            IllSingleton.GetInstance().BrodcasterId = config.GetBotConfigs().BrodcasterId;
-            IllSingleton.GetInstance().ZakazTrekaId = config.GetBotConfigs().ZakazTrekaId;
-            IllSingleton.GetInstance().Pi4KaId = config.GetBotConfigs().Pi4KaId;
-            IllSingleton.GetInstance().UvalId = config.GetBotConfigs().UvalId;
-            IllSingleton.GetInstance().UvalSabId = config.GetBotConfigs().UvalSabId;
-            IllSingleton.GetInstance().UvalVipId = config.GetBotConfigs().UvalVipId;
-            IllSingleton.GetInstance().EmoteModeId = config.GetBotConfigs().EmoteModeId;
-            IllSingleton.GetInstance().SUMMONER_NAME = config.GetBotConfigs().SummonerName;
-            IllSingleton.GetInstance().CenceleUval = config.GetBotConfigs().CenceleUval;
-            IllSingleton.GetInstance().EnglishWis = config.GetBotConfigs().EnglishWis;
-            IllSingleton.GetInstance().MySQL_User = config.GetBotConfigs().MySQL_User;
-            IllSingleton.GetInstance().MySQL_password = config.GetBotConfigs().MySQL_password;
-            IllSingleton.GetInstance().StreamElementsApiToken = config.GetBotConfigs().StreamElementsApiToken;
-            IllSingleton.GetInstance().StreamElementsID = config.GetBotConfigs().StreamElementsID;
-            IllSingleton.GetInstance().BroadcasterIsOnline = false;
-            IllSingleton.GetInstance().FirstQuizzOfTheDay = true;
-            IllSingleton.GetInstance().autoPred = true;
-            IllSingleton.GetInstance().AntiBotProtectionLvL = 1;
-            IllSingleton.GetInstance().wisEnabled = true;
-            IllSingleton.GetInstance().rootUser = "rng_backtrack";
+            singleton.BotTwitchName = config.GetBotConfigs().BotTwitchName;
+            singleton.BotTwitchAuth = config.GetBotConfigs().BotTwitchAuth;
+            singleton.RiotApiToken = config.GetBotConfigs().RiotApiToken;
+            singleton.YouTubeApiToken = config.GetBotConfigs().YouTubeApiToken;
+            singleton.TApiClientId = config.GetBotConfigs().TApiClientId;
+            singleton.TApiAccessToken = config.GetBotConfigs().TApiAccessToken;
+            singleton.ChannelName = config.GetBotConfigs().ChannelName;
+            singleton.BrodcasterId = config.GetBotConfigs().BrodcasterId;
+            singleton.ZakazTrekaId = config.GetBotConfigs().ZakazTrekaId;
+            singleton.Pi4KaId = config.GetBotConfigs().Pi4KaId;
+            singleton.UvalId = config.GetBotConfigs().UvalId;
+            singleton.UvalSabId = config.GetBotConfigs().UvalSabId;
+            singleton.UvalVipId = config.GetBotConfigs().UvalVipId;
+            singleton.EmoteModeId = config.GetBotConfigs().EmoteModeId;
+            singleton.SUMMONER_NAME = config.GetBotConfigs().SummonerName;
+            singleton.CenceleUval = config.GetBotConfigs().CenceleUval;
+            singleton.EnglishWis = config.GetBotConfigs().EnglishWis;
+            singleton.MySQL_User = config.GetBotConfigs().MySQL_User;
+            singleton.MySQL_password = config.GetBotConfigs().MySQL_password;
+            singleton.StreamElementsApiToken = config.GetBotConfigs().StreamElementsApiToken;
+            singleton.StreamElementsID = config.GetBotConfigs().StreamElementsID;
+            singleton.ChatWithBot = config.GetBotConfigs().ChatWithBot;
+            singleton.ReleaseBot = config.GetBotConfigs().ReleaseBot;
+            singleton.GPTApiToken = config.GetBotConfigs().GPTApiToken;
+            singleton.autoPred = true;
+            singleton.BroadcasterIsOnline = false;
+            singleton.FirstQuizzOfTheDay = true;
+            singleton.AntiBotProtectionLvL = 0;
+            singleton.wisEnabled = true;
+            singleton.rootUser = "rng_backtrack";
             await TempDataReader.ReadGameStats().ConfigureAwait(false);
         }
         static string CreadDefoults(string DataPath)
@@ -194,9 +199,9 @@ namespace IllSkillzBot
         {
             try
             {
-                SettingsObject Settings = new SettingsObject
+                SettingsJson Settings = new SettingsJson
                 {
-                    Summoner_Name = "Имя Призывателя",
+                    SummonerName = "Имя Призывателя",
                     ChannelName = ChannelName,
                     BotTwitchName = "Имя бота",
                     BotTwitchAuth = "oAuth для аккаунта бота",

@@ -1069,7 +1069,7 @@ namespace SkillzBot.IllSkillzBot
                     singleton.wisEnabled = true;
                 }
             }
-        }        
+        }
         private static async Task UpdateDailyStats(bool won)
         {
             var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
@@ -1126,8 +1126,8 @@ namespace SkillzBot.IllSkillzBot
                         singleton.startLP = bufflp;
                     }
                 }
-            else            
-                Log.WriteLog(null, $"UpdateDailyStats() -> cant convert to int. buffdata: {string.Join(" ", buffdata)}");            
+            else
+                Log.WriteLog(null, $"UpdateDailyStats() -> cant convert to int. buffdata: {string.Join(" ", buffdata)}");
         }
     }
 }

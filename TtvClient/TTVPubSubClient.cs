@@ -26,6 +26,7 @@ namespace SkillzBot.PubSub
         readonly string emoteMode;
         readonly string cenceleUval;
         readonly string englishWis;
+        readonly string ChatWithBot;
         readonly string BrodcasterId;
         private int tryes = 0;
         private bool disposed = false;
@@ -42,6 +43,7 @@ namespace SkillzBot.PubSub
             emoteMode = singleton.EmoteModeId;
             cenceleUval = singleton.CenceleUval;
             englishWis = singleton.EnglishWis;
+            ChatWithBot = singleton.ChatWithBot;
             accToken = singleton.TApiAccessToken;
 
             client = new TwitchPubSub();
@@ -363,6 +365,10 @@ namespace SkillzBot.PubSub
                 if (rewardID == englishWis)
                 {
                     await RewardsRedemption.EnglishWisReward(userName, redemID, rewardID).ConfigureAwait(false);
+                }
+                if (rewardID == ChatWithBot)
+                {
+                    await RewardsRedemption.ChatWithBot(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
             }
             catch (Exception e)

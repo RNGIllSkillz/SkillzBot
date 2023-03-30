@@ -20,6 +20,7 @@ using SkillzBot.TtvClient.TTVRewards;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
+using SkillzBot.API.OpenAI;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -714,7 +715,7 @@ namespace SkillzBot.IllSkillzBot
         {
             if (user.Name == singleton.rootUser)
             {
-                /*
+                
                 try
                 {
                     if (input.Length == 1)
@@ -725,7 +726,7 @@ namespace SkillzBot.IllSkillzBot
 
                     if (input.Length == 2) 
                     {
-                        TtvIRCClient.SendMessage(, $"rewardID - {input[1]}");
+                        TtvIRCClient.SendMessage($"rewardID - {input[1]}");
                         var reward = await TtvAPI.getReward(input[1]).ConfigureAwait(false);
                         if (reward[0] == "Error 404")
                             TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
@@ -734,52 +735,50 @@ namespace SkillzBot.IllSkillzBot
                         return;
                     }
 
-                    if (input.Length == 3) 
-                    {
-                        TtvIRCClient.SendMessage($"Title - {subs[1]}");
-                        var reward = await TtvAPI.getReward(subs[1], subs[2]).ConfigureAwait(false);
-                        if (reward[0] == "Error 404")
-                            TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
-                        else
-                            await TtvAPI.updateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
-                        return;
-                    }                    
+                    //if (input.Length == 3) 
+                    //{
+                    //    TtvIRCClient.SendMessage($"Title - {subs[1]}");
+                    //    var reward = await TtvAPI.getReward(subs[1], subs[2]).ConfigureAwait(false);
+                    //    if (reward[0] == "Error 404")
+                    //        TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+                    //    else
+                    //        await TtvAPI.updateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                    //    return;
+                    //}                    
                 }
                 catch (Exception ex)
                 {
                     TtvIRCClient.SendMessage(ex.Message);
                     Log.WriteLog(ex, "!disablereward");
                 }
-                */
-                TtvIRCClient.SendMessage("Команда не доступна.");
             }
         }
-        public static async Task CreateReward(UserObject user, string[] input)
+        public static async Task CreateReward(UserObject user, string input)
         {
             if (user.Name == singleton.rootUser)
             {
-                //try
-                //{
-                //    string s = message;
-                //    char[] separators = new char[] { '|' };
-                //    string[] subs = s.split(separators, stringsplitoptions.removeemptyentries);
-                //    if (subs.length == 6)
-                //    {
-                //        client.sendmessage(tchannel, $"title - {subs[1]},  cost - {subs[2]},  promt - {subs[3]},  enabled - {subs[4]},  userinput - {subs[5]}");
-                //        var responce = await ttvapi.createreward(subs[1], convert.toint32(subs[2]), subs[3], convert.toboolean(subs[4]), convert.toboolean(subs[5])).configureawait(false);
-                //        client.sendmessage(tchannel, responce);
-                //    }
-                //    else
-                //    {
-                //        client.sendmessage(tchannel, "usage - !createreward|title(string)|cost(string)|promt(string)|enabled(bool)|userinput(bool)");
-                //    }
-                //}
-                //catch (exception ex)
-                //{
-                //    client.sendmessage(tchannel, ex.message);
-                //    log.writelog(ex, "!createreward");
-                //}
-                TtvIRCClient.SendMessage("Команда не доступна.");
+                char[] separators = new char[] { '|' };
+                string[] subs = input.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                if (subs.Length == 6)
+                {
+                    TtvIRCClient.SendMessage($"title - {subs[1]},  cost - {subs[2]},  promt - {subs[3]},  enabled - {subs[4]},  userinput - {subs[5]}");
+                    string responce;
+                    try
+                    {
+                        responce = await TtvAPI.createReward(subs[1], int.Parse(subs[2]), subs[3], Convert.ToBoolean(subs[4]), Convert.ToBoolean(subs[5])).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        TtvIRCClient.SendMessage(ex.Message);
+                        Log.WriteLog(ex, "!createreward");
+                        return;
+                    }
+                    TtvIRCClient.SendMessage(responce);
+                }
+                else
+                {
+                    TtvIRCClient.SendMessage("usage - !createreward|title(string)|cost(string)|promt(string)|enabled(bool)|userinput(bool)");
+                }
             }
         }
         public static async Task DeleteReward(UserObject user, string[] input)
@@ -817,72 +816,68 @@ namespace SkillzBot.IllSkillzBot
                 TtvIRCClient.SendMessage("Команда не доступна.");
             }
         }
-        public static async Task UpdateReward(UserObject user, string[] input)
+        public static async Task UpdateReward(UserObject user, string input)
         {
             if (user.Name == singleton.rootUser)
             {
-                //try
-                //{
-                //    string s = message;
-                //    char[] separators = new char[] { '|' };
-                //    string[] subs = s.Split(separators, StringSplitOptions.RemoveEmptyEntries);
-                //    if (subs.Length == 7)
-                //    {
-                //        client.SendMessage(tChannel, $"rewardID - {subs[1]}, title - {subs[2]},  cost - {subs[3]},  promt - {subs[4]},  enabled - {subs[5]},  userinput - {subs[6]}");
-                //        await TtvAPI.updateReward(subs[1], subs[2], Convert.ToInt32(subs[3]), subs[4], Convert.ToBoolean(subs[5]), Convert.ToBoolean(subs[6])).ConfigureAwait(false);
-                //    }
-                //    else
-                //    {
-                //        client.SendMessage(tChannel, "usage - !updatereward|rewardID(string)|title(string)|cost(string)|promt(string)|enabled(bool)|userinput(bool)");
-                //    }
-                //}
-                //catch (Exception ex)
-                //{
-                //    client.SendMessage(tChannel, ex.Message);
-                //    Log.WriteLog(ex, "!updatereward");
-                //}
-                TtvIRCClient.SendMessage("Команда не доступна.");
+                try
+                {
+                    char[] separators = new char[] { '|' };
+                    string[] subs = input.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                    if (subs.Length == 7)
+                    {
+                        TtvIRCClient.SendMessage($"rewardID - {subs[1]}, title - {subs[2]},  cost - {subs[3]},  promt - {subs[4]},  enabled - {subs[5]},  userinput - {subs[6]}");
+                        await TtvAPI.updateReward(subs[1], subs[2], Convert.ToInt32(subs[3]), subs[4], Convert.ToBoolean(subs[5]), Convert.ToBoolean(subs[6])).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        TtvIRCClient.SendMessage("usage - !updatereward|rewardID(string)|title(string)|cost(string)|promt(string)|enabled(bool)|userinput(bool)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    TtvIRCClient.SendMessage(ex.Message);
+                    Log.WriteLog(ex, "!updatereward");
+                }
             }
         }
-        public static async Task EnableReward(UserObject user, string[] input)
+        public static async Task EnableReward(UserObject user, string input)
         {
             if (user.Name == singleton.rootUser)
             {
-                //try
-                //{
-                //    string s = message;
-                //    char[] separators = new char[] { '|' };
-                //    string[] subs = s.Split(separators, StringSplitOptions.RemoveEmptyEntries);
-                //    if (subs.Length > 1)
-                //    {
-                //        if (subs.Length == 2)
-                //        {
-                //            client.SendMessage(tChannel, $"rewardID - {subs[1]}");
-                //            var reward = await TtvAPI.getReward(subs[1]).ConfigureAwait(false);
-                //            if (reward[0] == "Error 404")
-                //                client.SendMessage(tChannel, "Error 404 - Награда не найденa");
-                //            else
-                //                await TtvAPI.updateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
-                //        }
-                //        if (subs.Length == 3)
-                //        {
-                //            client.SendMessage(tChannel, $"Title - {subs[1]}");
-                //            var reward = await TtvAPI.getReward(subs[1], subs[2]).ConfigureAwait(false);
-                //            if (reward[0] == "Error 404")
-                //                client.SendMessage(tChannel, "Error 404 - Награда не найденa");
-                //            else
-                //                await TtvAPI.updateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
-                //        }
-                //    }
-                //    else
-                //        client.SendMessage(tChannel, "usage - !enablereward|rewardID(string) or !enablereward|Title(string)|text(string)");
-                //}
-                //catch (Exception ex)
-                //{
-                //    client.SendMessage(tChannel, ex.Message);
-                //    Log.WriteLog(ex, "!enablereward");
-                //}
-                TtvIRCClient.SendMessage("Команда не доступна.");
+                try
+                {
+                    char[] separators = new char[] { '|' };
+                    string[] subs = input.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                    if (subs.Length > 1)
+                    {
+                        if (subs.Length == 2)
+                        {
+                            TtvIRCClient.SendMessage($"rewardID - {subs[1]}");
+                            var reward = await TtvAPI.getReward(subs[1]).ConfigureAwait(false);
+                            if (reward[0] == "Error 404")
+                                TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+                            else
+                                await TtvAPI.updateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                        }
+                        if (subs.Length == 3)
+                        {
+                            TtvIRCClient.SendMessage($"Title - {subs[1]}");
+                            var reward = await TtvAPI.getReward(subs[1], subs[2]).ConfigureAwait(false);
+                            if (reward[0] == "Error 404")
+                                TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+                            else
+                                await TtvAPI.updateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                        }
+                    }
+                    else
+                        TtvIRCClient.SendMessage("usage - !enablereward|rewardID(string) or !enablereward|Title(string)|text(string)");
+                }
+                catch (Exception ex)
+                {
+                    TtvIRCClient.SendMessage(ex.Message);
+                    Log.WriteLog(ex, "!enablereward");
+                }
             }
         }
         public static async Task InjectSQL(UserObject user, string[] input)
@@ -1065,6 +1060,20 @@ namespace SkillzBot.IllSkillzBot
         {
             if (user.Name != singleton.rootUser) return;
             IllSkillzBotMain.PubSubReconnect();
+        }
+        public static async Task<string> GetGPTResponce(string userName, string message)
+        {
+            string responce = await ChatGPT.GetGptResponce(userName + " " + message).ConfigureAwait(false);
+            if (!responce.Contains("maximum context length"))
+                    if (IllChatFilters.ZapCheck(responce, "ChatGPT"))
+                        return "900";
+                    else
+                        return responce;
+            else
+            {
+                ChatGPT.CreateNewChat();
+                return "404";
+            }
         }
     }
 }

@@ -43,6 +43,9 @@ namespace SkillzBot.Singleton
         public bool BroadcasterIsOnline { get; set; }
         public bool FirstQuizzOfTheDay { get; set; }
         public int AntiBotProtectionLvL { get; set; }
+        public string ChatWithBot { get; set; }
+        public string ReleaseBot { get; set; }
+        public string GPTApiToken { get; set; }
         private IllSingleton() { }
 
         public static IllSingleton GetInstance()

@@ -181,7 +181,6 @@ namespace SkillzBot.MYSQL
         public static async Task<UserObject> GetUser(int ttvUserID)
         {
             string SQL = $"SELECT * FROM dbUserTable WHERE TwitchID = @ID";
-
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
             await Connect.OpenAsync().ConfigureAwait(false);
             using MySqlCommand Command = new MySqlCommand(SQL, Connect);

@@ -69,6 +69,13 @@ namespace SkillzBot.JSON.Settings
 
         [JsonProperty("StreamElementsID")]
         public string StreamElementsID { get; set; }
+        [JsonProperty("ChatWithBot")]
+        public string ChatWithBot { get; set; }
+        [JsonProperty("ReleaseBot")]
+        public string ReleaseBot { get; set; }
+
+        [JsonProperty("GPTApiToken")]
+        public string GPTApiToken { get; set; }
     }
 
     public partial class SettingsJson
@@ -81,19 +88,6 @@ namespace SkillzBot.JSON.Settings
         public static string ToJson(this SettingsJson self) => JsonConvert.SerializeObject(self, Converter.Settings);
     }
 
-    internal static class Converter
-    {
-        public static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
-        {
-            MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
-            DateParseHandling = DateParseHandling.None,
-            Converters =
-            {
-                new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
-            },
-        };
-    }
-
     internal class ParseStringConverter : JsonConverter
     {
         public override bool CanConvert(Type t) => t == typeof(long) || t == typeof(long?);
@@ -102,8 +96,7 @@ namespace SkillzBot.JSON.Settings
         {
             if (reader.TokenType == JsonToken.Null) return null;
             var value = serializer.Deserialize<string>(reader);
-            long l;
-            if (Int64.TryParse(value, out l))
+            if (Int64.TryParse(value, out long l))
             {
                 return l;
             }

@@ -4,6 +4,7 @@ using SkillzBot.Singleton;
 using SkillzBot.Utils;
 using System.Threading.Tasks;
 
+
 namespace SkillzBot.IllSkillzBot
 {
     internal class IllCommandHandler
@@ -41,7 +42,7 @@ namespace SkillzBot.IllSkillzBot
 
                 case "!ммр":
                 case "!mmr":
-                    await IllCommands.GetMMR(user).ConfigureAwait(false);
+                    //await IllCommands.GetMMR(user).ConfigureAwait(false);
                     break;
 
                 case "!топ":
@@ -117,7 +118,7 @@ namespace SkillzBot.IllSkillzBot
                     break;
 
                 case "!enablereward":
-                    await IllCommands.EnableReward(user, Command).ConfigureAwait(false);
+                    await IllCommands.EnableReward(user, message).ConfigureAwait(false);
                     break;
 
                 case "!disablereward":
@@ -125,7 +126,7 @@ namespace SkillzBot.IllSkillzBot
                     break;
 
                 case "!updatereward":
-                    await IllCommands.UpdateReward(user, Command).ConfigureAwait(false);
+                    await IllCommands.UpdateReward(user, message).ConfigureAwait(false);
                     break;
 
                 case "!deletereward":
@@ -133,7 +134,7 @@ namespace SkillzBot.IllSkillzBot
                     break;
 
                 case "!createreward":
-                    await IllCommands.CreateReward(user, Command).ConfigureAwait(false);
+                    await IllCommands.CreateReward(user, message).ConfigureAwait(false);
                     break;
 
                 case "!deletemod":
@@ -167,8 +168,7 @@ namespace SkillzBot.IllSkillzBot
                     break;
                 case "!connect":
                     IllCommands.ReconnectToPubSub(user);
-                    break;
-
+                    break;  
                 default:
                     break;
             }

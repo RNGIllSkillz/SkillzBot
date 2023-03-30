@@ -12,6 +12,7 @@ using TwitchLib.Client.Models;
 using F23.StringSimilarity;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.IRC;
+using SkillzBot.API.OpenAI;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -21,6 +22,7 @@ namespace SkillzBot.IllSkillzBot
         private readonly static List<MessageBuffer> messagesBuffer = new List<MessageBuffer>();
         private readonly static object _LockMessagesObject = new object();
         private readonly static object _LockBufferObject = new object();
+        private static double ChatGPTCD = 0;
         static IllChatMessageHandler()
         {
             DataColumn idColumnMess = new DataColumn("Id", Type.GetType("System.Int32"))
@@ -54,43 +56,41 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task<UserObject> MessageHandler(OnMessageReceivedArgs e)
         {
-            try
-            {
-                SaveToBuffer(e);
-                if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase))
-                    return null;
-                var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
-                await AddMessage(e.ChatMessage.Username, e.ChatMessage.Message).ConfigureAwait(false);
-                user.messageCon++;
-                await SaveBuffer(false).ConfigureAwait(false);
-                if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
-                    return await IllCommands.IllBanUser(user).ConfigureAwait(false);
-                await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);                
-                if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
-                    return await TtvAPI.TimeOutUser(user, 1200, STRINGS.TimeOutBadPic).ConfigureAwait(false);
-                if (IllChatFilters.FilterASCII(e))
-                    return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutPic).ConfigureAwait(false);
-                if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
-                    return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
-                if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))
-                    return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOut1wReason).ConfigureAwait(false);
-                if (IllSingleton.GetInstance().QuizIsRunning)
-                    user = IllGames.UserGuessAnswer(user, e.ChatMessage.Message);
-                if (e.ChatMessage.Message.StartsWith("!"))
-                    user = await IllCommandHandler.CommandHandler(user, e.ChatMessage.Message).ConfigureAwait(false);
-                //if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
-                //    TypeInChat(e.ChatMessage.Message);
-                return user;
+            SaveToBuffer(e);
+            if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return null;
+            var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
+            await AddMessage(e.ChatMessage.Username, e.ChatMessage.Message).ConfigureAwait(false);
+            user.messageCon++;
+            await SaveBuffer(false).ConfigureAwait(false);
+            if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
+                return await IllCommands.IllBanUser(user).ConfigureAwait(false);
+            await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);
+            if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
+                return await TtvAPI.TimeOutUser(user, 1200, STRINGS.TimeOutBadPic).ConfigureAwait(false);
+            if (IllChatFilters.FilterASCII(e))
+                return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutPic).ConfigureAwait(false);
+            if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
+                return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
+            if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))
+                return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+            if (IllSingleton.GetInstance().QuizIsRunning)
+                user = IllGames.UserGuessAnswer(user, e.ChatMessage.Message);
+            else
+                IllGames.QuizzActiveUser(user.TwitchID.ToString());
+            if (e.ChatMessage.Message.StartsWith("!"))
+                user = await IllCommandHandler.CommandHandler(user, e.ChatMessage.Message).ConfigureAwait(false);
+            //if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
+            //    TypeInChat(e.ChatMessage.Message);
+            if (user.isMod != 1) return user;
+            if (e.ChatMessage.Message.StartsWith("@bot_illskillz", StringComparison.OrdinalIgnoreCase))
+            {                
+                TtvIRCClient.SendMessage($"@{e.ChatMessage.DisplayName} {await IllCommands.GetGPTResponce(e.ChatMessage.DisplayName, e.ChatMessage.Message).ConfigureAwait(false)}");                
             }
-            catch (Exception ex)
-            {
-                Log.WriteLog(ex, "IllChatMessageHandler");
-                return null;
-            }
+            return user;
         }
         public static async Task SaveBuffer(bool IsForced)
         {
-            if (messagesBuffer.Count < 100 || !IsForced) return;
+            if (messagesBuffer.Count < 100 && !IsForced) return;
             if (messagesBuffer.Count == 0) return;
             List<MessageBuffer> temp;
             lock (_LockBufferObject)
@@ -171,10 +171,7 @@ namespace SkillzBot.IllSkillzBot
                         Log.WriteLog(null, $"findUser2() Douplicates detected - {Name}");
                         return -1;
                     }
-                    if (dRows.Length == 0)
-                    {
-                        return -1;
-                    }
+                    if (dRows.Length == 0) return -1;                    
                     return Convert.ToInt32(dRows[0][0]);
                 }
             }
@@ -186,72 +183,66 @@ namespace SkillzBot.IllSkillzBot
         }
         private static async Task<UserObject> GetAddUser(ChatMessage chatmessage)
         {
-            UserObject user = await MySQL.GetUser(int.Parse(chatmessage.UserId)).ConfigureAwait(false);
-
-            if (user.dbID == -404)
+            if (int.TryParse(chatmessage.UserId, out int ttvid))
             {
-                user.TwitchID = int.Parse(chatmessage.UserId);
-                user.Name = chatmessage.Username;
-                user.isSub = Convert.ToInt32(chatmessage.IsSubscriber);
-                user.isVip = chatmessage.IsVip ? 1 : 0;
-                user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
-                user.isMod = chatmessage.IsModerator ? 1 : 0;
-                user.isPartner = chatmessage.IsPartner ? 1 : 0;
-                await MySQL.AddUser(user).ConfigureAwait(false);
-            }
-            else if (user.dbID == -500)
-            {
-                Log.WriteLog(null, "GetUser Error 500! Duplicates???");
-            }
-            else if (user.dbID == -800)
-            {
-                Log.WriteLog(null, "GetUser Error 800! ???????????????");
+                UserObject user = await MySQL.GetUser(ttvid).ConfigureAwait(false);
+                if (user.dbID == -404)
+                {
+                    user.TwitchID = ttvid;
+                    user.Name = chatmessage.Username;
+                    user.isSub = Convert.ToInt32(chatmessage.IsSubscriber);
+                    user.isVip = chatmessage.IsVip ? 1 : 0;
+                    user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
+                    user.isMod = chatmessage.IsModerator ? 1 : 0;
+                    user.isPartner = chatmessage.IsPartner ? 1 : 0;
+                    await MySQL.AddUser(user).ConfigureAwait(false);
+                    return user;
+                }
+                else if (user.dbID == -500)
+                {
+                    Log.WriteLog(null, "GetUser Error 500! Duplicates???");
+                    return user;
+                }
+                else if (user.dbID == -800)
+                {
+                    Log.WriteLog(null, "GetUser Error 800! ???????????????");
+                    return user;
+                }
+                else
+                {
+                    user.Name = chatmessage.Username;
+                    user.isSub = chatmessage.IsSubscriber ? 1 : 0;
+                    user.isVip = chatmessage.IsVip ? 1 : 0;
+                    user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
+                    user.isMod = chatmessage.IsModerator ? 1 : 0;
+                    user.isPartner = chatmessage.IsPartner ? 1 : 0;
+                    return user;
+                }
             }
             else
             {
-                user.Name = chatmessage.Username;
-                user.isSub = chatmessage.IsSubscriber ? 1 : 0;
-                user.isVip = chatmessage.IsVip ? 1 : 0;
-                user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
-                user.isMod = chatmessage.IsModerator ? 1 : 0;
-                user.isPartner = chatmessage.IsPartner ? 1 : 0;
+                Log.WriteLog(null, "GetAddUser(): TtvID Conversion Error");
+                return null;
             }
-            return user;
         }
         static async Task<bool> CheckSpam(string Sender, string Message)
         {
-            var jw = new NormalizedLevenshtein();
-            try
-            {
+            var jw = new NormalizedLevenshtein();            
                 int id = await Task.FromResult(FindUser2(Sender)).ConfigureAwait(false);
-                lock (_LockMessagesObject)
+            lock (_LockMessagesObject)
+            {
+                var sim1 = (jw.Distance(Messages.Rows[id][2].ToString(), Messages.Rows[id][3].ToString()));
+                if (sim1 < 0.4)
                 {
-                    var sim1 = (jw.Distance(Messages.Rows[id][2].ToString(), Messages.Rows[id][3].ToString()));
-                    if (sim1 < 0.4)
+                    var sim2 = (jw.Distance(Messages.Rows[id][3].ToString(), Messages.Rows[id][4].ToString()));
+                    if (sim2 < 0.4)
                     {
-                        var sim2 = (jw.Distance(Messages.Rows[id][3].ToString(), Messages.Rows[id][4].ToString()));
-                        if (sim2 < 0.4)
+                        if (Message.Length < 118)
                         {
-                            if (Message.Length < 118)
+                            var sim3 = (jw.Distance(Messages.Rows[id][4].ToString(), Messages.Rows[id][5].ToString()));
+                            if (sim3 < 0.4)
                             {
-                                var sim3 = (jw.Distance(Messages.Rows[id][4].ToString(), Messages.Rows[id][5].ToString()));
-                                if (sim3 < 0.4)
-                                {
-                                    if (Convert.ToDouble(Messages.Rows[id][6]) < 5)
-                                    {
-                                        Messages.Rows[id][2] = "0";
-                                        Messages.Rows[id][3] = "1";
-                                        Messages.Rows[id][4] = "2";
-                                        Messages.Rows[id][5] = "3";
-                                        Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds();
-                                        Messages.AcceptChanges();
-                                        return true;
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                if (Convert.ToDouble(Messages.Rows[id][6]) < 10)
+                                if (Convert.ToDouble(Messages.Rows[id][6]) < 5)
                                 {
                                     Messages.Rows[id][2] = "0";
                                     Messages.Rows[id][3] = "1";
@@ -263,14 +254,23 @@ namespace SkillzBot.IllSkillzBot
                                 }
                             }
                         }
+                        else
+                        {
+                            if (Convert.ToDouble(Messages.Rows[id][6]) < 10)
+                            {
+                                Messages.Rows[id][2] = "0";
+                                Messages.Rows[id][3] = "1";
+                                Messages.Rows[id][4] = "2";
+                                Messages.Rows[id][5] = "3";
+                                Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds();
+                                Messages.AcceptChanges();
+                                return true;
+                            }
+                        }
                     }
-                    Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds();
-                    Messages.AcceptChanges();
                 }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLog(ex, "CheckSpam()");
+                Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds();
+                Messages.AcceptChanges();
             }
             return false;
         }        

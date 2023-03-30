@@ -5,9 +5,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
 namespace SkillzBot.JSON.MediaQueue
-{
-    
-
+{  
     public partial class MediaQueueJson
     {
         [JsonProperty("duration")]
@@ -65,25 +63,12 @@ namespace SkillzBot.JSON.MediaQueue
 
     public partial class MediaQueueJson
     {
-        public static List<MediaQueueJson> FromJson(string json) => JsonConvert.DeserializeObject<List<MediaQueueJson>>(json, Settings.Converter.Settings);
+        public static List<MediaQueueJson> FromJson(string json) => JsonConvert.DeserializeObject<List<MediaQueueJson>>(json, Converter.Settings);
     }
 
     public static class Serialize
     {
-        public static string ToJson(this List<MediaQueueJson> self) => JsonConvert.SerializeObject(self, Settings.Converter.Settings);
-    }
-
-    internal static class Converter
-    {
-        public static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
-        {
-            MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
-            DateParseHandling = DateParseHandling.None,
-            Converters =
-            {
-                new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
-            },
-        };
+        public static string ToJson(this List<MediaQueueJson> self) => JsonConvert.SerializeObject(self, Converter.Settings);
     }
 
     internal class ParseStringConverter : JsonConverter

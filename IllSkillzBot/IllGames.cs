@@ -68,7 +68,7 @@ namespace SkillzBot.IllSkillzBot
         #region Quizz
         public static async Task Quizz(bool isForced)
         {
-            if (!singleton.BroadcasterIsOnline || !isForced) return;
+            if (!singleton.BroadcasterIsOnline && !isForced) return;
             string SQL_string = "SELECT COUNT(*) FROM dbQuiz";
             var results = await MySQL.SudoSQLReader(SQL_string).ConfigureAwait(false);
             int questionID = IntUtil.Random(1, results[0].dbID);
@@ -94,7 +94,7 @@ namespace SkillzBot.IllSkillzBot
                 Quizz_ActiveUsers_List.Clear();
             return true;
         }
-        private static void QuizzActiveUser(string ttvID)
+        public static void QuizzActiveUser(string ttvID)
         {
             foreach (var User in Quizz_ActiveUsers_List)
             {
@@ -119,9 +119,8 @@ namespace SkillzBot.IllSkillzBot
             return false;
         }
         public static UserObject UserGuessAnswer(UserObject user, string message)
-        {
-            QuizzActiveUser(user.TwitchID.ToString());
-            if (!singleton.FirstQuizzOfTheDay || !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
+        {            
+            if (!singleton.FirstQuizzOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
             if (!CheckQuizzAnswer(message)) return user;
             singleton.FirstQuizzOfTheDay = false;
             user.QuizPoints += _Quizz.QuizzCost;

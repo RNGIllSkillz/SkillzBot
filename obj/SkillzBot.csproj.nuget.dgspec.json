@@ -56,6 +56,10 @@
               "target": "Package",
               "version": "[13.0.3, )"
             },
+            "OpenAI": {
+              "target": "Package",
+              "version": "[1.6.0, )"
+            },
             "Quartz": {
               "target": "Package",
               "version": "[3.6.2, )"

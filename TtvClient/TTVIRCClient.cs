@@ -18,8 +18,9 @@ using SkillzBot.IllSTRINGS;
 namespace SkillzBot.IRC
 {
     sealed class TtvIRCClient
-    {     
-        static readonly TwitchClient client;
+    {
+        private static readonly TwitchClient client;
+        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         static TtvIRCClient()
         {       
             try
@@ -31,8 +32,8 @@ namespace SkillzBot.IRC
                 };
                 WebSocketClient customClient = new WebSocketClient(clientOptions);
                 client = new TwitchClient(customClient);
-                ConnectionCredentials credentials = new ConnectionCredentials(IllSingleton.GetInstance().BotTwitchName, IllSingleton.GetInstance().BotTwitchAuth);
-                client.Initialize(credentials, IllSingleton.GetInstance().ChannelName);
+                ConnectionCredentials credentials = new ConnectionCredentials(singleton.BotTwitchName, singleton.BotTwitchAuth);
+                client.Initialize(credentials, singleton.ChannelName);
                 client.OnMessageReceived += Client_OnMessageReceived;
                 client.OnUserTimedout += Client_OnUserTimedout;
                 client.OnDisconnected += Client_OnDisconnected;
@@ -80,29 +81,37 @@ namespace SkillzBot.IRC
         }  
         public static void OnStreamDown()
         {
-            IllSingleton.GetInstance().BroadcasterIsOnline = false;
+            singleton.BroadcasterIsOnline = false;
             IllGames.ClearQuizzActiveUsers();
-            IllSingleton.GetInstance().FirstQuizzOfTheDay = true;             
-            if (IllSingleton.GetInstance().earnedLP <= 0)
-                client.SendMessage(IllSingleton.GetInstance().ChannelName, STRINGS.OnStreadDownLowLP);
+            singleton.FirstQuizzOfTheDay = true;             
+            if (singleton.earnedLP <= 0)
+                SendMessage(STRINGS.OnStreadDownLowLP);
             else
-                client.SendMessage(IllSingleton.GetInstance().ChannelName, STRINGS.OnStreadDownHighLP);
+                SendMessage(STRINGS.OnStreadDownHighLP);
         }
         public static void OnStreamUp()
         {
-            IllSingleton.GetInstance().BroadcasterIsOnline = true;
-            client.SendMessage(IllSingleton.GetInstance().ChannelName, string.Format(STRINGS.OnStreamUP, IllSingleton.GetInstance().ChannelName));
+            singleton.BroadcasterIsOnline = true;
+            SendMessage(string.Format(STRINGS.OnStreamUP, singleton.ChannelName));
         }                        
         public static void OnUnban(OnUnbanArgs e)
         {
-            client.SendMessage(IllSingleton.GetInstance().ChannelName, string.Format(STRINGS.OnUnban, e.UnbannedBy, e.UnbannedUser));
+            SendMessage(string.Format(STRINGS.OnUnban, e.UnbannedBy, e.UnbannedUser));
         }  
         public static void SendMessage(string messageToSend)
         {
             const int MaxLength = 500;
             if (messageToSend.Length <= MaxLength)
             {
-                client.SendMessage(IllSingleton.GetInstance().ChannelName, messageToSend);
+                try
+                {
+                    client.SendMessage(singleton.ChannelName, messageToSend);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "client.SendMessage");
+                    return;
+                }
                 return;
             }
             int startIndex = 0;
@@ -118,12 +127,28 @@ namespace SkillzBot.IRC
                     }
                     else
                     {
-                        client.SendMessage(IllSingleton.GetInstance().ChannelName, STRINGS.SendMessageERROR);
+                        try
+                        {
+                            client.SendMessage(singleton.ChannelName, STRINGS.SendMessageERROR);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.WriteLog(ex, "client.SendMessage");
+                            return;
+                        }
                         return;
                     }
                 }
                 string messagePart = messageToSend.Substring(startIndex, length);
-                client.SendMessage(IllSingleton.GetInstance().ChannelName, messagePart);
+                try
+                {
+                    client.SendMessage(singleton.ChannelName, messagePart);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "client.SendMessage");
+                    return;
+                }
                 startIndex += length;
             }
         }

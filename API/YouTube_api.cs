@@ -8,6 +8,8 @@ using System.Linq;
 using Org.BouncyCastle.Asn1.Ocsp;
 using SkillzBot.Readers;
 using SkillzBot.Singleton;
+using Google.Apis.YouTube.v3.Data;
+using SkillzBot.WRITERS;
 
 namespace SkillzBot.API.YouTube
 {
@@ -34,29 +36,23 @@ namespace SkillzBot.API.YouTube
         {
             var searchRequest = _YouTubeService.Videos.List(_request);
             searchRequest.Id = vidID;
-            var searchResponse = await searchRequest.ExecuteAsync();
+            VideoListResponse searchResponse;
+            try
+            {
+                searchResponse = await searchRequest.ExecuteAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "YouTubeSearchByIDTask");
+                return null;
+            }
             var youTubeVideo = searchResponse.Items[0];
             TimeSpan ts = XmlConvert.ToTimeSpan(youTubeVideo.ContentDetails.Duration);
 
-            if (youTubeVideo.Statistics.ViewCount < 280000)
-            {
-                return new List<string> { "view" };
-            }
-
-            if (ts.TotalSeconds >= 375)
-            {
-                return new List<string> { "duration" };
-            }
-
-            if (youTubeVideo.ContentDetails.ContentRating.YtRating != null)
-            {
-                return new List<string> { "age" };
-            }
-
-            if (youTubeVideo.Status.Embeddable != true)
-            {
-                return new List<string> { "Embeddable" };
-            }
+            if (youTubeVideo.Statistics.ViewCount < 280000) return new List<string> { "view" };      
+            if (ts.TotalSeconds >= 375) return new List<string> { "duration" };
+            if (youTubeVideo.ContentDetails.ContentRating.YtRating != null) return new List<string> { "age" };
+            if (youTubeVideo.Status.Embeddable != true) return new List<string> { "Embeddable" }; 
 
             return new List<string>
             {
@@ -69,7 +65,16 @@ namespace SkillzBot.API.YouTube
             var searchListRequest = _YouTubeService.Search.List("snippet");
             searchListRequest.Q = KeyWord;
             searchListRequest.MaxResults = 10;
-            var searchListResponse = await searchListRequest.ExecuteAsync().ConfigureAwait(false);            
+            SearchListResponse searchListResponse;
+            try
+            {
+                searchListResponse = await searchListRequest.ExecuteAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "YouTubeSearchByKeyWordTask");
+                return null;
+            }           
             var searchRequest = _YouTubeService.Videos.List(_request);
             foreach (var searchResult in searchListResponse.Items)
             {

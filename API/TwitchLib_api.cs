@@ -286,15 +286,22 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task updateReward(string rewardID, string title, int cost, string prompt,bool enable, bool isUserInputRequired)
         {
-            await API.Helix.ChannelPoints.UpdateCustomRewardAsync(BrodcasterID, rewardID, new UpdateCustomRewardRequest
+            try
             {
-                Title = title,
-                Cost = cost,
-                Prompt = prompt,
-                IsEnabled = enable,
-                IsUserInputRequired = isUserInputRequired,
-                ShouldRedemptionsSkipRequestQueue = false
-            }).ConfigureAwait(false);
+                await API.Helix.ChannelPoints.UpdateCustomRewardAsync(BrodcasterID, rewardID, new UpdateCustomRewardRequest
+                {
+                    Title = title,
+                    Cost = cost,
+                    Prompt = prompt,
+                    IsEnabled = enable,
+                    IsUserInputRequired = isUserInputRequired,
+                    ShouldRedemptionsSkipRequestQueue = false
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "updateReward");
+            }
         }
         public static async Task deleteReward(string rewardID)
         {
@@ -320,12 +327,18 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task CencelReward(string rewardID, string RedemID)
         {
-            if (ValidToken)            
-                await API.Helix.ChannelPoints.UpdateRedemptionStatusAsync(BrodcasterID, rewardID, new List<string> { RedemID }, new UpdateCustomRewardRedemptionStatusRequest
+            if (ValidToken)
+                try
                 {
-                    Status = TwitchLib.Api.Core.Enums.CustomRewardRedemptionStatus.CANCELED
-                }).ConfigureAwait(false);
-            
+                    await API.Helix.ChannelPoints.UpdateRedemptionStatusAsync(BrodcasterID, rewardID, new List<string> { RedemID }, new UpdateCustomRewardRedemptionStatusRequest
+                    {
+                        Status = TwitchLib.Api.Core.Enums.CustomRewardRedemptionStatus.CANCELED
+                    }).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "CencelReward");
+                }            
         }
         public static async Task ApproveReward(string rewardID, string RedemID)
         {
@@ -441,7 +454,7 @@ namespace SkillzBot.API.Twitch
             await API.Helix.Chat.UpdateChatSettingsAsync(BrodcasterID, BrodcasterID, new ChatSettings
             {
                 EmoteMode = IsEmoteOnly
-            });
+            }).ConfigureAwait(false);
         }
         public static async Task<UserObject> TimeOutUser(UserObject user, int Duration, string Reasone)
         {

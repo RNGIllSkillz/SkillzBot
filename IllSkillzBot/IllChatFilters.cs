@@ -14,21 +14,29 @@ using System.Linq;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal class IllChatFilters
+    class IllChatFilters
     {
-        readonly private static string dataPath = IllSkillzBotMain.GetChannelName();
-        readonly private static string pichkaList = Path.Combine(dataPath, "pichkaList.txt");
-        readonly private static string dicDir = Path.Combine(dataPath, "dic.txt");
-        readonly private static string dicDirWhite = Path.Combine(dataPath, "dicWhiteList.txt");
-        readonly private static string userBlackListDir = Path.Combine(dataPath, "userblacklist.txt");
-        readonly private static string mediaBlackList = Path.Combine(dataPath, "mediaList.txt");
-        readonly private static string channelBlackList = Path.Combine(dataPath, "channelList.txt");
+        private static readonly string dataPath = IllSkillzBotMain.GetChannelName();
+        private static readonly IEnumerable<String> pichkaBlack;
+        private static readonly IEnumerable<String> mediaBlack;
+        private static readonly IEnumerable<String> channelBlack;
+        private static readonly HashSet<string> dictionary;
+        private static readonly HashSet<string> whiteList;
+        private static readonly IEnumerable<String> userBlackList;
+        private static readonly int[] Arabic2;
 
-        readonly static int[] Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
-
-        public static bool CheckBooB(string message)
+        static IllChatFilters()
         {
-            IEnumerable<String> pichkaBlack = File.ReadLines(pichkaList);
+            pichkaBlack = File.ReadLines(Path.Combine(dataPath, "pichkaList.txt"));
+            mediaBlack = File.ReadLines(Path.Combine(dataPath, "mediaList.txt"));
+            channelBlack = File.ReadLines(Path.Combine(dataPath, "channelList.txt"));
+            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "dic.txt")));
+            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "dicWhiteList.txt")));
+            userBlackList = File.ReadLines(Path.Combine(dataPath, "userblacklist.txt"));
+            Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
+        }
+        public static bool CheckBooB(string message)
+        {            
             foreach (string pickString in pichkaBlack)
             {
                 if (message.Contains(pickString))
@@ -37,8 +45,7 @@ namespace SkillzBot.IllSkillzBot
             return false;
         }                                                                  
         public static bool CheckTreck(string ID)
-        {
-            IEnumerable<String> mediaBlack = File.ReadLines(mediaBlackList);
+        {            
             foreach (string id in mediaBlack)
             {
                 if (id == ID)
@@ -47,8 +54,7 @@ namespace SkillzBot.IllSkillzBot
             return false;
         }                                                                       
         public static bool CheckChannel(string channelName)
-        {
-            IEnumerable<String> channelBlack = File.ReadLines(channelBlackList);
+        {            
             foreach (string id in channelBlack)
             {
                 if (id == channelName)
@@ -57,9 +63,7 @@ namespace SkillzBot.IllSkillzBot
             return false;
         }                                                            
         public static bool ZapCheck(string message, string name)
-        {
-            HashSet<string> dictionary = new HashSet<string>(File.ReadLines(dicDir));
-            HashSet<string> whiteList = new HashSet<string>(File.ReadLines(dicDirWhite));
+        {            
             var exact = message.Split(' ');
             string CleanMessage = StringUtil.Clean(message);
             foreach (string white in whiteList)
@@ -88,8 +92,7 @@ namespace SkillzBot.IllSkillzBot
                 check = StringUtil.Clean(exactWord);
                 foreach (string word in dictionary)
                 {
-                    if (check == word)
-                        return true;
+                    if (check == word) return true;
                 }
             }
             return false;
@@ -98,6 +101,7 @@ namespace SkillzBot.IllSkillzBot
         {
             List<string> output = new List<string>();
             var yRes = await YouTubeSearch.YouTubeSearchByIDTask(ID);
+            if (yRes == null) return null;
             if (yRes[0] != "view" && yRes[0] != "duration" && yRes[0] != "age" && yRes[0] != "Embeddable")
             {
                 if (ZapCheck(yRes[0], "YouTube"))
@@ -120,8 +124,7 @@ namespace SkillzBot.IllSkillzBot
             }
         }
         public static bool IsUserBlacklisted(string userID)
-        {
-            IEnumerable<String> userBlackList = File.ReadLines(userBlackListDir);
+        {            
             foreach (string user in userBlackList)
             {
                 if (user == userID)

@@ -19,16 +19,12 @@ namespace SkillzBot.Tasks
             var singleton = IllSingleton.GetInstance();
             if (t != null)
             {
-                try
-                {
-                    singleton.startLP = int.Parse(t[1]);
-                    singleton.elo = t[0];
-                    singleton.tier = t[2];
-                }
-                catch (Exception e)
-                {
-                    Log.WriteLog(e, "null");
-                }
+                if (int.TryParse(t[1], out int startLP))
+                    singleton.startLP = startLP;
+                else
+                    singleton.startLP = 0;
+                singleton.elo = t[0];
+                singleton.tier = t[2];
             }
             singleton.earnedLP = 0;
             singleton.numLoose = 0;

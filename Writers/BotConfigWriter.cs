@@ -1,5 +1,6 @@
 ﻿using IllSkillzBot;
 using Newtonsoft.Json;
+using SkillzBot.JSON.Settings;
 using SkillzBot.MODELS;
 using SkillzBot.Singleton;
 using System;
@@ -31,9 +32,9 @@ namespace SkillzBot.Writers
             }
             try
             {
-                SettingsObject Settings = new SettingsObject
+                SettingsJson Settings = new SettingsJson
                 {
-                    Summoner_Name = singleton.SUMMONER_NAME,
+                    SummonerName = singleton.SUMMONER_NAME,
                     ChannelName = singleton.ChannelName,
                     BotTwitchName = singleton.BotTwitchName,
                     BotTwitchAuth = singleton.BotTwitchAuth,
@@ -53,7 +54,10 @@ namespace SkillzBot.Writers
                     MySQL_User = singleton.MySQL_User,
                     MySQL_password = singleton.MySQL_password,
                     StreamElementsApiToken = singleton.StreamElementsApiToken,
-                    StreamElementsID = singleton.StreamElementsID
+                    StreamElementsID = singleton.StreamElementsID,
+                    ChatWithBot = singleton.ChatWithBot,
+                    ReleaseBot = singleton.ReleaseBot,
+                    GPTApiToken = singleton.GPTApiToken
                 };
                 File.WriteAllText(filePath, JsonConvert.SerializeObject(Settings, Formatting.Indented));               
             }

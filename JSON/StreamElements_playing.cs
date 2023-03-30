@@ -71,26 +71,13 @@ namespace SkillzBot.JSON.StreamElements
         public bool Subscriber { get; set; }
     }
 
-    public partial class Settings
+    public partial class StreamElementsJSON
     {
-        public static Settings FromJson(string json) => JsonConvert.DeserializeObject<Settings>(json, Converter.Settings);
+        public static StreamElementsJSON FromJson(string json) => JsonConvert.DeserializeObject<StreamElementsJSON>(json, Converter.Settings);
     }
 
     public static class Serialize
     {
-        public static string ToJson(this Settings self) => JsonConvert.SerializeObject(self, Converter.Settings);
-    }
-
-    internal static class Converter
-    {
-        public static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
-        {
-            MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
-            DateParseHandling = DateParseHandling.None,
-            Converters =
-            {
-                new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
-            },
-        };
+        public static string ToJson(this StreamElementsJSON self) => JsonConvert.SerializeObject(self, Converter.Settings);
     }
 }

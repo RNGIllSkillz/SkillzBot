@@ -13,6 +13,7 @@ using RiotSharp.Endpoints.LeagueEndpoint;
 using RiotSharp.Endpoints.StaticDataEndpoint.Champion;
 using SkillzBot.Utils;
 using System.Globalization;
+using SkillzBot.MODELS;
 
 namespace SkillzBot.API.Riot
 {
@@ -48,16 +49,26 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<List<string>> GetRankBySummonerAsync()
         {
-            List<string> output = new List<string>();
-            var rank = await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+            List<LeagueEntry> rank = new List<LeagueEntry>();
+            try
+            {
+                rank = await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetRankBySummonerAsync");
+                return null;
+            }
             foreach (var mType in rank)
             {
                 if (mType.QueueType == "RANKED_SOLO_5x5")
                 {
-                    output.Add(mType.Rank);
-                    output.Add(Convert.ToString(mType.LeaguePoints));
-                    output.Add(mType.Tier);
-                    return output;
+                    return new List<string>
+                    {
+                        mType.Rank,
+                        Convert.ToString(mType.LeaguePoints),
+                        mType.Tier
+                    };
                 }
             }
             return null;
@@ -82,7 +93,7 @@ namespace SkillzBot.API.Riot
                 "ko" => Language.ko_KR,
                 _ => Language.en_US,
             };
-            return await riotApi.DataDragon.Champions.GetByIdAsync(ChampionId, "12.13.1", lang).ConfigureAwait(false);
+            return await riotApi.DataDragon.Champions.GetByIdAsync(ChampionId, "13.6.1", lang).ConfigureAwait(false);
         }
         public static RiotSharp.Endpoints.MatchEndpoint.Participant GetParticipantByMatch(Match match)
         {

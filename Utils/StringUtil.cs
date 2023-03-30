@@ -61,7 +61,7 @@ namespace SkillzBot.Utils
         }
         public static string[] SplitAllWords(string input)
         {
-            string[] words = input.Split(' ');
+            string[] words = input.Split(' ', '|');
             return words;
         }
         public static string[] SplitAllWordsDiffSep(string input)
