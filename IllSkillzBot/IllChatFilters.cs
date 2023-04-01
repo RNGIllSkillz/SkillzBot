@@ -17,22 +17,22 @@ namespace SkillzBot.IllSkillzBot
     class IllChatFilters
     {
         private static readonly string dataPath = IllSkillzBotMain.GetChannelName();
-        private static readonly IEnumerable<String> pichkaBlack;
-        private static readonly IEnumerable<String> mediaBlack;
-        private static readonly IEnumerable<String> channelBlack;
+        private static readonly HashSet<string> pichkaBlack;
+        private static readonly HashSet<string> mediaBlack;
+        private static readonly HashSet<string> channelBlack;
         private static readonly HashSet<string> dictionary;
         private static readonly HashSet<string> whiteList;
-        private static readonly IEnumerable<String> userBlackList;
+        private static readonly HashSet<string> userBlackList;
         private static readonly int[] Arabic2;
 
         static IllChatFilters()
         {
-            pichkaBlack = File.ReadLines(Path.Combine(dataPath, "pichkaList.txt"));
-            mediaBlack = File.ReadLines(Path.Combine(dataPath, "mediaList.txt"));
-            channelBlack = File.ReadLines(Path.Combine(dataPath, "channelList.txt"));
+            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "pichkaList.txt")));
+            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "mediaList.txt")));
+            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "channelList.txt")));
             dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "dic.txt")));
             whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "dicWhiteList.txt")));
-            userBlackList = File.ReadLines(Path.Combine(dataPath, "userblacklist.txt"));
+            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "userblacklist.txt")));
             Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
         }
         public static bool CheckBooB(string message)
@@ -45,22 +45,27 @@ namespace SkillzBot.IllSkillzBot
             return false;
         }                                                                  
         public static bool CheckTreck(string ID)
-        {            
-            foreach (string id in mediaBlack)
+        {    
+            if (mediaBlack.Contains(ID)) return true;
+            return false;
+            /*foreach (string id in mediablack)
             {
-                if (id == ID)
+                if (id == id)
                     return true;
             }
-            return false;
+            return false;*/
         }                                                                       
         public static bool CheckChannel(string channelName)
-        {            
+        {      
+            if (channelBlack.Contains(channelName)) return true;
+            return false;
+            /*
             foreach (string id in channelBlack)
             {
                 if (id == channelName)
                     return true;
             }
-            return false;
+            return false;*/
         }                                                            
         public static bool ZapCheck(string message, string name)
         {            
@@ -90,10 +95,7 @@ namespace SkillzBot.IllSkillzBot
             foreach (string exactWord in exact)
             {
                 check = StringUtil.Clean(exactWord);
-                foreach (string word in dictionary)
-                {
-                    if (check == word) return true;
-                }
+                if (dictionary.Contains(check)) return true;                
             }
             return false;
         }
@@ -124,13 +126,16 @@ namespace SkillzBot.IllSkillzBot
             }
         }
         public static bool IsUserBlacklisted(string userID)
-        {            
+        {
+            if (userBlackList.Contains(userID)) return true;
+            return false;
+            /*
             foreach (string user in userBlackList)
             {
                 if (user == userID)
                     return true;
             }
-            return false;
+            return false;*/
         }
         public static async Task DeleteLinks (UserObject user, OnMessageReceivedArgs e)
         {
