@@ -236,8 +236,8 @@ namespace SkillzBot.TtvClient.TTVRewards
                 if (IllChatFilters.CheckTreck(yID))
                 {
                     TtvIRCClient.SendMessage(string.Format(STRINGS.Track500_bannedTrack, UserName));
-                    if (rewardID != null)
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                    if (rewardID == null) return false;
+                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     return false;
                 }
                 response = await IllChatFilters.YouTubeFilter(yID).ConfigureAwait(false);
@@ -249,104 +249,84 @@ namespace SkillzBot.TtvClient.TTVRewards
                     Log.WriteLog(null, $"{Link} -> {yID}");
                     return false;
                 }
-                
+
                 switch (response[0])
                 {
                     case "ok":
                         if (IllChatFilters.CheckChannel(response[1]))
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.Track500_bannedTrack, UserName));
-                            if (rewardID != null)
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            if (rewardID == null) return false;
+                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             return false;
                         }
 
-                        var user = await MySQL.GetUser(UserName).ConfigureAwait(false);                        
+                        var user = await MySQL.GetUser(UserName).ConfigureAwait(false);
                         if (IllChatFilters.IsUserBlacklisted(user.TwitchID.ToString()))
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.Track500_bannedUser, UserName));
-                            if (rewardID != null)
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            if (rewardID != null) return false;
+                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             return false;
                         }
-                        
+
                         if (await StreamElementsAPI.SendMediaAsync(yID).ConfigureAwait(false))
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.Track200_Success, UserName, response[2]));
                             MediaqueueWriter.Write(user.TwitchID, yID);
-                            if (rewardID != null)
-                                if (UserName == singleton.rootUser)
-                                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
-                                else
-                                    await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                            if (rewardID != null) return true;
+                            if (UserName == singleton.rootUser)
+                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            else
+                                await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                             return true;
                         }
                         else
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.Track400_ERROR, UserName));
-                            if (rewardID != null)
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            if (rewardID == null) return false;
+                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             return false;
-                        }                                             
+                        }
 
                     case "age":
                         TtvIRCClient.SendMessage(string.Format(STRINGS.Track510_Age, UserName));
-                        if (rewardID != null)
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        if (rewardID == null) return false;
+                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
 
                     case "duration":
                         TtvIRCClient.SendMessage(string.Format(STRINGS.Track510_Duration, UserName));
-                        if (rewardID != null)
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        if (rewardID == null) return false;
+                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
 
                     case "view":
                         TtvIRCClient.SendMessage(string.Format(STRINGS.Track510_ViewCount, UserName));
-                        if (rewardID != null)
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        if (rewardID == null) return false;
+                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
 
                     case "ZAP":
-                        try
-                        {
-                            MediaBlackListWriter.Write(yID);
-                            var user2 = await MySQL.GetUser(UserName).ConfigureAwait(false);
-                            if (user2.dbID == -404)
-                            {
-                                Log.WriteLog(null, $"ID {UserName} == -1 zakazTrekaMethod");
-                            }
-                            else
-                            {
-                                await IllCommands.IllBanUser(user2).ConfigureAwait(false);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.WriteLog(ex, "");
-                        }
-                        try
-                        {
-                            FlagWriter.FlagWriterTask($"{DateTime.Now} {UserName} : {Link}");
-                        }
-                        catch (Exception e)
-                        {
-                            Log.WriteLog(e, "zakazTrekaMethod()");
-                        }
+                        MediaBlackListWriter.Write(yID);
+                        var user2 = await MySQL.GetUser(UserName).ConfigureAwait(false);
+                        if (user2.dbID == -404) return false;
+                        await IllCommands.IllBanUser(user2).ConfigureAwait(false);                        
+                        FlagWriter.FlagWriterTask($"{UserName} : {Link}");
                         return false;
 
                     case "Embeddable":
                         TtvIRCClient.SendMessage(string.Format(STRINGS.Track510_Embedded, UserName));
-                        if (rewardID != null)
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        if (rewardID == null) return false;
+                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
                 }
             }
             else
             {
                 TtvIRCClient.SendMessage(string.Format(STRINGS.Track404, UserName));
-                if (rewardID != null)
-                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                if (rewardID == null) return false;
+                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 return false;
             }
             return false;

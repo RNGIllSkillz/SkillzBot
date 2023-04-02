@@ -14,7 +14,7 @@ using System.Linq;
 
 namespace SkillzBot.IllSkillzBot
 {
-    class IllChatFilters
+    sealed class IllChatFilters
     {
         private static readonly string dataPath = IllSkillzBotMain.GetChannelName();
         private static readonly HashSet<string> pichkaBlack;
@@ -23,6 +23,7 @@ namespace SkillzBot.IllSkillzBot
         private static readonly HashSet<string> dictionary;
         private static readonly HashSet<string> whiteList;
         private static readonly HashSet<string> userBlackList;
+        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static readonly int[] Arabic2;
 
         static IllChatFilters()
@@ -37,7 +38,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static bool CheckBooB(string message)
         {            
-            foreach (string pickString in pichkaBlack)
+            foreach (var pickString in pichkaBlack)
             {
                 if (message.Contains(pickString))
                     return true;
@@ -48,55 +49,34 @@ namespace SkillzBot.IllSkillzBot
         {    
             if (mediaBlack.Contains(ID)) return true;
             return false;
-            /*foreach (string id in mediablack)
-            {
-                if (id == id)
-                    return true;
-            }
-            return false;*/
         }                                                                       
         public static bool CheckChannel(string channelName)
         {      
             if (channelBlack.Contains(channelName)) return true;
             return false;
-            /*
-            foreach (string id in channelBlack)
-            {
-                if (id == channelName)
-                    return true;
-            }
-            return false;*/
         }                                                            
         public static bool ZapCheck(string message, string name)
         {            
             var exact = message.Split(' ');
-            string CleanMessage = StringUtil.Clean(message);
-            foreach (string white in whiteList)
+            var CleanMessage = StringUtil.Clean(message);
+            foreach (var white in whiteList)
             {
                 CleanMessage = CleanMessage.Replace(white, "");
             }
             CleanMessage = StringUtil.Clean(CleanMessage);
-            foreach (string word in dictionary)
-            {
+            foreach (var word in dictionary)            
                 if (CleanMessage.Contains(word))
                 {
-                    try
-                    {
-                        FlagWriter.FlagWriterTask($"{DateTime.Now} {name} : {message} : {word}");
-                    }
-                    catch (Exception e)
-                    {
-                        Log.WriteLog(e, "zapCheck()");
-                    }
+                    FlagWriter.FlagWriterTask($"{name} : {message} : {word}");                    
                     return true;
                 }
-            }
-            string check;
-            foreach (string exactWord in exact)
-            {
-                check = StringUtil.Clean(exactWord);
-                if (dictionary.Contains(check)) return true;                
-            }
+            
+            foreach (var exactWord in exact)
+                if (dictionary.Contains(StringUtil.Clean(exactWord)))
+                {
+                    FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {exactWord}");
+                    return true;
+                }
             return false;
         }
         public static async Task<List<string>> YouTubeFilter(string ID)
@@ -129,17 +109,10 @@ namespace SkillzBot.IllSkillzBot
         {
             if (userBlackList.Contains(userID)) return true;
             return false;
-            /*
-            foreach (string user in userBlackList)
-            {
-                if (user == userID)
-                    return true;
-            }
-            return false;*/
         }
         public static async Task DeleteLinks (UserObject user, OnMessageReceivedArgs e)
         {
-            if (e.ChatMessage.CustomRewardId != IllSingleton.GetInstance().ZakazTrekaId & !e.ChatMessage.Message.Contains("clips"))
+            if (e.ChatMessage.CustomRewardId != singleton.ZakazTrekaId & !e.ChatMessage.Message.Contains("clips"))
             {
                 if (e.ChatMessage.Message.Contains("http"))
                     if (user.isMod != 1)
@@ -148,7 +121,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static bool FilterASCII(OnMessageReceivedArgs e)
         {            
-            if (e.ChatMessage.CustomRewardId != IllSingleton.GetInstance().Pi4KaId)
+            if (e.ChatMessage.CustomRewardId != singleton.Pi4KaId)
             {
                 int count = StringUtil.CheckASCII(e.ChatMessage.Message);
                 if (count / 29 >= 3 && e.ChatMessage.Message.Length / 29 > 3)

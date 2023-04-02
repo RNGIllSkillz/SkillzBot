@@ -31,8 +31,7 @@ namespace SkillzBot.WRITERS
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
+                Log.WriteLog(e, "FlagWriterTask()");
             }
             finally
             {
