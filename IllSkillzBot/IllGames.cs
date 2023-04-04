@@ -122,6 +122,7 @@ namespace SkillzBot.IllSkillzBot
         {            
             if (!singleton.FirstQuizzOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
             if (!CheckQuizzAnswer(message)) return user;
+            if (StringUtil.CountUpperCaseLetters(message) > 3) return user;
             singleton.FirstQuizzOfTheDay = false;
             user.QuizPoints += _Quizz.QuizzCost;
             user.QuizTotal += _Quizz.QuizzCost;

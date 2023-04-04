@@ -231,6 +231,10 @@ namespace SkillzBot.Utils
                     return "Unknown Rank";
                 }
             }
-        }       
+        }
+        public static int CountUpperCaseLetters(string input)
+        {
+            return input.Count(c => char.IsUpper(c));
+        }
     }
 }
