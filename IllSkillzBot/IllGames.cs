@@ -68,7 +68,7 @@ namespace SkillzBot.IllSkillzBot
         #region Quizz
         public static async Task Quizz(bool isForced)
         {
-            if (!singleton.BroadcasterIsOnline && !isForced) return;
+            if (!singleton.BroadcasterIsOnline || !isForced) return;
             string SQL_string = "SELECT COUNT(*) FROM dbQuiz";
             var results = await MySQL.SudoSQLReader(SQL_string).ConfigureAwait(false);
             int questionID = IntUtil.Random(1, results[0].dbID);

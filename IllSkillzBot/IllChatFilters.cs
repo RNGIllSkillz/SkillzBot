@@ -110,14 +110,14 @@ namespace SkillzBot.IllSkillzBot
             if (userBlackList.Contains(userID)) return true;
             return false;
         }
-        public static async Task DeleteLinks (UserObject user, OnMessageReceivedArgs e)
+        public static async Task DeleteLinks(UserObject user, OnMessageReceivedArgs e)
         {
-            if (e.ChatMessage.CustomRewardId != singleton.ZakazTrekaId & !e.ChatMessage.Message.Contains("clips"))
-            {
-                if (e.ChatMessage.Message.Contains("http"))
-                    if (user.isMod != 1)
-                        await TtvAPI.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
-            }
+            if (!e.ChatMessage.Message.Contains("http") || 
+                e.ChatMessage.CustomRewardId == singleton.ZakazTrekaId || 
+                e.ChatMessage.Message.Contains("clips") || 
+                user.isMod == 1 || 
+                user.IsBroadcaster == 1) return;
+            await TtvAPI.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
         }
         public static bool FilterASCII(OnMessageReceivedArgs e)
         {            
