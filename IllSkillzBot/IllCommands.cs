@@ -619,21 +619,19 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task<UserObject> QuizzMediaReward(UserObject user, string[] UserInput)
         {
-            if (user.isMod != 1)
+            if (user.isMod == 1) return user;
+            if (user.QuizPoints > 1)
             {
-                if (user.QuizPoints > 1)
+                if (UserInput.Length < 2)
                 {
-                    if (UserInput.Length < 2)
-                    {
-                        TtvIRCClient.SendMessage(STRINGS.InputERROR);
-                        return user;
-                    }
-                    if (await RewardsRedemption.ZakazTrekaReward(user.Name, string.Join(" ", UserInput.Skip(1)), null, null).ConfigureAwait(false))
-                    {
-                        user.QuizPoints -= 2;
-                    }
+                    TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                    return user;
                 }
-            }
+                if (await RewardsRedemption.ZakazTrekaReward(user.Name, string.Join(" ", UserInput.Skip(1)), null, null).ConfigureAwait(false))
+                {
+                    user.QuizPoints -= 2;
+                }
+            }            
             return user;
         }       
         public static async Task BanUserForTrack(UserObject user)

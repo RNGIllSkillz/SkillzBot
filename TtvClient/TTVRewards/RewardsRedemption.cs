@@ -229,8 +229,7 @@ namespace SkillzBot.TtvClient.TTVRewards
         public static async Task<bool> ZakazTrekaReward(string UserName, string Link, string redemID, string rewardID)
         {
             var singleton = IllSingleton.GetInstance();
-            string yID = StringUtil.ExtractYouTubeVideoId(Link) ?? await YouTubeSearch.YouTubeSearchByKeyWordTask(Link).ConfigureAwait(false);
-            List<string> response;
+            string yID = StringUtil.ExtractYouTubeVideoId(Link) ?? await YouTubeSearch.YouTubeSearchByKeyWordTask(Link).ConfigureAwait(false);            
             if (yID != null)
             {
                 if (IllChatFilters.CheckTreck(yID))
@@ -240,7 +239,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     return false;
                 }
-                response = await IllChatFilters.YouTubeFilter(yID).ConfigureAwait(false);
+                var response = await IllChatFilters.YouTubeFilter(yID).ConfigureAwait(false);
                 if (response == null)
                 {
                     if (rewardID != null)
@@ -265,7 +264,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (IllChatFilters.IsUserBlacklisted(user.TwitchID.ToString()))
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.Track500_bannedUser, UserName));
-                            if (rewardID != null) return false;
+                            if (rewardID == null) return false;
                             await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             return false;
                         }
@@ -274,7 +273,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.Track200_Success, UserName, response[2]));
                             MediaqueueWriter.Write(user.TwitchID, yID);
-                            if (rewardID != null) return true;
+                            if (rewardID == null) return true;
                             if (UserName == singleton.rootUser)
                                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             else
