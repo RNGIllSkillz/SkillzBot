@@ -15,13 +15,11 @@ using F23.StringSimilarity;
 using SkillzBot.API.MMR;
 using SkillzBot.API.StreamElements;
 using SkillzBot.Readers;
-using System.Net;
 using SkillzBot.TtvClient.TTVRewards;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
 using SkillzBot.API.OpenAI;
-using Org.BouncyCastle.Bcpg;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -657,6 +655,7 @@ namespace SkillzBot.IllSkillzBot
                 //    client.SendMessage(tChannel, ex.Message);
                 //    Log.WriteLog(ex, "!deletereward");
                 //}
+                await Task.Delay(10);
                 TtvIRCClient.SendMessage("Команда не доступна.");
             }
         }
@@ -751,6 +750,7 @@ namespace SkillzBot.IllSkillzBot
                 //    client.SendMessage(tChannel, ex.Message);
                 //    Log.WriteLog(ex, "null");
                 //}
+                await Task.Delay(10);
                 TtvIRCClient.SendMessage("Команда не доступна.");
             }
         }
@@ -868,6 +868,7 @@ namespace SkillzBot.IllSkillzBot
         public static async Task TestingMethod(UserObject user, string[] input)
         {
             if (user.Name != singleton.rootUser) return;
+            await Task.Delay(10);
             //test stuff here           
         }
         public static void ReconnectToPubSub (UserObject user)

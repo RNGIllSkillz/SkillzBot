@@ -22,7 +22,6 @@ namespace SkillzBot.IllSkillzBot
         private readonly static List<MessageBuffer> messagesBuffer = new List<MessageBuffer>();
         private readonly static object _LockMessagesObject = new object();
         private readonly static object _LockBufferObject = new object();
-        private static double ChatGPTCD = 0;
         static IllChatMessageHandler()
         {
             DataColumn idColumnMess = new DataColumn("Id", Type.GetType("System.Int32"))

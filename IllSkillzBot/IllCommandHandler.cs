@@ -164,7 +164,7 @@ namespace SkillzBot.IllSkillzBot
                     IllCommands.ChangeLanguage(user, Command);
                     break;
                 case "!test":
-                    IllCommands.TestingMethod(user, Command);
+                    await IllCommands.TestingMethod(user, Command).ConfigureAwait(false);
                     break;
                 case "!connect":
                     IllCommands.ReconnectToPubSub(user);
