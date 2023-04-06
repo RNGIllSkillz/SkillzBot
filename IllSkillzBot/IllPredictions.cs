@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
 using SkillzBot.API.Twitch;
 using SkillzBot.API.Riot;
 using SkillzBot.MODELS;
@@ -11,6 +10,7 @@ using SkillzBot.Singleton;
 using SkillzBot.IRC;
 using System.Linq;
 using RiotSharp.Endpoints.SpectatorEndpoint;
+using RiotSharp.Endpoints.MatchEndpoint;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -18,241 +18,203 @@ namespace SkillzBot.IllSkillzBot
     {
         private readonly static IllSingleton singleton = IllSingleton.GetInstance();
         private readonly static string tChannel = singleton.ChannelName;
-        private readonly static string englishWis = singleton.EnglishWis;
-        private static string lastErrorMessage = null;
+        private readonly static string englishWis = singleton.EnglishWis;        
         private static string CurrentMatchID;
         public static async Task GetCurrentMatchTask()
-        {            
-            if (singleton.inAmatch) return;                       
-            try
-            {                
-                await EnableRewardAsync().ConfigureAwait(false);
-                var CurrentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
-                if (CurrentMatchID != ("EUW1_" + Convert.ToString(CurrentGame.GameId)) && CurrentGame.GameLength.TotalMilliseconds < 30) 
-                {
-                    CurrentMatchID = "EUW1_" + Convert.ToString(CurrentGame.GameId);
-                    var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
-                    if (predictions != null)                    
-                        if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return; 
-                    await DisableRewardAsync().ConfigureAwait(false);
-                    singleton.inAmatch = true;
-                    await CalculateGameStats(CurrentGame).ConfigureAwait(false);
-                    if (singleton.debug)
-                        Log.WriteLog(null, "Матч начался!");
-                    string currentGameID = "EUW1_" + Convert.ToString(CurrentGame.GameId);
-                    if (singleton.autoPred)
-                    {
-                        bool procked = false;
-                        var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
-                        int wchance;
-                        bool ranked = false;
-                        foreach (var mType in rank)
-                        {
-                            if (mType.QueueType == "RANKED_SOLO_5x5")
-                            {
-                                ranked = true;
-                            }
-                        }
-                        if (!ranked)
-                            wchance = 65;
-                        else
-                            wchance = 93;
-                        while (!procked)
-                        {
-                            if (!procked && IntUtil.GetChance(wchance))
-                            {
-                                await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 120).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(15))
-                            {
-                                await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(20))
-                            {
-                                await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(20))
-                            {
-                                await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(20))
-                            {
-                                await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(30))
-                            {
-                                await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(25))
-                            {
-                                await Prediction_MAX_FLAG_5(CurrentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(20))
-                            {
-                                await Prediction_MAX_FLAG_5(CurrentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(15))
-                            {
-                                await Prediction_MAX_FLAG_5(CurrentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(18))
-                            {
-                                await Prediction_MAX_FLAG_5(CurrentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(20))
-                            {
-                                await Prediction_MAX_KDA_5(CurrentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(5))
-                            {
-                                await Prediction_MAX_FLAG(CurrentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(5))
-                            {
-                                await Prediction_MAX_FLAG(CurrentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(4))
-                            {
-                                await Prediction_MAX_FLAG(CurrentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(4))
-                            {
-                                await Prediction_MAX_FLAG(CurrentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                            if (!procked && IntUtil.GetChance(5))
-                            {
-                                await Prediction_MAX_KDA(CurrentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
-                                procked = true;
-                            }
-                        }
-                        singleton.inAmatch = false;
-                    }
-                }
-                lastErrorMessage = null;
-            }
-            catch (Exception ex)
+        {
+            if (singleton.inAmatch) return;
+            await EnableRewardAsync().ConfigureAwait(false);
+            var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
+            if (currentGame == null) return;            
+            if (CurrentMatchID != ("EUW1_" + Convert.ToString(currentGame.GameId)) && currentGame.GameLength.TotalMilliseconds < 30)
             {
-                singleton.inAmatch = false;
-                if (ex.InnerException != null)
+                CurrentMatchID = "EUW1_" + Convert.ToString(currentGame.GameId);
+                var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
+                if (predictions != null)
+                    if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
+                await DisableRewardAsync().ConfigureAwait(false);
+                singleton.inAmatch = true;
+                await CalculateGameStats(currentGame).ConfigureAwait(false);
+                if (singleton.debug)
+                    Log.WriteLog(null, "Матч начался!");
+                string currentGameID = "EUW1_" + Convert.ToString(currentGame.GameId);
+                if (singleton.autoPred)
                 {
-                    if (lastErrorMessage != ex.Message)
+                    bool procked = false;
+                    var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
+                    int wchance;
+                    bool ranked = false;
+                    foreach (var mType in rank)
                     {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
+                        if (mType.QueueType == "RANKED_SOLO_5x5")
                         {
-                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
-                            lastErrorMessage = ex.Message;
+                            ranked = true;
                         }
                     }
-                }
-                else
-                {
-                    if (lastErrorMessage != ex.Message)
+                    if (!ranked)
+                        wchance = 65;
+                    else
+                        wchance = 93;
+                    while (!procked)
                     {
-                        if (!ex.Message.Contains("Data not found"))
+                        if (!procked && IntUtil.GetChance(wchance))
                         {
-                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
-                            lastErrorMessage = ex.Message;
+                            await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 120).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(15))
+                        {
+                            await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(20))
+                        {
+                            await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(20))
+                        {
+                            await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(20))
+                        {
+                            await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(30))
+                        {
+                            await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(25))
+                        {
+                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(20))
+                        {
+                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(15))
+                        {
+                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(18))
+                        {
+                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(20))
+                        {
+                            await Prediction_MAX_KDA_5(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(5))
+                        {
+                            await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(5))
+                        {
+                            await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(4))
+                        {
+                            await Prediction_MAX_FLAG(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(4))
+                        {
+                            await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                            procked = true;
+                        }
+                        if (!procked && IntUtil.GetChance(5))
+                        {
+                            await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                            procked = true;
                         }
                     }
+                    singleton.inAmatch = false;
                 }
             }
-
         }
         private static async Task Prediction_WIN_LOOSE(string currentGameID, string Title, string blue, string red, int sec)
         {
             await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
+            Match onMatch;
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
             while (singleton.inAmatch)
             {
                 try
-                {                    
-                    var onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                    var Participant = RiotAPI.GetParticipantByMatch(onMatch);
-                    if (Participant != null)
-                    {
-                        if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                        {
-                            singleton.inAmatch = false;
-                            singleton.numGames++;
-                            if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                            {
-                                if (singleton.autoPred)
-                                {
-                                    await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
-                                    if (singleton.debug)
-                                        Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
-                                }
-                                singleton.numWins++;
-                                await UpdateDailyStats(true).ConfigureAwait(false);                                
-                            }
-                            if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                            {
-                                if (singleton.autoPred)
-                                {
-                                    await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
-                                    if (singleton.debug)
-                                        Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
-                                }
-                                singleton.numLoose++;
-                                await UpdateDailyStats(false).ConfigureAwait(false);
-                            }
-                            IllCommands.SaveGameStats();
-                        }
-                        else
-                        {
-                            singleton.inAmatch = false;
-                            TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
-                    }
-                    else
-                    {
-                        singleton.autoPred = false;
-                        singleton.inAmatch = false;
-                        Log.WriteLog(null, "(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
-                        TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
-                    }
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    if (ex.InnerException != null)
+                    Log.WriteLog(ex, "Prediction_WIN_LOOSE_1");
+                    singleton.inAmatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    continue;
+                }
+                var Participant = RiotAPI.GetParticipantByMatch(onMatch);
+                if (Participant != null)
+                {
+                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                     {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.                             
+                        singleton.inAmatch = false;
+                        singleton.numGames++;
+                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                         {
-                            Log.WriteLog(ex, "Prediction_WIN_LOOSE_1");
-                            singleton.inAmatch = false;
+                            if (singleton.autoPred)
+                            {
+                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                                if (singleton.debug)
+                                    Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
+                            }
+                            singleton.numWins++;
+                            await UpdateDailyStats(true).ConfigureAwait(false);
                         }
+                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                        {
+                            if (singleton.autoPred)
+                            {
+                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                                if (singleton.debug)
+                                    Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
+                            }
+                            singleton.numLoose++;
+                            await UpdateDailyStats(false).ConfigureAwait(false);
+                        }
+                        IllCommands.SaveGameStats();
                     }
                     else
                     {
-                        if (!ex.Message.Contains("Data not found"))
-                        {
-                            Log.WriteLog(ex, "Prediction_WIN_LOOSE_2");
-                            singleton.inAmatch = false;
-                        }
+                        singleton.inAmatch = false;
+                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                 }
-                await Task.Delay(2000).ConfigureAwait(false);
+                else
+                {
+                    singleton.autoPred = false;
+                    singleton.inAmatch = false;
+                    Log.WriteLog(null, "(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
+                    TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
+                }                
             }
         }
-        private static async Task Prediction_MAX_KDA(RiotSharp.Endpoints.SpectatorEndpoint.CurrentGame CurrentGame, string currentGameID, string Title, int windowSec)
+        private static async Task Prediction_MAX_KDA(CurrentGame CurrentGame, string currentGameID, string Title, int windowSec)
         {
+            Match onMatch;
             var Participants = CurrentGame.Participants.ToArray();
             List<string> SelectedChamps = new List<string>();
             foreach (var Participant in Participants)
@@ -267,101 +229,92 @@ namespace SkillzBot.IllSkillzBot
             {
                 try
                 {
-                    var onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                    {
-                        singleton.inAmatch = false;
-                        singleton.numGames++;
-                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numWins++;
-                            await UpdateDailyStats(true).ConfigureAwait(false);
-                        }
-                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numLoose++;
-                            await UpdateDailyStats(false).ConfigureAwait(false);
-                        }
-                        IllCommands.SaveGameStats();
-                        List<PlayersObject> Players = new List<PlayersObject>();
-                        var FinParticipants = onMatch.Info.Participants.ToArray();
-                        var CompPartisList = new PlayersObject
-                        {
-                            Flag = 0
-                        };
-                        foreach (var Participant in FinParticipants)
-                        {
-                            long vFlag = 0;
-                            if (Participant.Deaths != 0)
-                                vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
-                            else
-                                vFlag = Participant.Kills + Participant.Assists;
-                            Players.Add(new PlayersObject()
-                            {
-                                champ = Participant.ChampionName,
-                                Flag = vFlag
-                            });
-                        }
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag < Player.Flag)
-                            {
-                                CompPartisList.champ = Player.champ;
-                                CompPartisList.Flag = Player.Flag;
-                            }
-                        }
-                        int outnum = 0;
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag == Player.Flag)
-                            {
-                                outnum++;
-                            }
-                        }
-                        if (outnum == 1)
-                        {
-                            string output = await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
-                            if (output != "OK")
-                                TtvIRCClient.SendMessage(output);
-                        }
-                        else
-                        {
-                            TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
-                    }
-                    else
-                    {
-                        singleton.inAmatch = false;
-                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                    }
-
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    if (ex.InnerException != null)
+                    Log.WriteLog(ex, "Prediction_MAX_KDA");
+                    singleton.inAmatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    singleton.inAmatch = false;
+                    singleton.numGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
+                        singleton.numWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
+                    }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        singleton.numLoose++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    var CompPartisList = new PlayersObject
+                    {
+                        Flag = 0
+                    };
+                    foreach (var Participant in FinParticipants)
+                    {
+                        long vFlag = 0;
+                        if (Participant.Deaths != 0)
+                            vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
+                        else
+                            vFlag = Participant.Kills + Participant.Assists;
+                        Players.Add(new PlayersObject()
                         {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "Prediction_MAX_KDA_1");
+                            champ = Participant.ChampionName,
+                            Flag = vFlag
+                        });
+                    }
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag < Player.Flag)
+                        {
+                            CompPartisList.champ = Player.champ;
+                            CompPartisList.Flag = Player.Flag;
                         }
+                    }
+                    int outnum = 0;
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag == Player.Flag)
+                        {
+                            outnum++;
+                        }
+                    }
+                    if (outnum == 1)
+                    {
+                        string output = await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
+                        if (output != "OK")
+                            TtvIRCClient.SendMessage(output);
                     }
                     else
                     {
-                        if (!ex.Message.Contains("Data not found"))
-                        {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "Prediction_MAX_KDA_2");
-                        }
+                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                 }
-                await Task.Delay(2000).ConfigureAwait(false);
+                else
+                {
+                    singleton.inAmatch = false;
+                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
             }
         }
         private static async Task Prediction_MAX_KDA_2(string currentGameID, string Title, string blue, string red, int sec)
         {
+            Match onMatch;
             await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
@@ -369,250 +322,103 @@ namespace SkillzBot.IllSkillzBot
             {
                 try
                 {
-                    var onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                    {
-                        singleton.inAmatch = false;
-                        singleton.numGames++;
-                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numWins++;
-                            await UpdateDailyStats(true).ConfigureAwait(false);
-                        }
-                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numLoose++;
-                            await UpdateDailyStats(false).ConfigureAwait(false);
-                        }
-                        IllCommands.SaveGameStats();
-                        List<PlayersObject> Players = new List<PlayersObject>();
-                        var FinParticipants = onMatch.Info.Participants.ToArray();
-                        int TeamID = 0;
-                        string getPosition = "";
-                        foreach (var champGetData in FinParticipants)
-                        {
-                            if (champGetData.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
-                            {
-                                TeamID = champGetData.TeamId;
-                                getPosition = champGetData.IndividualPosition;
-                            }
-                        }
-                        foreach (var champ in FinParticipants)
-                        {
-                            if (champ.TeamPosition == getPosition)
-                            {
-                                long vFlag = 0;
-                                if (champ.Deaths != 0)
-                                    vFlag = (champ.Kills + champ.Assists) / champ.Deaths;
-                                else
-                                    vFlag = champ.Kills + champ.Assists;
-                                Players.Add(new PlayersObject()
-                                {
-                                    Flag = vFlag,
-                                    teamID = champ.TeamId
-                                });
-                            }
-                        }
-                        if (Players[0].Flag == Players[1].Flag)
-                        {
-                            TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
-                        else if (Players.Count > 2)
-                        {
-                            TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            if (Players[0].Flag > Players[1].Flag)
-                            {
-                                if (Players[0].teamID == TeamID)
-                                    await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
-                                else
-                                    await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                if (Players[0].teamID == TeamID)
-                                    await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
-                                else
-                                    await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        singleton.inAmatch = false;
-                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                    }
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    if (ex.InnerException != null)
+                    Log.WriteLog(ex, "Prediction_MAX_KDA_2");
+                    singleton.inAmatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    singleton.inAmatch = false;
+                    singleton.numGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
+                        singleton.numWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
+                    }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        singleton.numLoose++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    int TeamID = 0;
+                    string getPosition = "";
+                    foreach (var champGetData in FinParticipants)
+                    {
+                        if (champGetData.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
                         {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
+                            TeamID = champGetData.TeamId;
+                            getPosition = champGetData.IndividualPosition;
                         }
                     }
-                    else
+                    foreach (var champ in FinParticipants)
                     {
-                        if (!ex.Message.Contains("Data not found"))
+                        if (champ.TeamPosition == getPosition)
                         {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
-                        }
-                    }
-                }
-                await Task.Delay(2000).ConfigureAwait(false);
-            }
-        }
-        private static async Task Prediction_MAX_KDA_5(RiotSharp.Endpoints.SpectatorEndpoint.CurrentGame CurrentGame, string currentGameID, string Title, int windowSec)
-        {
-            var Participants = CurrentGame.Participants.ToArray();
-            long teamid = 0;
-            foreach (var champ in Participants)
-            {
-                if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
-                {
-                    teamid = champ.TeamId;
-                }
-            }
-            RiotSharp.Endpoints.SpectatorEndpoint.CurrentGameParticipant[] teammates = new RiotSharp.Endpoints.SpectatorEndpoint.CurrentGameParticipant[5];
-            int i = 0;
-            foreach (var champ in Participants)
-            {
-                if (champ.TeamId == teamid)
-                {
-                    teammates[i] = champ;
-                    i++;
-                }
-            }
-            List<string> SelectedChamps = new List<string>();
-            foreach (var Participant in teammates)
-            {
-                var ChampName = await RiotAPI.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId)).ConfigureAwait(false);
-                SelectedChamps.Add(ChampName.Name);
-            }
-            await TtvAPI.Start_5_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
-            if (singleton.debug)
-                Log.WriteLog(null, "Ставка запущена");
-            while (singleton.inAmatch)
-            {
-                try
-                {                    
-                    var onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                    {
-                        singleton.inAmatch = false;
-                        singleton.numGames++;
-                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numWins++;
-                            await UpdateDailyStats(true).ConfigureAwait(false);
-                        }
-                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numLoose++;
-                            await UpdateDailyStats(false).ConfigureAwait(false);
-                        }
-                        IllCommands.SaveGameStats();
-                        List<PlayersObject> Players = new List<PlayersObject>();
-                        var FinParticipants = onMatch.Info.Participants.ToArray();
-                        foreach (var champ in FinParticipants)
-                        {
-                            if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
-                            {
-                                teamid = champ.TeamId;
-                            }
-                        }
-                        RiotSharp.Endpoints.MatchEndpoint.Participant[] teammatesFIN = new RiotSharp.Endpoints.MatchEndpoint.Participant[5];
-                        i = 0;
-                        foreach (var champ in FinParticipants)
-                        {
-                            if (champ.TeamId == teamid)
-                            {
-                                teammatesFIN[i] = champ;
-                                i++;
-                            }
-                        }
-                        var CompPartisList = new PlayersObject
-                        {
-                            Flag = 0
-                        };
-                        foreach (var Participant in teammatesFIN)
-                        {
-                            long vFlag = 0;
-                            if (Participant.Deaths != 0)
-                                vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
+                            long vFlag;
+                            if (champ.Deaths != 0)
+                                vFlag = (champ.Kills + champ.Assists) / champ.Deaths;
                             else
-                                vFlag = Participant.Kills + Participant.Assists;
+                                vFlag = champ.Kills + champ.Assists;
                             Players.Add(new PlayersObject()
                             {
-                                champ = Participant.ChampionName,
-                                Flag = vFlag
+                                Flag = vFlag,
+                                teamID = champ.TeamId
                             });
                         }
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag < Player.Flag)
-                            {
-                                CompPartisList.champ = Player.champ;
-                                CompPartisList.Flag = Player.Flag;
-                            }
-                        }
-                        int outnum = 0;
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag == Player.Flag)
-                            {
-                                outnum++;
-                            }
-                        }
-                        if (outnum == 1)
-                            await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
-                        else
-                        {
-                            TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
                     }
-                    else
+                    if (Players[0].Flag == Players[1].Flag)
                     {
-                        singleton.inAmatch = false;
-                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
-                }
-                catch (Exception ex)
-                {
-                    if (ex.InnerException != null)
+                    else if (Players.Count > 2)
                     {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
-                        {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
-                        }
+                        TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                     else
                     {
-                        if (!ex.Message.Contains("Data not found"))
+                        if (Players[0].Flag > Players[1].Flag)
                         {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
                         }
                     }
                 }
-                await Task.Delay(2000).ConfigureAwait(false);
+                else
+                {
+                    singleton.inAmatch = false;
+                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
             }
         }
-        private static async Task Prediction_MAX_FLAG_5(RiotSharp.Endpoints.SpectatorEndpoint.CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
+        private static async Task Prediction_MAX_KDA_5(CurrentGame CurrentGame, string currentGameID, string Title, int windowSec)
         {
             var Participants = CurrentGame.Participants.ToArray();
             long teamid = 0;
+            Match onMatch;
             foreach (var champ in Participants)
             {
                 if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
@@ -620,7 +426,7 @@ namespace SkillzBot.IllSkillzBot
                     teamid = champ.TeamId;
                 }
             }
-            RiotSharp.Endpoints.SpectatorEndpoint.CurrentGameParticipant[] teammates = new RiotSharp.Endpoints.SpectatorEndpoint.CurrentGameParticipant[5];
+            CurrentGameParticipant[] teammates = new CurrentGameParticipant[5];
             int i = 0;
             foreach (var champ in Participants)
             {
@@ -643,8 +449,151 @@ namespace SkillzBot.IllSkillzBot
             {
                 try
                 {
-                    var onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_KDA_5");
+                    singleton.inAmatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    singleton.inAmatch = false;
+                    singleton.numGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        singleton.numWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
+                    }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        singleton.numLoose++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    foreach (var champ in FinParticipants)
+                    {
+                        if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                        {
+                            teamid = champ.TeamId;
+                        }
+                    }
+                    RiotSharp.Endpoints.MatchEndpoint.Participant[] teammatesFIN = new RiotSharp.Endpoints.MatchEndpoint.Participant[5];
+                    i = 0;
+                    foreach (var champ in FinParticipants)
+                    {
+                        if (champ.TeamId == teamid)
+                        {
+                            teammatesFIN[i] = champ;
+                            i++;
+                        }
+                    }
+                    var CompPartisList = new PlayersObject
+                    {
+                        Flag = 0
+                    };
+                    foreach (var Participant in teammatesFIN)
+                    {
+                        long vFlag;
+                        if (Participant.Deaths != 0)
+                            vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
+                        else
+                            vFlag = Participant.Kills + Participant.Assists;
+                        Players.Add(new PlayersObject()
+                        {
+                            champ = Participant.ChampionName,
+                            Flag = vFlag
+                        });
+                    }
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag < Player.Flag)
+                        {
+                            CompPartisList.champ = Player.champ;
+                            CompPartisList.Flag = Player.Flag;
+                        }
+                    }
+                    int outnum = 0;
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag == Player.Flag)
+                        {
+                            outnum++;
+                        }
+                    }
+                    if (outnum == 1)
+                        await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
+                    else
+                    {
+                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    singleton.inAmatch = false;
+                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
+            }
+        }
+        private static async Task Prediction_MAX_FLAG_5(CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
+        {
+            var Participants = CurrentGame.Participants.ToArray();
+            long teamid = 0;
+            Match onMatch;
+            foreach (var champ in Participants)
+            {
+                if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                {
+                    teamid = champ.TeamId;
+                }
+            }
+            CurrentGameParticipant[] teammates = new CurrentGameParticipant[5];
+            int i = 0;
+            foreach (var champ in Participants)
+            {
+                if (champ.TeamId == teamid)
+                {
+                    teammates[i] = champ;
+                    i++;
+                }
+            }
+            List<string> SelectedChamps = new List<string>();
+            foreach (var Participant in teammates)
+            {
+                var ChampName = await RiotAPI.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId)).ConfigureAwait(false);
+                SelectedChamps.Add(ChampName.Name);
+            }
+            await TtvAPI.Start_5_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
+            if (singleton.debug)
+                Log.WriteLog(null, "Ставка запущена");
+            while (singleton.inAmatch)
+            {
+                try
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_FLAG_5");
+                    singleton.inAmatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                     {
                         singleton.inAmatch = false;
                         singleton.numGames++;
@@ -719,41 +668,33 @@ namespace SkillzBot.IllSkillzBot
                         singleton.inAmatch = false;
                         TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (ex.InnerException != null)
-                    {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
-                        {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
-                        }
-                    }
-                    else
-                    {
-                        if (!ex.Message.Contains("Data not found"))
-                        {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
-                        }
-                    }
-                }
-                await Task.Delay(2000).ConfigureAwait(false);
+                    }                
             }
         }
         private static async Task Prediction_MAX_FLAG_2(string currentGameID, string Title, string blue, string red, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int sec)
         {
+            Match onMatch;
             await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
             while (singleton.inAmatch)
             {
                 try
-                {                    
-                    var onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_FLAG_2");
+                    singleton.inAmatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                     {
                         singleton.inAmatch = false;
                         singleton.numGames++;
@@ -825,31 +766,12 @@ namespace SkillzBot.IllSkillzBot
                         TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
-                }
-                catch (Exception ex)
-                {
-                    if (ex.InnerException != null)
-                    {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
-                        {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
-                        }
-                    }
-                    else
-                    {
-                        if (!ex.Message.Contains("Data not found"))
-                        {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
-                        }
-                    }
-                }
-                await Task.Delay(2000).ConfigureAwait(false);
+                
             }
         }
-        private static async Task Prediction_MAX_FLAG(RiotSharp.Endpoints.SpectatorEndpoint.CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
+        private static async Task Prediction_MAX_FLAG(CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
         {
+            Match onMatch;
             var Participants = CurrentGame.Participants.ToArray();
             List<string> SelectedChamps = new List<string>();
             foreach (var Participant in Participants)
@@ -863,115 +785,106 @@ namespace SkillzBot.IllSkillzBot
             while (singleton.inAmatch)
             {
                 try
-                {                    
-                    var onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                    {
-                        singleton.inAmatch = false;
-                        singleton.numGames++;
-                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numWins++;
-                            var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
-                            if (buffdata != null)
-                            {
-                                int bufflp = int.Parse(buffdata[1]);
-                                if (buffdata[0] != singleton.elo & buffdata[2] != "MASTER")
-                                {
-                                    singleton.earnedLP += 100 - singleton.startLP;
-                                    singleton.startLP = 0;
-                                    singleton.elo = buffdata[0];
-                                }
-                                singleton.earnedLP += bufflp - singleton.startLP;
-                                singleton.startLP = bufflp;
-                            }
-                        }
-                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numLoose++;
-                            var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
-                            if (buffdata != null)
-                            {
-                                int bufflp = int.Parse(buffdata[1]);
-                                if (buffdata[0] != singleton.elo & buffdata[2] != "MASTER")
-                                {
-                                    singleton.startLP = 100;
-                                    singleton.elo = buffdata[0];
-                                    singleton.tier = buffdata[2];
-                                }
-                                singleton.earnedLP -= singleton.startLP - bufflp;
-                                singleton.startLP = bufflp;
-                            }
-                        }
-                        IllCommands.SaveGameStats();
-                        List<PlayersObject> Players = new List<PlayersObject>();
-                        var FinParticipants = onMatch.Info.Participants.ToArray();
-                        var CompPartisList = new PlayersObject
-                        {
-                            Flag = 0
-                        };
-                        foreach (var Participant in FinParticipants)
-                        {
-                            Players.Add(new PlayersObject()
-                            {
-                                champ = Participant.ChampionName,
-                                Flag = func(Participant)
-                            });
-                        }
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag < Player.Flag)
-                            {
-                                CompPartisList.champ = Player.champ;
-                                CompPartisList.Flag = Player.Flag;
-                            }
-                        }
-                        int outnum = 0;
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag == Player.Flag)
-                            {
-                                outnum++;
-                            }
-                        }
-                        if (outnum == 1)
-                            await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
-                        else
-                        {
-                            TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
-                    }
-                    else
-                    {
-                        singleton.inAmatch = false;
-                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                    }
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    if (ex.InnerException != null)
+                    Log.WriteLog(ex, "Prediction_MAX_FLAG");
+                    singleton.inAmatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    singleton.inAmatch = false;
+                    singleton.numGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
+                        singleton.numWins++;
+                        var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+                        if (buffdata != null)
                         {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
+                            int bufflp = int.Parse(buffdata[1]);
+                            if (buffdata[0] != singleton.elo & buffdata[2] != "MASTER")
+                            {
+                                singleton.earnedLP += 100 - singleton.startLP;
+                                singleton.startLP = 0;
+                                singleton.elo = buffdata[0];
+                            }
+                            singleton.earnedLP += bufflp - singleton.startLP;
+                            singleton.startLP = bufflp;
                         }
                     }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        singleton.numLoose++;
+                        var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+                        if (buffdata != null)
+                        {
+                            int bufflp = int.Parse(buffdata[1]);
+                            if (buffdata[0] != singleton.elo & buffdata[2] != "MASTER")
+                            {
+                                singleton.startLP = 100;
+                                singleton.elo = buffdata[0];
+                                singleton.tier = buffdata[2];
+                            }
+                            singleton.earnedLP -= singleton.startLP - bufflp;
+                            singleton.startLP = bufflp;
+                        }
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    var CompPartisList = new PlayersObject
+                    {
+                        Flag = 0
+                    };
+                    foreach (var Participant in FinParticipants)
+                    {
+                        Players.Add(new PlayersObject()
+                        {
+                            champ = Participant.ChampionName,
+                            Flag = func(Participant)
+                        });
+                    }
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag < Player.Flag)
+                        {
+                            CompPartisList.champ = Player.champ;
+                            CompPartisList.Flag = Player.Flag;
+                        }
+                    }
+                    int outnum = 0;
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag == Player.Flag)
+                        {
+                            outnum++;
+                        }
+                    }
+                    if (outnum == 1)
+                        await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
                     else
                     {
-                        if (!ex.Message.Contains("Data not found"))
-                        {
-                            singleton.inAmatch = false;
-                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
-                        }
+                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                 }
-                await Task.Delay(2000).ConfigureAwait(false);
+                else
+                {
+                    singleton.inAmatch = false;
+                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
             }
         }
-        private static async Task CalculateGameStats(RiotSharp.Endpoints.SpectatorEndpoint.CurrentGame CurrentGame)
+        private static async Task CalculateGameStats(CurrentGame CurrentGame)
         {
             var champs = CurrentGame.Participants;
             int teamWr = 0;
@@ -1045,11 +958,11 @@ namespace SkillzBot.IllSkillzBot
         private static async Task DisableRewardAsync()
         {
             if (!singleton.wisEnabled) return;
-            var reward = await TtvAPI.getReward(englishWis).ConfigureAwait(false);
+            var reward = await TtvAPI.GetReward(englishWis).ConfigureAwait(false);
             if (reward != null)
                 if (reward[0] != "400" || reward[0] != "500")
                 {
-                    await TtvAPI.updateReward(reward[0], reward[1], int.Parse(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                    await TtvAPI.UpdateReward(reward[0], reward[1], int.Parse(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
                     singleton.wisEnabled = false;
                 }
                 else
@@ -1062,10 +975,10 @@ namespace SkillzBot.IllSkillzBot
             if (singleton.wisEnabled) return;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - singleton.WisCD >= 300)
             {
-                var reward = await TtvAPI.getReward(englishWis).ConfigureAwait(false);
+                var reward = await TtvAPI.GetReward(englishWis).ConfigureAwait(false);
                 if (reward[0] != "Error 404" && reward[0] != "Error 500")
                 {
-                    await TtvAPI.updateReward(reward[0], reward[1], int.Parse(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                    await TtvAPI.UpdateReward(reward[0], reward[1], int.Parse(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
                     singleton.wisEnabled = true;
                 }
             }

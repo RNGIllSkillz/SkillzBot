@@ -4,6 +4,7 @@ using Quartz.Impl.Matchers;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IRC;
 using SkillzBot.Tasks;
+using SkillzBot.WRITERS;
 using System;
 using System.Linq;
 using System.Text;
@@ -58,7 +59,14 @@ public class QuartzBackgroundTaskManager
             .WithCronSchedule(cronExpression, x => x.InTimeZone(TimeZoneInfo.Local))
             .Build();
 
-        await _scheduler.RescheduleJob(triggerKey, updatedTrigger).ConfigureAwait(false);
+        try
+        {
+            await _scheduler.RescheduleJob(triggerKey, updatedTrigger).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.WriteLog(ex, "UpdateJobSchedule");
+        }
     }
     public async Task<string> GetRunningJobs()
     {

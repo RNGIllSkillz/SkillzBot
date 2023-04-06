@@ -348,7 +348,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     {
                         CencelUvalUserName = uName;
                         CencelUvalIsWating = true;
-                        await TtvAPI.updateReward(rewardID, string.Format(STRINGS.UpdateRewardTitleNew, uName), (Convert.ToInt32(uvalTime) * 33), "", true, false).ConfigureAwait(false);
+                        await TtvAPI.UpdateReward(rewardID, string.Format(STRINGS.UpdateRewardTitleNew, uName), (Convert.ToInt32(uvalTime) * 33), "", true, false).ConfigureAwait(false);
                         TtvIRCClient.SendMessage(string.Format(STRINGS.CencelUval_ChatMessage, UserName, uName, uvalTime, uvalTime * 33));
                         double startTime = DateTimeOffset.Now.ToUnixTimeSeconds();
                         while (CencelUvalIsWating)
@@ -356,7 +356,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                             if ((DateTimeOffset.Now.ToUnixTimeSeconds() - startTime) >= 60)
                             {
                                 TtvIRCClient.SendMessage(STRINGS.CencelUval_TimeOut);
-                                await TtvAPI.updateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
+                                await TtvAPI.UpdateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                                 CencelUvalIsWating = false;
                             }
                             await Task.Delay(500);
@@ -381,7 +381,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                 {
                     await TtvAPI.UnBanUser(user.TwitchID.ToString()).ConfigureAwait(false);
                 }
-                await TtvAPI.updateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
+                await TtvAPI.UpdateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                 CencelUvalUserName = "";
                 if (UserName != IllSingleton.GetInstance().rootUser)
                     await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
@@ -417,12 +417,12 @@ namespace SkillzBot.TtvClient.TTVRewards
         public static async Task EnglishWisReward(string UserName, string redemID, string rewardID)
         {
             var singleton = IllSingleton.GetInstance();
-            var reward = await TtvAPI.getReward(rewardID).ConfigureAwait(false);
+            var reward = await TtvAPI.GetReward(rewardID).ConfigureAwait(false);
             if (UserName != singleton.rootUser)
                 await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
             else
                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
-            await TtvAPI.updateReward(reward[0], reward[1], int.Parse(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+            await TtvAPI.UpdateReward(reward[0], reward[1], int.Parse(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
             TtvIRCClient.SendMessage($"@{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! ");
             singleton.WisCD = DateTimeOffset.Now.ToUnixTimeSeconds();
             singleton.wisEnabled = false;

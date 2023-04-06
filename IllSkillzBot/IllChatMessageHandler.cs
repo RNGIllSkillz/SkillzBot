@@ -59,7 +59,7 @@ namespace SkillzBot.IllSkillzBot
             SaveToBuffer(e);
             if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return null;
             var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
-            await AddMessage(e.ChatMessage.Username, e.ChatMessage.Message).ConfigureAwait(false);
+            AddMessage(e.ChatMessage.Username, e.ChatMessage.Message);
             user.messageCon++;
             await SaveBuffer(false).ConfigureAwait(false);
             if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
@@ -113,49 +113,35 @@ namespace SkillzBot.IllSkillzBot
                 });
             }
         }
-        static async Task AddMessage(string Sender, string Message)
+        static void AddMessage(string Sender, string Message)
         {
-            try
+            int id = FindUser2(Sender);
+            if (id != -1)
             {
-                int id = await Task.Run(() => FindUser2(Sender)).ConfigureAwait(false);
-                if (id != -1)
+                lock (_LockMessagesObject)
                 {
-                    lock (_LockMessagesObject)
-                    {
-                        Messages.Rows[id][5] = Messages.Rows[id][4];
-                        Messages.Rows[id][4] = Messages.Rows[id][3];
-                        Messages.Rows[id][3] = Messages.Rows[id][2];
-                        Messages.Rows[id][2] = Message;
-                        Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds() - Convert.ToDouble(Messages.Rows[id][6]);
-                        Messages.AcceptChanges();
-                    }
-                }
-                else
-                {
-                    lock (_LockMessagesObject)
-                    {
-                        try
-                        {
-                            DataRow NewRow = Messages.NewRow();
-                            NewRow[1] = Sender;
-                            NewRow[2] = Message;
-                            NewRow[3] = "1";
-                            NewRow[4] = "2";
-                            NewRow[5] = "3";
-                            NewRow[6] = DateTimeOffset.Now.ToUnixTimeSeconds();
-                            Messages.Rows.Add(NewRow);
-                            Messages.AcceptChanges();
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.WriteLog(ex, "!!!ОШИБКА ДОБАВЛЕНИЯ НОВОЙ ЗАПИСИ!!!");
-                        }
-                    }
+                    Messages.Rows[id][5] = Messages.Rows[id][4];
+                    Messages.Rows[id][4] = Messages.Rows[id][3];
+                    Messages.Rows[id][3] = Messages.Rows[id][2];
+                    Messages.Rows[id][2] = Message;
+                    Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds() - Convert.ToDouble(Messages.Rows[id][6]);
+                    Messages.AcceptChanges();
                 }
             }
-            catch (Exception ex)
+            else
             {
-                Log.WriteLog(ex, "Task AddMessage");
+                lock (_LockMessagesObject)
+                {
+                    DataRow NewRow = Messages.NewRow();
+                    NewRow[1] = Sender;
+                    NewRow[2] = Message;
+                    NewRow[3] = "1";
+                    NewRow[4] = "2";
+                    NewRow[5] = "3";
+                    NewRow[6] = DateTimeOffset.Now.ToUnixTimeSeconds();
+                    Messages.Rows.Add(NewRow);
+                    Messages.AcceptChanges();
+                }
             }
         }
         static int FindUser2(string Name)

@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System.Threading.Tasks;
 using SkillzBot.IRC;
 using System.Collections.Generic;
+using SkillzBot.WRITERS;
 
 namespace SkillzBot.API.MMR
 {
@@ -20,21 +21,28 @@ namespace SkillzBot.API.MMR
         public static async Task<List<string>> GetMMR(string summonerName)
         {
             string url = baseUrl + summonerName + "/420";
-            HttpResponseMessage response = await client.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                string jsonResponse = await response.Content.ReadAsStringAsync();
-                dynamic json = JsonConvert.DeserializeObject(jsonResponse);
-                return new List<string>
+                HttpResponseMessage response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
                 {
-                    json.name.ToString(),
-                    json.mmr.ToString()
-                };
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    dynamic json = JsonConvert.DeserializeObject(jsonResponse);
+                    return new List<string>
+                    {
+                        json.name.ToString(),
+                        json.mmr.ToString()
+                    };
+                }
+                else
+                {
+                    TtvIRCClient.SendMessage("API call failed with status code " + response.StatusCode);
+                    return null;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                TtvIRCClient.SendMessage("API call failed with status code " + response.StatusCode);
+                Log.WriteLog(ex, "GetMMR");
                 return null;
             }
         }

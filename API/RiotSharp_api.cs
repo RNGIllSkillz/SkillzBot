@@ -20,6 +20,7 @@ namespace SkillzBot.API.Riot
     internal class RiotAPI
     {
         private static RiotApi riotApi;
+        private static string lastErrorMessage = null;
         static Summoner summoner;
         static RiotAPI()
         {
@@ -45,11 +46,42 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<CurrentGame> GetCurrentGameAsync()
         {
-            return await riotApi.Spectator.GetCurrentGameAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+            CurrentGame currentGame = null;
+            try
+            {
+                currentGame = await riotApi.Spectator.GetCurrentGameAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+                lastErrorMessage = null;
+            }
+            catch (Exception ex)
+            {
+                if (ex.InnerException != null)
+                {
+                    if (lastErrorMessage != ex.Message)
+                    {
+                        if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
+                        {
+                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
+                            lastErrorMessage = ex.Message;
+                        }
+                    }
+                }
+                else
+                {
+                    if (lastErrorMessage != ex.Message)
+                    {
+                        if (!ex.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
+                        {
+                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
+                            lastErrorMessage = ex.Message;
+                        }
+                    }
+                }
+            }
+            return currentGame;
         }
         public static async Task<List<string>> GetRankBySummonerAsync()
         {
-            List<LeagueEntry> rank = new List<LeagueEntry>();
+            List<LeagueEntry> rank;
             try
             {
                 rank = await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
@@ -74,12 +106,50 @@ namespace SkillzBot.API.Riot
             return null;
         }
         public static async Task<Match> GetMatchAsync(string matchID)
-        { 
-            return await riotApi.Match.GetMatchAsync(Region.Europe, matchID).ConfigureAwait(false);
+        {
+            try
+            {
+                return await riotApi.Match.GetMatchAsync(Region.Europe, matchID).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                if (ex.InnerException != null)
+                {
+                    if (ex.InnerException.Message.Contains("Data not found"))
+                    {
+                        //Ожидаемо. Мы еще в игре.
+                        return null;
+                    }
+                    else
+                    {
+                        throw ex;
+                    }
+                }
+                else
+                {
+                    if (ex.Message.Contains("Data not found"))
+                    {
+                        //Ожидаемо. Мы еще в игре.
+                        return null;
+                    }
+                    else
+                    {
+                        throw ex;
+                    }
+                }
+            }
         }
         public static async Task<List<LeagueEntry>> GetLeagueEntriesBySummonerAsync()
         {
-            return await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+            try
+            {
+                return await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetLeagueEntriesBySummonerAsync");
+                return null;
+            }
         }
         public static async Task<ChampionStatic> GetChampByIdAsync(int ChampionId)
         {
@@ -93,7 +163,15 @@ namespace SkillzBot.API.Riot
                 "ko" => Language.ko_KR,
                 _ => Language.en_US,
             };
-            return await riotApi.DataDragon.Champions.GetByIdAsync(ChampionId, "13.6.1", lang).ConfigureAwait(false);
+            try
+            {
+                return await riotApi.DataDragon.Champions.GetByIdAsync(ChampionId, "13.6.1", lang).ConfigureAwait(false);
+            }
+            catch (Exception ex) 
+            { 
+                Log.WriteLog(ex, "GetChampByIdAsync"); 
+                return null;
+            }
         }
         public static RiotSharp.Endpoints.MatchEndpoint.Participant GetParticipantByMatch(Match match)
         {
@@ -111,17 +189,32 @@ namespace SkillzBot.API.Riot
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "null");
+                Log.WriteLog(ex, "GetParticipantByMatch");
                 return null;
             }
         }
         public static async Task<List<string>> GetMatchListAsync()
         {
-           return await riotApi.Match.GetMatchListAsync(Region.Europe, summoner.Puuid, 0, 1).ConfigureAwait(false);
+            try
+            {
+                return await riotApi.Match.GetMatchListAsync(Region.Europe, summoner.Puuid, 0, 1).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetMatchListAsync");
+                return null;
+            }
         }  
         public static async Task UpdateSummonerByNameAsync(string summonerName)
         {
-            summoner = await riotApi.Summoner.GetSummonerByNameAsync(Region.Euw, summonerName).ConfigureAwait(false);
+            try
+            {
+                summoner = await riotApi.Summoner.GetSummonerByNameAsync(Region.Euw, summonerName).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "UpdateSummonerByNameAsync");
+            }
         }
         public static async Task<Summoner> GetSummonerByNameAsync(string summonerName)
         {

@@ -99,7 +99,7 @@ namespace IllSkillzBot
                         PubSubReconnect();
                         break;
                     case "reward":
-                        await TtvAPI.updateReward(singleton.CenceleUval, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
+                        await TtvAPI.UpdateReward(singleton.CenceleUval, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                         break;
                 }                    
             }

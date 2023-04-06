@@ -300,9 +300,9 @@ namespace SkillzBot.MYSQL
                 Flag = "roulettCon";
             if (Flag == "top")
                 Flag = "messageCon";
-            List<UserObject> Users = new List<UserObject>();
-            using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
+            List<UserObject> Users = new List<UserObject>();            
             string SQL = $"SELECT * FROM dbUserTable ORDER BY {Flag} DESC";
+            using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
             using MySqlCommand Command = new MySqlCommand(SQL, Connect);
             try
             {
@@ -345,41 +345,47 @@ namespace SkillzBot.MYSQL
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
 
             string SQL = $"SELECT {ColumnName} FROM dbUserTable WHERE Name = @UserName";
-            await Connect.OpenAsync().ConfigureAwait(false);
-            using (MySqlCommand Command = new MySqlCommand(SQL, Connect))
+            try
             {
-                Command.Parameters.AddWithValue("@UserName", UserName);
-                using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
-                int value = 0;
-                while (await sqlReader.ReadAsync().ConfigureAwait(false))                
-                    value = Convert.ToInt32(sqlReader[0]);                
-                if (value < 1)
+                await Connect.OpenAsync().ConfigureAwait(false);
+                using (MySqlCommand Command = new MySqlCommand(SQL, Connect))
                 {
-                    await Connect.CloseAsync().ConfigureAwait(false);
-                    userPos[0] = 0;
-                    userPos[1] = 0;
-                    return userPos;
+                    Command.Parameters.AddWithValue("@UserName", UserName);
+                    using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
+                    int value = 0;
+                    while (await sqlReader.ReadAsync().ConfigureAwait(false))
+                        value = Convert.ToInt32(sqlReader[0]);
+                    if (value < 1)
+                    {
+                        userPos[0] = 0;
+                        userPos[1] = 0;
+                        return userPos;
+                    }
                 }
-            }
 
-            SQL = $"SELECT COUNT(*) FROM dbUserTable WHERE {ColumnName} >= (SELECT {ColumnName} FROM dbUserTable WHERE Name = @UserName)";
-            using (MySqlCommand Command = new MySqlCommand(SQL, Connect))
-            {
-                Command.Parameters.AddWithValue("@UserName", UserName);
-                using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
-                while (await sqlReader.ReadAsync().ConfigureAwait(false))
-                    userPos[0] = Convert.ToInt32(sqlReader[0]);
-            }
+                SQL = $"SELECT COUNT(*) FROM dbUserTable WHERE {ColumnName} >= (SELECT {ColumnName} FROM dbUserTable WHERE Name = @UserName)";
+                using (MySqlCommand Command = new MySqlCommand(SQL, Connect))
+                {
+                    Command.Parameters.AddWithValue("@UserName", UserName);
+                    using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await sqlReader.ReadAsync().ConfigureAwait(false))
+                        userPos[0] = Convert.ToInt32(sqlReader[0]);
+                }
 
-            SQL = $"SELECT COUNT(*) FROM dbUserTable WHERE {ColumnName} > 0";
-            using (MySqlCommand Command = new MySqlCommand(SQL, Connect))
-            {
-                using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
-                while (await sqlReader.ReadAsync().ConfigureAwait(false))
-                    userPos[1] = Convert.ToInt32(sqlReader[0]);
+                SQL = $"SELECT COUNT(*) FROM dbUserTable WHERE {ColumnName} > 0";
+                using (MySqlCommand Command = new MySqlCommand(SQL, Connect))
+                {
+                    using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await sqlReader.ReadAsync().ConfigureAwait(false))
+                        userPos[1] = Convert.ToInt32(sqlReader[0]);
+                }
+                return userPos;
             }
-            await Connect.CloseAsync().ConfigureAwait(false);
-            return userPos;
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetTopPos");
+                return null;
+            }
         }
         public static async Task<int> DeleteUser(string UserName)
         {
