@@ -20,6 +20,7 @@ using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
 using SkillzBot.API.OpenAI;
+using System.Diagnostics;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -889,6 +890,15 @@ namespace SkillzBot.IllSkillzBot
                 ChatGPT.CreateNewChat();
                 return await GetGPTResponce(userName, message).ConfigureAwait(false);
             }
+        }
+        public static void ToggleDebug(UserObject user)
+        {
+            if (user.Name != singleton.rootUser) return;
+            if (singleton.debug)
+                singleton.debug = false;
+            else
+                singleton.debug = true;
+            TtvIRCClient.SendMessage($"Debug mode is {singleton.debug}");
         }
     }
 }

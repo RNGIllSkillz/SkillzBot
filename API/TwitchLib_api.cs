@@ -227,28 +227,25 @@ namespace SkillzBot.API.Twitch
                 Log.WriteLog(ex, "End_WinLoose_Prediction()");
                 return;
             }
-            if (Predictions != null)
+            if (Predictions == null) return;
+            string currentPredID = Predictions.Data.First().Id;
+            if (currentPredID == PredID)
             {
-                string currentPredID = Predictions.Data.First().Id;
-                var predictionStatus = TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED;
-                if (currentPredID == PredID)
+                try
                 {
-                    try
-                    {
-                        if (win)
-                            await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, predictionStatus, winID).ConfigureAwait(false);
-                        else
-                            await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, predictionStatus, looseID).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.WriteLog(ex, "End_WinLoose_Prediction()");
-                    }
+                    if (win)
+                        await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED, winID).ConfigureAwait(false);
+                    else
+                        await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED, looseID).ConfigureAwait(false);
                 }
-                else
+                catch (Exception ex)
                 {
-                    Log.WriteLog(null, "(Task EndPrediction) currentPredID != PredID");
+                    Log.WriteLog(ex, "End_WinLoose_Prediction()");
                 }
+            }
+            else
+            {
+                Log.WriteLog(null, "(Task EndPrediction) currentPredID != PredID");
             }
         }
         public static async Task CencelePrediction()
@@ -265,12 +262,11 @@ namespace SkillzBot.API.Twitch
                 return;
             }
             string currentPredID = Predictions.Data.First().Id;
-            var predictionStatus = TwitchLib.Api.Core.Enums.PredictionEndStatus.CANCELED;
             if (currentPredID == PredID)
             {
                 try
                 {
-                    await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, predictionStatus, null).ConfigureAwait(false);
+                    await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, TwitchLib.Api.Core.Enums.PredictionEndStatus.CANCELED, null).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

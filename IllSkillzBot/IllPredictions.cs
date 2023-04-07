@@ -22,124 +22,119 @@ namespace SkillzBot.IllSkillzBot
         private static string CurrentMatchID;
         public static async Task GetCurrentMatchTask()
         {
-            if (singleton.inAmatch) return;
+            if (singleton.inAmatch || !singleton.autoPred) return;
             await EnableRewardAsync().ConfigureAwait(false);
             var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
-            if (currentGame == null) return;            
+            if (currentGame == null) return;
             if (CurrentMatchID != ("EUW1_" + Convert.ToString(currentGame.GameId)) && currentGame.GameLength.TotalMilliseconds < 30)
             {
                 CurrentMatchID = "EUW1_" + Convert.ToString(currentGame.GameId);
                 var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
-                if (predictions != null)
-                    if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
+                if (predictions == null) return;
+                if (currentGame.GameType == RiotSharp.Misc.GameType.CustomGame)
+                {
+                    TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
+                    return;
+                }
+                if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
                 await DisableRewardAsync().ConfigureAwait(false);
                 singleton.inAmatch = true;
                 await CalculateGameStats(currentGame).ConfigureAwait(false);
                 if (singleton.debug)
                     Log.WriteLog(null, "Матч начался!");
-                string currentGameID = "EUW1_" + Convert.ToString(currentGame.GameId);
-                if (singleton.autoPred)
+                string currentGameID = "EUW1_" + Convert.ToString(currentGame.GameId);                
+                var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
+                if (rank == null) return;
+                int wchance = 65;
+                foreach (var mType in rank)
                 {
-                    bool procked = false;
-                    var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
-                    int wchance;
-                    bool ranked = false;
-                    foreach (var mType in rank)
-                    {
-                        if (mType.QueueType == "RANKED_SOLO_5x5")
-                        {
-                            ranked = true;
-                        }
-                    }
-                    if (!ranked)
-                        wchance = 65;
-                    else
+                    if (mType.QueueType == "RANKED_SOLO_5x5")
                         wchance = 93;
-                    while (!procked)
-                    {
-                        if (!procked && IntUtil.GetChance(wchance))
-                        {
-                            await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 120).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(15))
-                        {
-                            await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(20))
-                        {
-                            await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(20))
-                        {
-                            await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(20))
-                        {
-                            await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(30))
-                        {
-                            await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(25))
-                        {
-                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(20))
-                        {
-                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(15))
-                        {
-                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(18))
-                        {
-                            await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(20))
-                        {
-                            await Prediction_MAX_KDA_5(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(5))
-                        {
-                            await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(5))
-                        {
-                            await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(4))
-                        {
-                            await Prediction_MAX_FLAG(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(4))
-                        {
-                            await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                        if (!procked && IntUtil.GetChance(5))
-                        {
-                            await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
-                            procked = true;
-                        }
-                    }
-                    singleton.inAmatch = false;
                 }
+                while (true)
+                {
+                    if (IntUtil.GetChance(wchance))
+                    {
+                        await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 120).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(15))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(30))
+                    {
+                        await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(25))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(15))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(18))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_KDA_5(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(4))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(4))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                        break;
+                    }
+                }
+                singleton.inAmatch = false;
             }
         }
         private static async Task Prediction_WIN_LOOSE(string currentGameID, string Title, string blue, string red, int sec)
@@ -147,7 +142,10 @@ namespace SkillzBot.IllSkillzBot
             await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
             Match onMatch;
             if (singleton.debug)
+            {
                 Log.WriteLog(null, "Ставка запущена");
+                Log.WriteLog(null, $"currentGameID: {currentGameID}");
+            }
             while (singleton.inAmatch)
             {
                 try
@@ -165,32 +163,26 @@ namespace SkillzBot.IllSkillzBot
                     await Task.Delay(2000).ConfigureAwait(false);
                     continue;
                 }
+                singleton.inAmatch = false;
                 var Participant = RiotAPI.GetParticipantByMatch(onMatch);
                 if (Participant != null)
                 {
                     if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                    {
-                        singleton.inAmatch = false;
+                    {                        
                         singleton.numGames++;
                         if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                         {
-                            if (singleton.autoPred)
-                            {
-                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
-                                if (singleton.debug)
-                                    Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
-                            }
+                            await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                            if (singleton.debug)
+                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
                             singleton.numWins++;
                             await UpdateDailyStats(true).ConfigureAwait(false);
                         }
-                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                        else
                         {
-                            if (singleton.autoPred)
-                            {
-                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
-                                if (singleton.debug)
-                                    Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
-                            }
+                            await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                            if (singleton.debug)
+                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
                             singleton.numLoose++;
                             await UpdateDailyStats(false).ConfigureAwait(false);
                         }
@@ -198,7 +190,6 @@ namespace SkillzBot.IllSkillzBot
                     }
                     else
                     {
-                        singleton.inAmatch = false;
                         TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
@@ -206,7 +197,6 @@ namespace SkillzBot.IllSkillzBot
                 else
                 {
                     singleton.autoPred = false;
-                    singleton.inAmatch = false;
                     Log.WriteLog(null, "(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
                     TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
                 }                
@@ -265,7 +255,7 @@ namespace SkillzBot.IllSkillzBot
                     };
                     foreach (var Participant in FinParticipants)
                     {
-                        long vFlag = 0;
+                        long vFlag;
                         if (Participant.Deaths != 0)
                             vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
                         else

@@ -168,7 +168,10 @@ namespace SkillzBot.IllSkillzBot
                     break;
                 case "!connect":
                     IllCommands.ReconnectToPubSub(user);
-                    break;  
+                    break;
+                case "!debug":
+                    IllCommands.ToggleDebug(user);
+                    break;
                 default:
                     break;
             }

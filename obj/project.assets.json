@@ -200,6 +200,24 @@
           "buildTransitive/netcoreapp2.0/Microsoft.Extensions.DependencyInjection.Abstractions.targets": {}
         }
       },
+      "Microsoft.Extensions.Http/2.1.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "2.1.0",
+          "Microsoft.Extensions.Logging": "2.1.0",
+          "Microsoft.Extensions.Options": "2.1.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/Microsoft.Extensions.Http.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.Extensions.Http.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.Extensions.Logging/7.0.0": {
         "type": "package",
         "dependencies": {
@@ -382,10 +400,11 @@
           }
         }
       },
-      "OpenAI/1.6.0": {
+      "OpenAI/1.7.2": {
         "type": "package",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "1.1.1",
+          "Microsoft.Extensions.Http": "2.1.0",
           "Newtonsoft.Json": "13.0.3"
         },
         "compile": {
@@ -1959,6 +1978,24 @@
           "buildTransitive/netcoreapp2.0/Microsoft.Extensions.DependencyInjection.Abstractions.targets": {}
         }
       },
+      "Microsoft.Extensions.Http/2.1.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "2.1.0",
+          "Microsoft.Extensions.Logging": "2.1.0",
+          "Microsoft.Extensions.Options": "2.1.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/Microsoft.Extensions.Http.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.Extensions.Http.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.Extensions.Logging/7.0.0": {
         "type": "package",
         "dependencies": {
@@ -2127,10 +2164,11 @@
           }
         }
       },
-      "OpenAI/1.6.0": {
+      "OpenAI/1.7.2": {
         "type": "package",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "1.1.1",
+          "Microsoft.Extensions.Http": "2.1.0",
           "Newtonsoft.Json": "13.0.3"
         },
         "compile": {
@@ -3886,6 +3924,19 @@
         "useSharedDesignerContext.txt"
       ]
     },
+    "Microsoft.Extensions.Http/2.1.0": {
+      "sha512": "vkSkGa1UIZVlAd18oDhrtoawN/q7fDemJcVpT9+28mP7bP0I8zKLSLRwqF++GmPs/7e0Aqlo6jpZm3P7YYS0ag==",
+      "type": "package",
+      "path": "microsoft.extensions.http/2.1.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/Microsoft.Extensions.Http.dll",
+        "lib/netstandard2.0/Microsoft.Extensions.Http.xml",
+        "microsoft.extensions.http.2.1.0.nupkg.sha512",
+        "microsoft.extensions.http.nuspec"
+      ]
+    },
     "Microsoft.Extensions.Logging/7.0.0": {
       "sha512": "Nw2muoNrOG5U5qa2ZekXwudUn2BJcD41e65zwmDHb1fQegTX66UokLWZkJRpqSSHXDOWZ5V0iqhbxOEky91atA==",
       "type": "package",
@@ -4198,17 +4249,18 @@
         "packageIcon.png"
       ]
     },
-    "OpenAI/1.6.0": {
-      "sha512": "j4LeK4p4g0j+JCdajypWVEFLuD7hnRanO7BhfXDogTPHc6q6JA/DgD8voEG9l6jN0SprSFO4cmQ/Lrk0h+knug==",
+    "OpenAI/1.7.2": {
+      "sha512": "veUa6xE+8ThjNLBCM75ZOOE0y72UNB/OQMsodOy+hTajZKV8So7s0dwx8x0kMqjgaiLMxC2grKGdQ+CVBl98sA==",
       "type": "package",
-      "path": "openai/1.6.0",
+      "path": "openai/1.7.2",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "README.md",
         "lib/netstandard2.0/OpenAI_API.dll",
         "lib/netstandard2.0/OpenAI_API.xml",
-        "openai.1.6.0.nupkg.sha512",
+        "nuget_logo.png",
+        "openai.1.7.2.nupkg.sha512",
         "openai.nuspec"
       ]
     },
@@ -8845,7 +8897,7 @@
       "Google.Apis.YouTube.v3 >= 1.60.0.2945",
       "MySql.Data >= 8.0.32.1",
       "Newtonsoft.Json >= 13.0.3",
-      "OpenAI >= 1.6.0",
+      "OpenAI >= 1.7.2",
       "Quartz >= 3.6.2",
       "TwitchLib >= 3.5.3",
       "TwitchLib.Api >= 3.9.0",
@@ -8915,7 +8967,7 @@
           },
           "OpenAI": {
             "target": "Package",
-            "version": "[1.6.0, )"
+            "version": "[1.7.2, )"
           },
           "Quartz": {
             "target": "Package",

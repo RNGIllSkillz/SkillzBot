@@ -117,7 +117,7 @@ namespace SkillzBot.API.Riot
                 {
                     if (ex.InnerException.Message.Contains("Data not found"))
                     {
-                        //Ожидаемо. Мы еще в игре.
+                        //expected. we are still in the game.
                         return null;
                     }
                     else
@@ -129,7 +129,7 @@ namespace SkillzBot.API.Riot
                 {
                     if (ex.Message.Contains("Data not found"))
                     {
-                        //Ожидаемо. Мы еще в игре.
+                        //expected. we are still in the game.
                         return null;
                     }
                     else
@@ -175,23 +175,13 @@ namespace SkillzBot.API.Riot
         }
         public static RiotSharp.Endpoints.MatchEndpoint.Participant GetParticipantByMatch(Match match)
         {
-            try
+            var Participants = match.Info.Participants.ToArray();
+            foreach (var Participant in Participants)
             {
-                var Participants = match.Info.Participants.ToArray();
-                foreach (var Participant in Participants)
-                {
-                    if (StringUtil.RemoveWhitespace(Participant.SummonerName.ToLower()) == IllSingleton.GetInstance().SUMMONER_NAME.ToLower())
-                    {
-                        return Participant;
-                    }
-                }
-                return null;
+                if (string.Equals(StringUtil.RemoveWhitespace(Participant.SummonerName), IllSingleton.GetInstance().SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))                
+                    return Participant;                
             }
-            catch (Exception ex)
-            {
-                Log.WriteLog(ex, "GetParticipantByMatch");
-                return null;
-            }
+            return null;
         }
         public static async Task<List<string>> GetMatchListAsync()
         {

@@ -35,7 +35,7 @@ namespace SkillzBot.API.OpenAI
             chat.AppendUserInput(input);
             try
             {                
-                return await chat.GetResponseFromChatbot().ConfigureAwait(false);
+                return await chat.GetResponseFromChatbotAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {

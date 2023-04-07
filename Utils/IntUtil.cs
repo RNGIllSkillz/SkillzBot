@@ -4,14 +4,13 @@ namespace SkillzBot.Utils
 {
     internal sealed class IntUtil
     {
-        private static Random random;
-        private static void Init()
+        private static readonly Random random;
+        static IntUtil()
         {
-            if (random == null) random = new Random();
+            random ??= new Random();
         }
         public static int Random(int min, int max)
         {
-            Init();
             return random.Next(min, max);
         }
         public static bool GetChance(int winChanse)
