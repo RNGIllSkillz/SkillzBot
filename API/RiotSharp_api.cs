@@ -46,11 +46,11 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<CurrentGame> GetCurrentGameAsync()
         {
-            CurrentGame currentGame = null;
             try
             {
-                currentGame = await riotApi.Spectator.GetCurrentGameAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+                var currentGame = await riotApi.Spectator.GetCurrentGameAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
                 lastErrorMessage = null;
+                return currentGame;
             }
             catch (Exception ex)
             {
@@ -77,7 +77,7 @@ namespace SkillzBot.API.Riot
                     }
                 }
             }
-            return currentGame;
+            return null;
         }
         public static async Task<List<string>> GetRankBySummonerAsync()
         {

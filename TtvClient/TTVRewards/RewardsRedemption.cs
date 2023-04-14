@@ -418,11 +418,17 @@ namespace SkillzBot.TtvClient.TTVRewards
         {
             var singleton = IllSingleton.GetInstance();
             var reward = await TtvAPI.GetReward(rewardID).ConfigureAwait(false);
+            if (reward == null)
+            {
+                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                TtvIRCClient.SendMessage("Error");
+                return;
+            }
             if (UserName != singleton.rootUser)
-                await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);                
             else
                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
-            await TtvAPI.UpdateReward(reward[0], reward[1], int.Parse(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+            await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
             TtvIRCClient.SendMessage($"@{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! ");
             singleton.WisCD = DateTimeOffset.Now.ToUnixTimeSeconds();
             singleton.wisEnabled = false;

@@ -78,8 +78,8 @@ namespace SkillzBot.IllSkillzBot
                 IllGames.QuizzActiveUser(user.TwitchID.ToString());
             if (e.ChatMessage.Message.StartsWith("!"))
                 user = await IllCommandHandler.CommandHandler(user, e.ChatMessage.Message).ConfigureAwait(false);
-            //if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
-            //    TypeInChat(e.ChatMessage.Message);
+            if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
+                IllCommands.TypeInChat(e.ChatMessage.Message);
             if (user.isMod != 1) return user;
             if (e.ChatMessage.Message.StartsWith("@bot_illskillz", StringComparison.OrdinalIgnoreCase))
             {                
@@ -181,16 +181,6 @@ namespace SkillzBot.IllSkillzBot
                     user.isMod = chatmessage.IsModerator ? 1 : 0;
                     user.isPartner = chatmessage.IsPartner ? 1 : 0;
                     await MySQL.AddUser(user).ConfigureAwait(false);
-                    return user;
-                }
-                else if (user.dbID == -500)
-                {
-                    Log.WriteLog(null, "GetUser Error 500! Duplicates???");
-                    return user;
-                }
-                else if (user.dbID == -800)
-                {
-                    Log.WriteLog(null, "GetUser Error 800! ???????????????");
                     return user;
                 }
                 else

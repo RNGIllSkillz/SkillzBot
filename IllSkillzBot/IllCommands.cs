@@ -41,7 +41,7 @@ namespace SkillzBot.IllSkillzBot
 
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
 
-        readonly List<string> popMessages = new List<string>();
+        readonly static List<string> popMessages = new List<string>();
         public static void Help(UserObject user)
         {
             int secCD = 300;
@@ -377,7 +377,7 @@ namespace SkillzBot.IllSkillzBot
         {
             BotConfigWriter.Write();
         }
-        void TypeInChat(string message)
+        public static void TypeInChat(string message)
         {
             popMessages.Add(message);
             if (popMessages.Count > 10)
@@ -596,12 +596,10 @@ namespace SkillzBot.IllSkillzBot
                 {
                     TtvIRCClient.SendMessage($"rewardID - {input[1]}");
                     var reward = await TtvAPI.GetReward(input[1]).ConfigureAwait(false);
-                    if (reward[0] == "404")
+                    if (reward == null)
                         TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
-                    else if (reward[0] == "500")
-                        TtvIRCClient.SendMessage("Error 500 - Ttv API error");
                     else
-                        await TtvAPI.UpdateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], false, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                        await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
                 }
             }
         }
@@ -689,19 +687,19 @@ namespace SkillzBot.IllSkillzBot
                     {
                         TtvIRCClient.SendMessage($"rewardID - {subs[1]}");
                         var reward = await TtvAPI.GetReward(subs[1]).ConfigureAwait(false);
-                        if (reward[0] == "404")
+                        if (reward == null)
                             TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
                         else
-                            await TtvAPI.UpdateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                            await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
                     }
                     if (subs.Length == 3)
                     {
                         TtvIRCClient.SendMessage($"Title - {subs[1]}");
                         var reward = await TtvAPI.GetReward(subs[1], subs[2]).ConfigureAwait(false);
-                        if (reward[0] == "404")
+                        if (reward == null)
                             TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
                         else
-                            await TtvAPI.UpdateReward(reward[0], reward[1], Convert.ToInt32(reward[2]), reward[3], true, Convert.ToBoolean(reward[4])).ConfigureAwait(false);
+                            await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
                     }
                 }
                 else

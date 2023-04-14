@@ -23,6 +23,7 @@ using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomRewardRedemption;
+using TwitchLib.Api.Helix.Models.ChannelPoints;
 
 namespace SkillzBot.API.Twitch
 {
@@ -298,13 +299,9 @@ namespace SkillzBot.API.Twitch
             }
             return AllRewards;
         }
-        public static async Task<List<string>> GetReward(string id)
+        public static async Task<CustomReward> GetReward(string id)
         {
-            if (!ValidToken)
-                return new List<string>
-                {
-                    "500"
-                };
+            if (!ValidToken) return null;
             GetCustomRewardsResponse rewards;
             try
             {
@@ -313,35 +310,20 @@ namespace SkillzBot.API.Twitch
             catch (Exception ex)
             {
                 Log.WriteLog(ex, "GetReward");
-                return new List<string>
-                {
-                    "500"
-                };
+                return null;
             }
-            List<string> responce = new List<string>();
             foreach (var reward in rewards.Data)
             {
                 if (reward.Id == id)
                 {
-                    responce.Add(reward.Id);
-                    responce.Add(reward.Title);
-                    responce.Add(reward.Cost.ToString());
-                    responce.Add(reward.Prompt);
-                    responce.Add(reward.IsEnabled.ToString());
-                    responce.Add(reward.IsUserInputRequired.ToString());
-                    return responce;
+                    return reward;                  
                 }
             }
-            responce.Add("404");
-            return responce;
+            return null;
         }
-        public static async Task<List<string>> GetReward(string title, string OverloadParam)
+        public static async Task<CustomReward> GetReward(string title, string OverloadParam)
         {
-            if (!ValidToken)
-                return new List<string>
-                {
-                    "500"
-                };
+            if (!ValidToken) return null;
 
             GetCustomRewardsResponse rewards;
             try
@@ -351,27 +333,17 @@ namespace SkillzBot.API.Twitch
             catch (Exception ex)
             {
                 Log.WriteLog(ex, "GetReward");
-                return new List<string>
-                {
-                    "500"
-                };
+                return null;
             }
             List<string> responce = new List<string>();
             foreach (var reward in rewards.Data)
             {
                 if (reward.Title == title)
                 {
-                    responce.Add(reward.Id);
-                    responce.Add(reward.Title);
-                    responce.Add(reward.Cost.ToString());
-                    responce.Add(reward.Prompt);
-                    responce.Add(reward.IsEnabled.ToString());
-                    responce.Add(reward.IsUserInputRequired.ToString());
-                    return responce;
+                    return reward;
                 }
             }
-            responce.Add("404");
-            return responce;
+            return null;
 
         }
         public static async Task UpdateReward(string rewardID, string title, int cost, string prompt,bool enable, bool isUserInputRequired)
