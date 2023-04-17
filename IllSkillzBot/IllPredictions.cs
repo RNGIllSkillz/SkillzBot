@@ -23,7 +23,7 @@ namespace SkillzBot.IllSkillzBot
         public static async Task GetCurrentMatchTask()
         {
             if (singleton.inAmatch || !singleton.autoPred) return;
-            await EnableRewardAsync().ConfigureAwait(false);
+            //await EnableRewardAsync().ConfigureAwait(false);
             var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
             if (currentGame == null) return;
             if (CurrentMatchID == ("EUW1_" + Convert.ToString(currentGame.GameId)) || currentGame.GameLength.TotalMilliseconds > 30) return;
@@ -38,7 +38,7 @@ namespace SkillzBot.IllSkillzBot
                 TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
                 return;
             }
-            await DisableRewardAsync().ConfigureAwait(false);
+            //await DisableRewardAsync().ConfigureAwait(false);
             await CalculateGameStats(currentGame).ConfigureAwait(false);
             string currentGameID = "EUW1_" + Convert.ToString(currentGame.GameId);
             var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
@@ -994,7 +994,7 @@ namespace SkillzBot.IllSkillzBot
                     }
                     else
                     {
-                        if (singleton.tier.Equals("dimond", StringComparison.OrdinalIgnoreCase))
+                        if (singleton.tier.Equals("diamond", StringComparison.OrdinalIgnoreCase))
                             singleton.earnedLP += 100 - singleton.startLP + bufflp;
                         else
                             singleton.earnedLP += bufflp - singleton.startLP;
