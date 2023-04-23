@@ -335,7 +335,6 @@ namespace SkillzBot.API.Twitch
                 Log.WriteLog(ex, "GetReward");
                 return null;
             }
-            List<string> responce = new List<string>();
             foreach (var reward in rewards.Data)
             {
                 if (reward.Title == title)
@@ -568,16 +567,42 @@ namespace SkillzBot.API.Twitch
                 Log.WriteLog(ex, "DeleteAllMessages");
             }
         }
-        public static async Task AddChannelModerator(string UserID)
+        public static async Task<bool> AddChannelModerator(string UserID)
         {
             try
             {
                 await API.Helix.Moderation.AddChannelModeratorAsync(BrodcasterID,UserID).ConfigureAwait(false);
+                return true;
             }
             catch (Exception ex)
             {
                 Log.WriteLog(ex, "AddChannelModerator");
+                return false;
             }
+        }
+        public static async Task DisableRewardAsync(string rewardID)
+        {
+            //if (!singleton.wisEnabled) return;
+            var reward = await GetReward(rewardID).ConfigureAwait(false);
+            if (reward != null)
+            {
+                await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
+                //singleton.wisEnabled = false;
+            }
+            else
+                Log.WriteLog(null, $"DisableRewardAsync -> null. Id: {rewardID}");
+        }
+        public static async Task EnableRewardAsync(string rewardID)
+        {
+            //if (singleton.wisEnabled) return;
+            var reward = await GetReward(rewardID).ConfigureAwait(false);
+            if (reward != null)
+            {
+                await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
+                //singleton.wisEnabled = true;
+            }
+            else
+                Log.WriteLog(null, $"EnableRewardAsync -> null. Id: {rewardID}");
         }
         public static async Task DeleteChannelModerator(string UserID)
         {
@@ -651,6 +676,20 @@ namespace SkillzBot.API.Twitch
                 return user;
             }
             user.UvalCon++;            
+            return user;
+        }
+        public static async Task<UserObject> TimeOutModerator(UserObject user, int Duration, string Reasone)
+        {
+            try
+            {
+                await TimeOutUserAsync(user.TwitchID.ToString(), Duration, Reasone).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "TimeOutUser");
+                return user;
+            }
+            user.UvalCon++;
             return user;
         }
         /*

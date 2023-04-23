@@ -65,9 +65,9 @@ namespace SkillzBot.IllSkillzBot
                 return await IllCommands.IllBanUser(user).ConfigureAwait(false);
             await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);
             if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
-                return await TtvAPI.TimeOutUser(user, 1200, STRINGS.TimeOutBadPic).ConfigureAwait(false);
+                return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutBadPic).ConfigureAwait(false);
             if (IllChatFilters.FilterASCII(e))
-                return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutPic).ConfigureAwait(false);
+                return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutPic).ConfigureAwait(false);
             if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
                 return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
             if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))

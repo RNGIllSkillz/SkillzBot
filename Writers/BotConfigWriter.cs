@@ -45,7 +45,7 @@ namespace SkillzBot.Writers
                     BrodcasterId = singleton.BrodcasterId,
                     CenceleUval = singleton.CenceleUval,
                     EmoteModeId = singleton.EmoteModeId,
-                    EnglishWis = singleton.EnglishWis,
+                    uvalMod = singleton.uvalMod,
                     UvalId = singleton.UvalId,
                     Pi4KaId = singleton.Pi4KaId,
                     ZakazTrekaId = singleton.ZakazTrekaId,

@@ -243,14 +243,14 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task<UserObject> IllBanUser(UserObject user)
         {
-            if (user.banCount == 5)
+            if (user.banCount == 35)
             {
                 await TtvAPI.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
                 user.banCount = 0;
             }
             else
             {
-                user = await TtvAPI.TimeOutUser(user, 604800, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+                user = await TtvAPI.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason).ConfigureAwait(false);
                 user.banCount++;
             }
             return user;

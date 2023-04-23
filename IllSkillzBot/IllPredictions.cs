@@ -18,7 +18,7 @@ namespace SkillzBot.IllSkillzBot
     {
         private readonly static IllSingleton singleton = IllSingleton.GetInstance();
         private readonly static string tChannel = singleton.ChannelName;
-        private readonly static string englishWis = singleton.EnglishWis;        
+        //private readonly static string englishWis = singleton.EnglishWis;        
         private static string CurrentMatchID;
         public static async Task GetCurrentMatchTask()
         {
@@ -940,34 +940,8 @@ namespace SkillzBot.IllSkillzBot
                 return data;
             }
             return data;
-        }
-        private static async Task DisableRewardAsync()
-        {
-            if (!singleton.wisEnabled) return;
-            var reward = await TtvAPI.GetReward(englishWis).ConfigureAwait(false);
-            if (reward != null)
-            {
-                await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
-                singleton.wisEnabled = false;
-            }
-            else
-                Log.WriteLog(null, $"DisableRewardAsync -> null. Id: {englishWis}");
-        }
-        private static async Task EnableRewardAsync()
-        {
-            if (singleton.wisEnabled) return;
-            if (DateTimeOffset.Now.ToUnixTimeSeconds() - singleton.WisCD >= 300)
-            {
-                var reward = await TtvAPI.GetReward(englishWis).ConfigureAwait(false);
-                if (reward != null)
-                {
-                    await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
-                    singleton.wisEnabled = true;
-                }
-                else
-                    Log.WriteLog(null, $"EnableRewardAsync -> null. Id: {englishWis}");
-            }
-        }
+        }        
+        
         private static async Task UpdateDailyStats(bool won)
         {
             var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);

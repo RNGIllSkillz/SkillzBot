@@ -25,7 +25,7 @@ namespace SkillzBot.PubSub
         readonly string uvalVIP;
         readonly string emoteMode;
         readonly string cenceleUval;
-        readonly string englishWis;
+        readonly string uvalMod;
         readonly string ChatWithBot;
         readonly string BrodcasterId;
         private int tryes = 0;
@@ -42,7 +42,7 @@ namespace SkillzBot.PubSub
             uvalVIP = singleton.UvalVipId;
             emoteMode = singleton.EmoteModeId;
             cenceleUval = singleton.CenceleUval;
-            englishWis = singleton.EnglishWis;
+            uvalMod = singleton.uvalMod;
             ChatWithBot = singleton.ChatWithBot;
             accToken = singleton.TApiAccessToken;
 
@@ -362,9 +362,9 @@ namespace SkillzBot.PubSub
                 {
                     await RewardsRedemption.CenceleUvalReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == englishWis)
+                if (rewardID == uvalMod)
                 {
-                    await RewardsRedemption.EnglishWisReward(userName, redemID, rewardID).ConfigureAwait(false);
+                    await RewardsRedemption.UvalModReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
                 if (rewardID == ChatWithBot)
                 {

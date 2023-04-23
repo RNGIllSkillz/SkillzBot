@@ -17,7 +17,7 @@ namespace SkillzBot.Singleton
         public string BrodcasterId { get; set; }
         public string CenceleUval { get; set; }
         public string EmoteModeId { get; set; }
-        public string EnglishWis { get; set; }
+        public string uvalMod { get; set; }
         public string UvalId { get; set; }
         public string Pi4KaId { get; set; }
         public string ZakazTrekaId { get; set; }

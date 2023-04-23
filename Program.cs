@@ -135,7 +135,7 @@ namespace IllSkillzBot
             singleton.EmoteModeId = config.GetBotConfigs().EmoteModeId;
             singleton.SUMMONER_NAME = config.GetBotConfigs().SummonerName;
             singleton.CenceleUval = config.GetBotConfigs().CenceleUval;
-            singleton.EnglishWis = config.GetBotConfigs().EnglishWis;
+            singleton.uvalMod = config.GetBotConfigs().uvalMod;
             singleton.MySQL_User = config.GetBotConfigs().MySQL_User;
             singleton.MySQL_password = config.GetBotConfigs().MySQL_password;
             singleton.StreamElementsApiToken = config.GetBotConfigs().StreamElementsApiToken;
@@ -212,7 +212,7 @@ namespace IllSkillzBot
                     BrodcasterId = "ID",
                     CenceleUval = "ID",
                     EmoteModeId = "ID",
-                    EnglishWis = "ID",
+                    uvalMod = "ID",
                     UvalId = "ID",
                     Pi4KaId = "ID",
                     ZakazTrekaId = "ID",

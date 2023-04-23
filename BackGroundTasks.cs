@@ -83,5 +83,19 @@ namespace SkillzBot.Tasks
             TtvIRCClient.SendMessage("cron await test. 10s");
             await Task.Delay(10000);
         }
+        public static async Task UserUntimeoutTrigger(string UserName)
+        {
+            while (true)
+            {
+                var user = await MySQL.GetUser(UserName).ConfigureAwait(false);
+                if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
+                {
+                    while (!await TtvAPI.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))                    
+                        await Task.Delay(1000).ConfigureAwait(false);                    
+                    return;
+                }
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+        }
     }
 }

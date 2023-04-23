@@ -55,8 +55,8 @@ namespace SkillzBot.JSON.Settings
         [JsonProperty("CenceleUval")]
         public string CenceleUval { get; set; }
 
-        [JsonProperty("EnglishWis")]
-        public string EnglishWis { get; set; }
+        [JsonProperty("uvalMod")]
+        public string uvalMod { get; set; }
 
         [JsonProperty("MySQL_User")]
         public string MySQL_User { get; set; }
