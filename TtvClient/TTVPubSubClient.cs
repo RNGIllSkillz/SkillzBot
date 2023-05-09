@@ -103,7 +103,10 @@ namespace SkillzBot.PubSub
             if (gifted)
             {
                 TtvIRCClient.SendMessage(string.Format(STRINGS.GiftedSubMessage, e.Subscription.DisplayName, e.Subscription.RecipientName));
-                await MySQL.AddPoints(600, int.Parse(e.Subscription.UserId)).ConfigureAwait(false);
+                if (int.TryParse(e.Subscription.UserId, out int result))
+                    await MySQL.AddPoints(600, result).ConfigureAwait(false);
+                else
+                    Log.WriteLog(null, $"Can't unmarchal type int PubSub_OnChannelSubscription/true, e.Subscription.UserId = {e.Subscription.UserId}");
             }
             else
             {
@@ -111,12 +114,18 @@ namespace SkillzBot.PubSub
                 if (cumulativeMonths != 0)
                 {
                     TtvIRCClient.SendMessage(string.Format(STRINGS.SubMessage, e.Subscription.DisplayName, cumulativeMonths, 450));
-                    await MySQL.AddPoints(450, int.Parse(e.Subscription.UserId)).ConfigureAwait(false);
+                    if (int.TryParse(e.Subscription.UserId, out int result))
+                        await MySQL.AddPoints(450, result).ConfigureAwait(false);
+                    else
+                        Log.WriteLog(null, $"Can't unmarchal type int PubSub_OnChannelSubscription/true, e.Subscription.UserId = {e.Subscription.UserId}");
                 }
                 else
                 {
                     TtvIRCClient.SendMessage(string.Format(STRINGS.SubMessage, e.Subscription.DisplayName, 0, 550));
-                    await MySQL.AddPoints(550, int.Parse(e.Subscription.UserId)).ConfigureAwait(false);
+                    if (int.TryParse(e.Subscription.UserId, out int result))
+                        await MySQL.AddPoints(550, result).ConfigureAwait(false);
+                    else
+                        Log.WriteLog(null, $"Can't unmarchal type int PubSub_OnChannelSubscription/true, e.Subscription.UserId = {e.Subscription.UserId}");
                 }
             }
         }

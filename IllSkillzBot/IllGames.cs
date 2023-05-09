@@ -8,6 +8,7 @@ using SkillzBot.IllSTRINGS;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Google.Protobuf.WellKnownTypes;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -37,7 +38,10 @@ namespace SkillzBot.IllSkillzBot
                     else
                         TtvIRCClient.SendMessage(string.Format(STRINGS.RouletteLoose, user.Name));
                     user.roulettCon = 0;
-                    user = await TtvAPI.TimeOutUser(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                    if (Convert.ToBoolean(user.isMod))
+                        user = await TtvClient.TTVRewards.RewardsRedemption.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                    else
+                        user = await TtvAPI.TimeOutUser(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
                 }
                 else
                 {

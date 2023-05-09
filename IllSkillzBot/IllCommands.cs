@@ -21,11 +21,18 @@ using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
 using SkillzBot.API.OpenAI;
 using System.Diagnostics;
+using Google.Apis.Util;
+using SkillzBot.Tasks;
+using Google.Protobuf.WellKnownTypes;
 
 namespace SkillzBot.IllSkillzBot
 {
     internal class IllCommands
     {
+        private static readonly object _lock = new object();
+        private static readonly HashSet<Task> _runningTasks = new HashSet<Task>();
+        private static readonly HashSet<string> mods = new HashSet<string>();
+
         private static double helpCD = 0;
         private static double rtoppCD = 0;
         private static double getmmrCD = 0;
@@ -864,7 +871,7 @@ namespace SkillzBot.IllSkillzBot
                 }
             }
         }
-        public static async Task TestingMethod(UserObject user, string[] input)
+        public static async Task TestingMethod(UserObject user)
         {
             if (user.Name != singleton.rootUser) return;
             await Task.Delay(10);
@@ -897,6 +904,6 @@ namespace SkillzBot.IllSkillzBot
             else
                 singleton.debug = true;
             TtvIRCClient.SendMessage($"Debug mode is {singleton.debug}");
-        }
+        }        
     }
 }

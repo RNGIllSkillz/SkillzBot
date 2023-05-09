@@ -13,6 +13,7 @@ using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
 using SkillzBot.Tasks;
+using SkillzBot.MODELS;
 
 namespace SkillzBot.TtvClient.TTVRewards
 {
@@ -173,35 +174,14 @@ namespace SkillzBot.TtvClient.TTVRewards
                         {
                             double duration = 600;
                             if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
-                                duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
-                            await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
+                                duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;                            
+                            //await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                             TtvIRCClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1));
                             if (UserName != singleton.rootUser)
                                 await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                             else
                                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
-                            if (Convert.ToBoolean(user.isMod))
-                            {
-                                Task backgroundTask = BackGroundTasks.UserUntimeoutTrigger(user.Name);
-                                lock (_lock)
-                                {
-                                    if (_runningTasks.Contains(backgroundTask)) return;                                    
-                                    _runningTasks.Add(backgroundTask);
-                                    mods.Add(user.Name);
-                                }
-                                try
-                                {
-                                    await backgroundTask.ConfigureAwait(false);
-                                }
-                                finally
-                                {
-                                    lock (_lock)
-                                    {
-                                        _runningTasks.Remove(backgroundTask);
-                                        mods.Remove(user.Name);
-                                    }
-                                }
-                            }
+                            await TimeOutModerator(user, duration, STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                         }
                         else
                             await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -527,6 +507,33 @@ namespace SkillzBot.TtvClient.TTVRewards
                 await TtvAPI.ApproveReward(rewardID, redemID);
             else
                 await TtvAPI.CencelReward(rewardID, redemID);
+        }
+        public static async Task<UserObject> TimeOutModerator(UserObject user, double duration, string reason)
+        {
+            var result = await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), reason).ConfigureAwait(false);
+            if (Convert.ToBoolean(user.isMod))
+            {
+                Task backgroundTask = BackGroundTasks.UserUntimeoutTrigger(user.Name);
+                lock (_lock)
+                {
+                    if (_runningTasks.Contains(backgroundTask)) return result;
+                    _runningTasks.Add(backgroundTask);
+                    mods.Add(user.Name);
+                }
+                try
+                {
+                    await backgroundTask.ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (_lock)
+                    {
+                        _runningTasks.Remove(backgroundTask);
+                        mods.Remove(user.Name);
+                    }
+                }
+            }
+            return result;
         }
     }
 }

@@ -806,6 +806,38 @@ namespace SkillzBot.MYSQL
                 return null;
             }
         }
+        /*
+        public static async Task<List<UserMessage>> GetUserMEssages()
+        {
+            List<UserMessage> userMessages = new List<UserMessage>();
+            var SQL = "SELECT * FROM dbUserMessageTable";
+            using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
+            try
+            {
+                await Connect.OpenAsync().ConfigureAwait(false);
+                using MySqlCommand Command = new MySqlCommand(SQL, Connect);
+                using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
+                if (await sqlReader.ReadAsync().ConfigureAwait(false))
+                {
+                    userMessages.Add(new UserMessage()
+                    {
+                        DbID = await sqlReader.GetFieldValueAsync<int>(0).ConfigureAwait(false),
+                        TwitchID = await sqlReader.GetFieldValueAsync<int>(1).ConfigureAwait(false),
+                        Name = await sqlReader.GetFieldValueAsync<string>(2).ConfigureAwait(false),
+                        Message = await sqlReader.GetFieldValueAsync<string>(3).ConfigureAwait(false),
+                        TimeStamp = await sqlReader.GetFieldValueAsync<double>(4).ConfigureAwait(false)
+                    });
+                }
+                return userMessages;
+            }
+            catch (Exception e)
+            {
+                Log.WriteLog(e, "GetUserMEssages");
+                return null;
+            }
+
+        }        
+         */   
         private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
         {
             // Unix timestamp is seconds past epoch

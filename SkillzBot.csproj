@@ -11,8 +11,8 @@
   
   <ItemGroup>
     <PackageReference Include="F23.StringSimilarity" Version="5.1.0" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.60.0.2945" />
-    <PackageReference Include="MySql.Data" Version="8.0.32.1" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.60.0.3043" />
+    <PackageReference Include="MySql.Data" Version="8.0.33" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="OpenAI" Version="1.7.2" />
     <PackageReference Include="Quartz" Version="3.6.2" />

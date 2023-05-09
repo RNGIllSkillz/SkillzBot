@@ -46,11 +46,11 @@
             },
             "Google.Apis.YouTube.v3": {
               "target": "Package",
-              "version": "[1.60.0.2945, )"
+              "version": "[1.60.0.3043, )"
             },
             "MySql.Data": {
               "target": "Package",
-              "version": "[8.0.32.1, )"
+              "version": "[8.0.33, )"
             },
             "Newtonsoft.Json": {
               "target": "Package",
@@ -131,7 +131,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.200\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.203\\RuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {
