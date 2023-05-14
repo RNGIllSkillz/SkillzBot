@@ -20,16 +20,24 @@ namespace SkillzBot.IllSkillzBot
         private readonly static string tChannel = singleton.ChannelName;
         //private readonly static string englishWis = singleton.EnglishWis;        
         private static string CurrentMatchID;
+        private static string PlatformID;
         public static async Task GetCurrentMatchTask()
         {
             if (singleton.inAmatch || !singleton.autoPred) return;
+            PlatformID = singleton.SummonerRegion switch
+            {
+                "ru" => "RU_",
+                "euw" => "EUW1_",
+                "na" => "NA1_",
+                _ => "EUW1_",
+            };
             //await EnableRewardAsync().ConfigureAwait(false);
             var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
             if (currentGame == null) return;
-            if (CurrentMatchID == ("EUW1_" + Convert.ToString(currentGame.GameId)) || currentGame.GameLength.TotalMilliseconds > 30) return;
+            if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength.TotalMilliseconds > 30) return;
             if (singleton.debug)
                 Log.WriteLog(null, "Матч начался!");
-            CurrentMatchID = "EUW1_" + Convert.ToString(currentGame.GameId);
+            CurrentMatchID = PlatformID + Convert.ToString(currentGame.GameId);
             var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
             if (predictions == null) return;
             if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
@@ -40,7 +48,7 @@ namespace SkillzBot.IllSkillzBot
             }
             //await DisableRewardAsync().ConfigureAwait(false);
             await CalculateGameStats(currentGame).ConfigureAwait(false);
-            string currentGameID = "EUW1_" + Convert.ToString(currentGame.GameId);
+            string currentGameID = PlatformID + Convert.ToString(currentGame.GameId);
             var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
             if (rank == null) return;
             singleton.inAmatch = true;

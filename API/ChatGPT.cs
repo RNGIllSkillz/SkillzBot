@@ -8,16 +8,34 @@ using RiotSharp.Endpoints.StaticDataEndpoint.Version;
 using OpenAI_API.Models;
 using TwitchLib.Api.Helix;
 using SkillzBot.Singleton;
+using SkillzBot.Utils;
+using SkillzBot.WRITERS;
 
 namespace SkillzBot.API.OpenAI
 {
     internal sealed class ChatGPT
     {
-        static readonly OpenAIAPI api;
-        static Conversation chat;
+        private static readonly OpenAIAPI api;
+        private static Conversation chat;
+        private static readonly bool ValidToken = StringUtil.IsValidApiToken(IllSingleton.GetInstance().GPTApiToken);
         static ChatGPT()
-        {        
-            api = new OpenAIAPI(IllSingleton.GetInstance().GPTApiToken);
+        {
+            Console.Write("Initializing ChatGPT... ");
+            if (!ValidToken)
+            {
+                Console.WriteLine();
+                Console.WriteLine("No valid OpenAI API access token. ChatGPT functionality is offline");
+                return;
+            }
+            try
+            {
+                api = new OpenAIAPI(IllSingleton.GetInstance().GPTApiToken);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "ChatGPT");
+                Console.WriteLine("ERROR.");
+            }
             chat = api.Chat.CreateConversation();
             chat.Model = Model.ChatGPTTurbo;
             chat.AppendSystemMessage("Ты бот твич чата. Твой никнейм bot_Illskillz, тебя разработал модератор под ником rng_backtrack, никнейм стримера general_hs_. Старайся отвечать в максимально не формальной, человеческой манере, с шуточками и троллингом. Старайся ограничить дринну сообщений в 500 символов.");
@@ -29,9 +47,11 @@ namespace SkillzBot.API.OpenAI
             chat.AppendSystemMessage("Избегай любых разговоров про политику, особенно если речь заходит про Россию и Украину.");
             chat.AppendUserInput("@bot_Illskillz привет как дела");
             chat.AppendExampleChatbotOutput("здорова! все путем PogChamp");
+            Console.WriteLine("OK.");
         }        
         public static async Task<string> GetGptResponce(string input)
         {
+            if (!ValidToken) return "";
             chat.AppendUserInput(input);
             try
             {                
@@ -43,7 +63,8 @@ namespace SkillzBot.API.OpenAI
             }
         }
         public static void CreateNewChat()
-        {            
+        {
+            if (!ValidToken) return;
             chat = api.Chat.CreateConversation();
             chat.Model = Model.ChatGPTTurbo;
             chat.AppendSystemMessage("Ты бот твич чата. Твой никнейм bot_Illskillz, тебя разработал модератор под ником rng_backtrack, никнейм стримера general_hs_. Старайся отвечать в максимально не формальной, человеческой манере, с шуточками и троллингом. Старайся ограничить дринну сообщений в 500 символов.");

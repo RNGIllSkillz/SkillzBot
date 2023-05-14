@@ -236,5 +236,15 @@ namespace SkillzBot.Utils
         {
             return input.Count(c => char.IsUpper(c));
         }
+        public static bool IsValidApiToken(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+            {
+                return false; 
+            }
+            var pattern = @"^(oauth:|RGAPI-|)[a-zA-Z0-9_-]+$";
+            var regex = new Regex(pattern);
+            return regex.IsMatch(token);
+        }
     }
 }

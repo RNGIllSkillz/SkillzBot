@@ -57,7 +57,8 @@ namespace SkillzBot.Writers
                     StreamElementsID = singleton.StreamElementsID,
                     ChatWithBot = singleton.ChatWithBot,
                     ReleaseBot = singleton.ReleaseBot,
-                    GPTApiToken = singleton.GPTApiToken
+                    GPTApiToken = singleton.GPTApiToken,
+                    SummonerRegion = singleton.SummonerRegion
                 };
                 File.WriteAllText(filePath, JsonConvert.SerializeObject(Settings, Formatting.Indented));               
             }

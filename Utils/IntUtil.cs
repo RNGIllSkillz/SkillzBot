@@ -34,7 +34,8 @@ namespace SkillzBot.Utils
                 proBab = t * proBab;
             }
             proBab *= 100;
-            return string.Format("{0:N3}%", proBab);
+            int precision = ((decimal)proBab == decimal.Truncate((decimal)proBab)) ? 0 : 5;
+            return proBab.ToString($"F{precision}") + "%";
         }
         public static async Task<int> CalculateCancelUvalCost(string subscriptionType, double remainingDuration)
         {
@@ -59,6 +60,16 @@ namespace SkillzBot.Utils
         {
             var costPerSecond = rewardCost / secondsInTenMinutes;
             return (int)Math.Ceiling(costPerSecond * remainingDuration);
-        }        
+        }
+        public static string CalculateTopPercentage(int[] data)
+        {
+            var rank = data[0];
+            var totalPeople = data[1];
+            if (totalPeople == 0) return null;
+            var topPercent = (decimal)rank / totalPeople * 100;
+            if (topPercent > 80) return null;
+            int precision = (topPercent == decimal.Truncate(topPercent)) ? 0 : 5;
+            return "(top " + topPercent.ToString($"F{precision}")+"%)";
+        }
     }
 }

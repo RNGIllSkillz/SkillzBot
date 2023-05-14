@@ -20,19 +20,12 @@ using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
 using SkillzBot.API.OpenAI;
-using System.Diagnostics;
-using Google.Apis.Util;
-using SkillzBot.Tasks;
 using Google.Protobuf.WellKnownTypes;
 
 namespace SkillzBot.IllSkillzBot
 {
     internal class IllCommands
     {
-        private static readonly object _lock = new object();
-        private static readonly HashSet<Task> _runningTasks = new HashSet<Task>();
-        private static readonly HashSet<string> mods = new HashSet<string>();
-
         private static double helpCD = 0;
         private static double rtoppCD = 0;
         private static double getmmrCD = 0;
@@ -42,6 +35,7 @@ namespace SkillzBot.IllSkillzBot
         private static double treckCD = 0;
         private static double banCD = 0;
         private static double treckQCD = 0;
+        private static double ttvggCD = 0;
 
         private static readonly TimeSpan ClipCooldown = TimeSpan.FromSeconds(30);
         private static DateTimeOffset LastClipTime = DateTimeOffset.MinValue;
@@ -105,7 +99,19 @@ namespace SkillzBot.IllSkillzBot
                 {
                     if (!singleton.inAmatch)
                     {
-                        singleton.SUMMONER_NAME = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command));
+                        switch (command.Last())
+                        {
+                            case "ru":
+                            case "euw":
+                            case "na":
+                                break;
+                            default:
+                                TtvIRCClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
+                                return;
+                        }
+                        singleton.SUMMONER_NAME = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count()-1).ToArray()));
+                        singleton.SummonerRegion = command.Last();
+                        RiotAPI.UpdateRegion(singleton.SummonerRegion);
                         await RiotAPI.UpdateSummonerByNameAsync(singleton.SUMMONER_NAME).ConfigureAwait(false);
                         var Rank = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
                         if (Rank != null)
@@ -345,26 +351,40 @@ namespace SkillzBot.IllSkillzBot
         public static async Task TopRulete()
         {
             var result = await MySQL.TOP("rtop").ConfigureAwait(false);
-            TtvIRCClient.SendMessage(string.Format
-                (
+            if (result != null && result.Count >= 3)
+            {
+                TtvIRCClient.SendMessage(string.Format
+                 (
                     STRINGS.Top3Roulette,
                     result[0].Name, result[0].roulettCon, IntUtil.RulProbability(result[0].roulettCon, 80),
                     result[1].Name, result[1].roulettCon, IntUtil.RulProbability(result[1].roulettCon, 80),
                     result[2].Name, result[2].roulettCon, IntUtil.RulProbability(result[2].roulettCon, 80)
-                ));
-
+                 ));
+            }
+            else
+            {
+                Log.WriteLog(null, "Cant get 3 users at TopRulete");
+            }
         }
         public static async Task GetTopChat(UserObject user)
         {
             if (user.IsBroadcaster == 1 || user.isMod == 1 || user.Name == singleton.rootUser)
             {
                 var result = await MySQL.TOP("top").ConfigureAwait(false);
-                TtvIRCClient.SendMessage(string.Format(
-                                                    STRINGS.Top3Roulette,
-                                                    result[0].Name, result[0].messageCon,
-                                                    result[1].Name, result[1].messageCon,
-                                                    result[2].Name, result[3].messageCon
-                                                      ));
+                if (result != null && result.Count >= 3)
+                {
+                    TtvIRCClient.SendMessage(string.Format
+                                (
+                                 STRINGS.Top3Chat,
+                                 result[0].Name, result[0].messageCon,
+                                 result[1].Name, result[1].messageCon,
+                                 result[2].Name, result[2].messageCon
+                                ));
+                }
+                else
+                {
+                    Log.WriteLog(null, "Cant get 3 users at GetTopChat");
+                }
             }
         }
         public static void SaveGameStats()
@@ -905,5 +925,31 @@ namespace SkillzBot.IllSkillzBot
                 singleton.debug = true;
             TtvIRCClient.SendMessage($"Debug mode is {singleton.debug}");
         }        
+        public static async Task Ttvgg(UserObject user)
+        {
+            int secCD = 120;
+            if (user.isSub == 1) secCD = 60;
+            if (user.isVip == 1) secCD = 15;
+            if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
+            if (DateTimeOffset.Now.ToUnixTimeSeconds() - ttvggCD >= secCD)
+            {
+                ttvggCD = DateTimeOffset.Now.ToUnixTimeSeconds();
+                var roulettCon = await MySQL.GetTopPos(user.Name, "roulettCon").ConfigureAwait(false);
+                var UvalCon = await MySQL.GetTopPos(user.Name, "UvalCon").ConfigureAwait(false);
+                var messageCon = await MySQL.GetTopPos(user.Name, "messageCon").ConfigureAwait(false);
+                var Points = await MySQL.GetTopPos(user.Name, "Points").ConfigureAwait(false);
+                var QuizPoints = await MySQL.GetTopPos(user.Name, "QuizPoints").ConfigureAwait(false);
+                var QuizTotal = await MySQL.GetTopPos(user.Name, "QuizTotal").ConfigureAwait(false);
+                var roulettCD = user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds();
+                TimeSpan time = TimeSpan.FromSeconds(roulettCD);
+                TtvIRCClient.SendMessage($"@{user.Name}, твой винстрик в рулетке {user.roulettCon} {IntUtil.CalculateTopPercentage(roulettCon)}, " +
+                    $"всего ты отправил {user.messageCon} сообщений {IntUtil.CalculateTopPercentage(messageCon)}, " +
+                    $"ты был в увале {user.UvalCon} раз {IntUtil.CalculateTopPercentage(UvalCon)}, " +
+                    $"у тебя есть {user.QuizPoints} баллов квиза {IntUtil.CalculateTopPercentage(QuizPoints)}, " +
+                    $"за все время ты набрал {user.QuizTotal} баллов квиза {IntUtil.CalculateTopPercentage(QuizTotal)}, " +
+                    $"у тебя есть {user.Points} поинтов {IntUtil.CalculateTopPercentage(Points)}, " +
+                    $"кулдаун у твоей рулетки продлится еще {time:hh\\:mm\\:ss}");
+            }
+        }
     }
 }

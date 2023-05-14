@@ -26,11 +26,10 @@ namespace SkillzBot.IllSkillzBot
             int CoolDownMin = 43200; // время кулдауна рулетки в секундах 
             int winChanse = 80;      // % выиграша            
                                      // if (Sender.ToLower() == rootUser)
-                                     // winChanse = 100;            
-            double cd = CoolDownMin - (DateTimeOffset.Now.ToUnixTimeSeconds() - user.roulettCD);
-            if (DateTimeOffset.Now.ToUnixTimeSeconds() - user.roulettCD >= CoolDownMin)
+                                     // winChanse = 100;   
+            if (user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds() <= 0)
             {
-                user.roulettCD = DateTimeOffset.Now.ToUnixTimeSeconds();
+                user.roulettCD = DateTimeOffset.Now.ToUnixTimeSeconds() + CoolDownMin;
                 if (!IntUtil.GetChance(winChanse))
                 {
                     if (user.roulettCon > 1)
@@ -60,7 +59,7 @@ namespace SkillzBot.IllSkillzBot
             {
                 if (Convert.ToBoolean(user.isVip) || Convert.ToBoolean(user.isMod))
                 {
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.RouletteCD, user.Name, cd));
+                    TtvIRCClient.SendMessage(string.Format(STRINGS.RouletteCD, user.Name, user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds()));
                 }
                 else
                 {
@@ -77,7 +76,8 @@ namespace SkillzBot.IllSkillzBot
             var results = await MySQL.SudoSQLReader(SQL_string).ConfigureAwait(false);
             int questionID = IntUtil.Random(1, results[0].dbID);
             _Quizz = await MySQL.GetQuiz(questionID).ConfigureAwait(false);
-            await TtvAPI.Announce(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion))).ConfigureAwait(false);
+            if (!await TtvAPI.Announce(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion))).ConfigureAwait(false))
+                TtvIRCClient.SendMessage(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion)));
             singleton.QuizIsRunning = true;
             double QuizRunTimer = DateTimeOffset.Now.ToUnixTimeSeconds();
             while (singleton.QuizIsRunning)

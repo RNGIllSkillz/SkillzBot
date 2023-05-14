@@ -24,27 +24,32 @@ using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomRewardRedemption;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
-
+using SkillzBot.Utils;
 namespace SkillzBot.API.Twitch
 {
     public sealed class TtvAPI
     {
-        private readonly static TwitchAPI API;
-        static string PredID;
-        static string winID;
-        static string looseID;
-        static readonly bool ValidToken = false;
-        static readonly string BrodcasterID = IllSingleton.GetInstance().BrodcasterId;
+        private static readonly TwitchAPI API;
+        private static string PredID;
+        private static string winID;
+        private static string looseID;
+        private static readonly bool ValidToken = false;
+        private static readonly string BrodcasterID = IllSingleton.GetInstance().BrodcasterId;
 
         static TtvAPI()
         {
+            Console.Write("Initializing Ttv API... ");
             API = new TwitchAPI();
-            API.Settings.ClientId = IllSingleton.GetInstance().TApiClientId;             
+            API.Settings.ClientId = IllSingleton.GetInstance().TApiClientId;
             API.Settings.AccessToken = IllSingleton.GetInstance().TApiAccessToken;
-            if (API.Settings.ClientId != "ClientId для доступа к API Twitch" && API.Settings.AccessToken != "Token для доступа к API Twitch")
-                ValidToken = true;
-            else
-                Console.WriteLine("No valid TTV API access token. TTV API functionality is offline");
+            if (!StringUtil.IsValidApiToken(API.Settings.ClientId) || !StringUtil.IsValidApiToken(API.Settings.AccessToken))
+            {
+                Console.WriteLine("ERROR.");
+                Console.WriteLine("No valid TTV API access token or client ID. TTV API functionality is offline");
+                return;
+            }
+            ValidToken = true;
+            Console.WriteLine("OK.");
         }
 
         public static async ValueTask Start_2_Prediction(string Title, string blue, string red, int windowSec)
@@ -145,7 +150,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<string> End_Multy_Prediction(string Champ)
         {
-            if (!ValidToken) return "ERR";
+            if (!ValidToken) return "Invalid AccessToken";
             GetPredictionsResponse Predictions;
             try
             {
@@ -189,6 +194,7 @@ namespace SkillzBot.API.Twitch
         }
         private static async Task GetCurrentPred()
         {
+            if (!ValidToken) return;
             GetPredictionsResponse Predictions;
             try
             {
@@ -205,6 +211,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<GetPredictionsResponse> GetCurrentPredPublic()
         {
+            if (!ValidToken) return null;
             try
             {
                 return await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
@@ -217,8 +224,8 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task End_WinLoose_Prediction(bool win)
         {
-            GetPredictionsResponse Predictions;
             if (!ValidToken) return;
+            GetPredictionsResponse Predictions;
             try
             {
                 Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
@@ -324,7 +331,6 @@ namespace SkillzBot.API.Twitch
         public static async Task<CustomReward> GetReward(string title, string OverloadParam)
         {
             if (!ValidToken) return null;
-
             GetCustomRewardsResponse rewards;
             try
             {
@@ -347,6 +353,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task UpdateReward(string rewardID, string title, int cost, string prompt,bool enable, bool isUserInputRequired)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.ChannelPoints.UpdateCustomRewardAsync(BrodcasterID, rewardID, new UpdateCustomRewardRequest
@@ -444,6 +451,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<bool> GetStreamStatus()
         {
+            if (!ValidToken) return false;
             List<string> bID = new List<string>
                 {
                     BrodcasterID
@@ -469,6 +477,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task GetCustomRewardTest(string rewardID)
         {
+            if (!ValidToken) return;
             var redemption = await API.Helix.ChannelPoints.GetCustomRewardRedemptionAsync(BrodcasterID, rewardID).ConfigureAwait(false);
             foreach (var rew in redemption.Data)
             {
@@ -477,6 +486,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<string> GetCustomReward(string rewardID,string userID)
         {
+            if (!ValidToken) return null;
             GetCustomRewardRedemptionResponse redemption;
             try
             {
@@ -494,6 +504,7 @@ namespace SkillzBot.API.Twitch
         }
         private static async Task TimeOutUserAsync(string UserID, int Duration, string Reason)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Moderation.BanUserAsync(BrodcasterID, BrodcasterID, new BanUserRequest
@@ -510,6 +521,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task BanUser(string UserID, string Reason)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Moderation.BanUserAsync(BrodcasterID, BrodcasterID, new BanUserRequest
@@ -525,6 +537,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task UnBanUser(string UserID)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Moderation.UnbanUserAsync(BrodcasterID, BrodcasterID, UserID).ConfigureAwait(false);
@@ -534,8 +547,9 @@ namespace SkillzBot.API.Twitch
                 Log.WriteLog(ex, "UnBanUser");
             }
         }
-        public static async Task Announce(string Message)
+        public static async Task<bool> Announce(string Message)
         {
+            if (!ValidToken) return false;
             try
             {
                 await API.Helix.Chat.SendChatAnnouncementAsync(BrodcasterID, BrodcasterID, Message).ConfigureAwait(false);
@@ -543,10 +557,13 @@ namespace SkillzBot.API.Twitch
             catch (Exception ex)
             {
                 Log.WriteLog(ex, "Announce");
+                return false;
             }
+            return true;
         }
         public static async Task DeleteMessage(string MessageID)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Moderation.DeleteChatMessagesAsync(BrodcasterID,BrodcasterID,MessageID).ConfigureAwait(false);
@@ -558,6 +575,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task DeleteAllMessages()
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Moderation.DeleteChatMessagesAsync(BrodcasterID, BrodcasterID).ConfigureAwait(false);
@@ -569,6 +587,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<bool> AddChannelModerator(string UserID)
         {
+            if (!ValidToken) return true;
             try
             {
                 await API.Helix.Moderation.AddChannelModeratorAsync(BrodcasterID,UserID).ConfigureAwait(false);
@@ -582,6 +601,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task DisableRewardAsync(string rewardID)
         {
+            if (!ValidToken) return;
             //if (!singleton.wisEnabled) return;
             var reward = await GetReward(rewardID).ConfigureAwait(false);
             if (reward != null)
@@ -594,6 +614,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task EnableRewardAsync(string rewardID)
         {
+            if (!ValidToken) return;
             //if (singleton.wisEnabled) return;
             var reward = await GetReward(rewardID).ConfigureAwait(false);
             if (reward != null)
@@ -606,6 +627,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task DeleteChannelModerator(string UserID)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Moderation.DeleteChannelModeratorAsync(BrodcasterID, UserID).ConfigureAwait(false);
@@ -617,6 +639,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<GetChannelVIPsResponse> GetVIPs()
         {
+            if (!ValidToken) return null;
             try
             {
                 return await API.Helix.Channels.GetVIPsAsync(BrodcasterID,null,100).ConfigureAwait(false);
@@ -629,6 +652,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task AddChannelVIP(string UserID)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Channels.AddChannelVIPAsync(BrodcasterID, UserID).ConfigureAwait(false);
@@ -640,6 +664,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task DeleteChannelVIP(string UserID)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Channels.RemoveChannelVIPAsync(BrodcasterID, UserID).ConfigureAwait(false);
@@ -651,6 +676,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task SetEmoteOnlyMode(bool IsEmoteOnly)
         {
+            if (!ValidToken) return;
             try
             {
                 await API.Helix.Chat.UpdateChatSettingsAsync(BrodcasterID, BrodcasterID, new ChatSettings
@@ -665,6 +691,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<UserObject> TimeOutUser(UserObject user, int Duration, string Reasone)
         {
+            if (!ValidToken) return user;
             if (user.isMod == 1) return user;
             try
             {
@@ -680,6 +707,7 @@ namespace SkillzBot.API.Twitch
         }
         public static async Task<UserObject> TimeOutModerator(UserObject user, int Duration, string Reasone)
         {
+            if (!ValidToken) return user;
             try
             {
                 await TimeOutUserAsync(user.TwitchID.ToString(), Duration, Reasone).ConfigureAwait(false);
@@ -722,6 +750,7 @@ namespace SkillzBot.API.Twitch
         }*/
         public static async Task<GetChattersResponse> GetChattersAsync()
         {
+            if (!ValidToken) return null;
             try
             {
                 return await API.Helix.Chat.GetChattersAsync(BrodcasterID, BrodcasterID);

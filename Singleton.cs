@@ -46,6 +46,7 @@ namespace SkillzBot.Singleton
         public string ChatWithBot { get; set; }
         public string ReleaseBot { get; set; }
         public string GPTApiToken { get; set; }
+        public string SummonerRegion { get; set; }
         private IllSingleton() { }
 
         public static IllSingleton GetInstance()

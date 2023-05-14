@@ -7,7 +7,6 @@ using SkillzBot.MODELS;
 using SkillzBot.Utils;
 using System.Linq;
 using SkillzBot.Singleton;
-using System.IO;
 
 namespace SkillzBot.MYSQL
 {
@@ -18,55 +17,56 @@ namespace SkillzBot.MYSQL
         private readonly static string _DbPassword = IllSingleton.GetInstance().MySQL_password;
         public MySQL()
         {
-            CreateDB();
+            MySQLInitAsync().GetAwaiter().GetResult();
         }
-        public void CreateDB()
+        public async Task MySQLInitAsync()
         {
+            Console.Write("Initializing MySQL... ");
             try
             {
                 string iName = "`" + _DbName + "`";
                 string SQL = $"CREATE DATABASE IF NOT EXISTS {iName} DEFAULT CHARACTER SET utf8mb4";
-                using (MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword))
+                using (MySqlConnection Connect = DBUtils.GetDBConnection(_DbUserName, _DbPassword))
                 {
-                    Connect.Open();
+                    await Connect.OpenAsync().ConfigureAwait(false);
                     using MySqlCommand Command = new MySqlCommand(SQL, Connect);
-                    Command.ExecuteNonQuery();                    
+                    await Command.ExecuteNonQueryAsync().ConfigureAwait(false);                    
                 }
 
                 SQL = $"CREATE TABLE IF NOT EXISTS dbUserTable ( dbID INTEGER NOT NULL AUTO_INCREMENT, TwitchID INTEGER NOT NULL UNIQUE, Name VARCHAR(30), " +
                 "isSub INTEGER, isVip INTEGER, isMod INTEGER, IsBroadcaster INTEGER, UvalCon INTEGER, messageCon INTEGER, roulettCon INTEGER, roulettCD DOUBLE, UvalTimer DOUBLE, banCount INTEGER, Points DOUBLE, IsOnline INTEGER, QuizPoints INTEGER, QuizTotal INTEGER, IsPartner INTEGER, PRIMARY KEY(dbID))";
                 using (MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword))
                 {
-                    Connect.Open();
+                    await Connect.OpenAsync().ConfigureAwait(false);
                     using MySqlCommand Command = new MySqlCommand(SQL, Connect);
-                    Command.ExecuteNonQuery();                    
+                    await Command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
 
                 SQL = $"CREATE TABLE IF NOT EXISTS dbUserMessageTable ( dbID INTEGER NOT NULL AUTO_INCREMENT, TwitchID INTEGER NOT NULL, Name VARCHAR(30), Message VARCHAR(600), TimeStamp DOUBLE, PRIMARY KEY(dbID))";
                 using (MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword))
                 {
-                    Connect.Open();
+                    await Connect.OpenAsync().ConfigureAwait(false);
                     using MySqlCommand Command = new MySqlCommand(SQL, Connect);
-                    Command.ExecuteNonQuery();                    
+                    await Command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
 
                 SQL = $"CREATE TABLE IF NOT EXISTS dbQuiz ( dbID INTEGER NOT NULL AUTO_INCREMENT, Question VARCHAR(600), Answer VARCHAR(600), Prize INTEGER, PRIMARY KEY(dbID))";
                 using (MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword))
                 {
-                    Connect.Open();
+                    await Connect.OpenAsync().ConfigureAwait(false);
                     using MySqlCommand Command = new MySqlCommand(SQL, Connect);
-                    Command.ExecuteNonQuery();
+                    await Command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
 
                 SQL = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema = @Name AND table_name = 'dbUserTable' AND index_name = 'index_Name'";
                 int i = 0;
                 using (MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword))
                 {
-                    Connect.Open();
+                    await Connect.OpenAsync();
                     using MySqlCommand Command = new MySqlCommand(SQL, Connect);
                     Command.Parameters.AddWithValue("@Name", _DbName);
-                    using var sqlReader = Command.ExecuteReader();
-                    while (sqlReader.Read())
+                    using var sqlReader = await Command.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await sqlReader.ReadAsync().ConfigureAwait(false))
                         i = Convert.ToInt32(sqlReader[0]);
                 }
                 if (i == 0)
@@ -74,14 +74,16 @@ namespace SkillzBot.MYSQL
                     SQL = $"CREATE UNIQUE INDEX index_Name ON dbUserTable (Name)";
                     using (MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword))
                     {
-                        Connect.Open();
+                        await Connect.OpenAsync();
                         using MySqlCommand Command = new MySqlCommand(SQL, Connect);                        
-                        Command.ExecuteNonQuery();                       
+                        await Command.ExecuteNonQueryAsync().ConfigureAwait(false);                       
                     }
                 }
+                Console.WriteLine("OK.");
             }
             catch (Exception e)
             {
+                Console.WriteLine("ERROR.");
                 Log.WriteLog(e, "CreateTable()");
             }
         }
@@ -296,12 +298,22 @@ namespace SkillzBot.MYSQL
         }        
         public static async Task<List<UserObject>> TOP(string Flag)
         {
-            if (Flag == "rtop")
-                Flag = "roulettCon";
-            if (Flag == "top")
-                Flag = "messageCon";
+            string SQL;
+            switch (Flag)
+            {
+                case "rtop":
+                    Flag = "roulettCon";
+                    SQL = "SELECT Name, roulettCon FROM dbUserTable ORDER BY roulettCon DESC LIMIT 3";
+                    break;
+                case "top":
+                    Flag = "messageCon";
+                    SQL = "SELECT Name, messageCon FROM dbUserTable ORDER BY messageCon DESC LIMIT 3";
+                    break;
+                default:
+                    Log.WriteLog(null,"invalid column name");
+                    return null;
+            }
             List<UserObject> Users = new List<UserObject>();            
-            string SQL = $"SELECT * FROM dbUserTable ORDER BY {Flag} DESC";
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
             using MySqlCommand Command = new MySqlCommand(SQL, Connect);
             try
@@ -312,24 +324,23 @@ namespace SkillzBot.MYSQL
                 while (i <= 3 && await sqlReader.ReadAsync().ConfigureAwait(false))
                 {
                     i++;
-                    Users.Add(new UserObject()
+                    UserObject userObject = new UserObject()
                     {
-                        dbID = Convert.ToInt32(sqlReader[0]),
-                        TwitchID = Convert.ToInt32(sqlReader[1]),
-                        Name = sqlReader[2].ToString(),
-                        isSub = Convert.ToInt32(sqlReader[3]),
-                        isVip = Convert.ToInt32(sqlReader[4]),
-                        isMod = Convert.ToInt32(sqlReader[5]),
-                        IsBroadcaster = Convert.ToInt32(sqlReader[6]),
-                        UvalCon = Convert.ToInt32(sqlReader[7]),
-                        messageCon = Convert.ToInt32(sqlReader[8]),
-                        roulettCon = Convert.ToInt32(sqlReader[9]),
-                        roulettCD = Convert.ToDouble(sqlReader[10]),
-                        UvalTimer = Convert.ToDouble(sqlReader[11]),
-                        banCount = Convert.ToInt32(sqlReader[12]),
-                        Points = Convert.ToInt32(sqlReader[13]),
-                        IsOnline = Convert.ToInt32(sqlReader[14])
-                    });
+                        Name = await sqlReader.GetFieldValueAsync<string>(0).ConfigureAwait(false)
+                    };
+                    switch (Flag)
+                    {
+                        case "messageCon":
+                            userObject.messageCon = await sqlReader.GetFieldValueAsync<int>(1).ConfigureAwait(false);
+                            break;
+                        case "roulettCon":
+                            userObject.roulettCon = await sqlReader.GetFieldValueAsync<int>(1).ConfigureAwait(false);
+                            break;
+                        default:
+                            Log.WriteLog(null, "invalid column name");
+                            return null;
+                    }
+                    Users.Add(userObject);
                 }
                 return Users;
             }
@@ -339,6 +350,7 @@ namespace SkillzBot.MYSQL
                 return null;
             }
         }
+        //Get user position current/all
         public static async Task<int[]> GetTopPos(string UserName, string ColumnName)
         {
             int[] userPos = new int[2];

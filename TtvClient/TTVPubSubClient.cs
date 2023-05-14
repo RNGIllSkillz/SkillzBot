@@ -34,6 +34,7 @@ namespace SkillzBot.PubSub
 
         public PubSubClient()
         {
+            Console.Write("Initializing PubSub Client... ");
             var singleton = IllSingleton.GetInstance();
             BrodcasterId = singleton.BrodcasterId;
             pi4ka = singleton.Pi4KaId;
@@ -59,6 +60,7 @@ namespace SkillzBot.PubSub
             ListenToRewards(BrodcasterId);
             ListenToSubscriptions(BrodcasterId);
             ListenToVideoPlayback(BrodcasterId);
+            Console.WriteLine("OK.");
             client.Connect();
         }        
 

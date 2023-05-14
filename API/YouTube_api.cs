@@ -5,11 +5,10 @@ using System.Collections.Generic;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using System.Linq;
-using Org.BouncyCastle.Asn1.Ocsp;
-using SkillzBot.Readers;
 using SkillzBot.Singleton;
 using Google.Apis.YouTube.v3.Data;
 using SkillzBot.WRITERS;
+using SkillzBot.Utils;
 
 namespace SkillzBot.API.YouTube
 {
@@ -17,12 +16,20 @@ namespace SkillzBot.API.YouTube
     {
         private readonly static YouTubeService _YouTubeService;
         private readonly static List<string> _request;
+        private static readonly bool IsValidToken = StringUtil.IsValidApiToken(IllSingleton.GetInstance().YouTubeApiToken);
         static YouTubeSearch()
         {
+            Console.Write("Initializing YouTube Search... ");
+            if (!IsValidToken)
+            {
+                Console.WriteLine();
+                Console.WriteLine("No valid Google API token. Google API functionality is offline");
+                return;
+            }
             _YouTubeService = new YouTubeService(new BaseClientService.Initializer()
             {
                 ApiKey = IllSingleton.GetInstance().YouTubeApiToken,
-                ApplicationName = "IllSKillzBot v2.0"
+                ApplicationName = "IllSKillzBot v3.0"
             });
             _request = new List<string>
             {
@@ -31,9 +38,11 @@ namespace SkillzBot.API.YouTube
                  "Snippet",
                  "Status"
             };
+            Console.WriteLine("OK.");
         }
         public static async Task<List<string>> YouTubeSearchByIDTask(string vidID)
         {
+            if (!IsValidToken) return null;
             var searchRequest = _YouTubeService.Videos.List(_request);
             searchRequest.Id = vidID;
             VideoListResponse searchResponse;
@@ -62,6 +71,7 @@ namespace SkillzBot.API.YouTube
         }
         public static async Task<string> YouTubeSearchByKeyWordTask(string KeyWord)
         {
+            if (!IsValidToken) return null;
             var searchListRequest = _YouTubeService.Search.List("snippet");
             searchListRequest.Q = KeyWord;
             searchListRequest.MaxResults = 10;

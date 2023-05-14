@@ -143,6 +143,7 @@ namespace IllSkillzBot
             singleton.ChatWithBot = config.GetBotConfigs().ChatWithBot;
             singleton.ReleaseBot = config.GetBotConfigs().ReleaseBot;
             singleton.GPTApiToken = config.GetBotConfigs().GPTApiToken;
+            singleton.SummonerRegion = config.GetBotConfigs().SummonerRegion;
             singleton.autoPred = true;
             singleton.BroadcasterIsOnline = false;
             singleton.FirstQuizzOfTheDay = true;
@@ -209,15 +210,15 @@ namespace IllSkillzBot
                     TApiClientId = "ClientId для доступа к API Twitch",
                     YouTubeApiToken = "Token для доступа а API YouTube",
                     RiotApiToken = "Token для доступа а API Riot Games",
-                    BrodcasterId = "ID",
-                    CenceleUval = "ID",
-                    EmoteModeId = "ID",
-                    uvalMod = "ID",
-                    UvalId = "ID",
-                    Pi4KaId = "ID",
-                    ZakazTrekaId = "ID",
-                    UvalSabId = "ID",
-                    UvalVipId = "ID",
+                    BrodcasterId = "Brodcaster TTV ID",
+                    CenceleUval = "Reward ID",
+                    EmoteModeId = "Reward ID",
+                    uvalMod = "Reward ID",
+                    UvalId = "Reward ID",
+                    Pi4KaId = "Reward ID",
+                    ZakazTrekaId = "Reward ID",
+                    UvalSabId = "Reward ID",
+                    UvalVipId = "Reward ID",
                     MySQL_User = "MySQL username",
                     MySQL_password = "MySQL password"
                 };

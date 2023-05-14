@@ -19,33 +19,61 @@ namespace SkillzBot.API.Riot
 {
     internal class RiotAPI
     {
-        private static RiotApi riotApi;
+        private static readonly RiotApi riotApi;
         private static string lastErrorMessage = null;
-        static Summoner summoner;
+        private static readonly bool IsValidToken = StringUtil.IsValidApiToken(IllSingleton.GetInstance().RiotApiToken);
+        private static Summoner summoner;
+        private static Exception tempEx = null;
+        private static Region region;
         static RiotAPI()
         {
-            while (true)
+            if (!IsValidToken) 
+            {
+                Console.WriteLine("No valid RiotAPI token. RiotAPI functionality is offline");
+                return; 
+            }
+            Console.Write("Initializing Riot API... ");
+            region = IllSingleton.GetInstance().SummonerRegion switch
+            {
+                "ru" => Region.Ru,
+                "euw" => Region.Euw,
+                "na" => Region.Na,
+                _ => Region.Euw,
+            };
+            riotApi = RiotApi.GetInstance(IllSingleton.GetInstance().RiotApiToken, 200, 500);
+            for (int i = 0; i <= 5; i++)
             {
                 summoner = InitAsync().GetAwaiter().GetResult();
                 if (summoner != null) break;
                 Thread.Sleep(2000);
-            }         
+            }     
+            if (summoner == null)
+            {
+                IsValidToken = false;
+                Console.WriteLine("Error at initializing RiotAPI class. RiotAPI functionality is offline.");
+            }
+            else
+                Console.WriteLine("OK.");
         }
         private static async Task<Summoner> InitAsync()
-        {
-            riotApi = RiotApi.GetInstance(IllSingleton.GetInstance().RiotApiToken, 200, 500);
+        {           
             try
             {
-                return await riotApi.Summoner.GetSummonerByNameAsync(Region.Euw, IllSingleton.GetInstance().SUMMONER_NAME).ConfigureAwait(false);
+                return await riotApi.Summoner.GetSummonerByNameAsync(region, IllSingleton.GetInstance().SUMMONER_NAME).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "RiotApi InitAsync");
+                if (tempEx == null || tempEx != ex)
+                {
+                    Log.WriteLog(ex, "RiotApi InitAsync");
+                    tempEx = ex;
+                }
                 return null;
             }
         }
         public static async Task<CurrentGame> GetCurrentGameAsync()
         {
+            if (!IsValidToken) return null;
             try
             {
                 var currentGame = await riotApi.Spectator.GetCurrentGameAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
@@ -81,6 +109,7 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<List<string>> GetRankBySummonerAsync()
         {
+            if (!IsValidToken) return null;
             List<LeagueEntry> rank;
             try
             {
@@ -107,6 +136,7 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<Match> GetMatchAsync(string matchID)
         {
+            if (!IsValidToken) return null;
             try
             {
                 return await riotApi.Match.GetMatchAsync(Region.Europe, matchID).ConfigureAwait(false);
@@ -141,6 +171,7 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<List<LeagueEntry>> GetLeagueEntriesBySummonerAsync()
         {
+            if (!IsValidToken) return null;
             try
             {
                 return await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
@@ -153,6 +184,7 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<ChampionStatic> GetChampByIdAsync(int ChampionId)
         {
+            if (!IsValidToken) return null;
             CultureInfo culture = CultureInfo.CurrentCulture;
             var lang = culture.TwoLetterISOLanguageName.ToLower() switch
             {
@@ -175,6 +207,7 @@ namespace SkillzBot.API.Riot
         }
         public static RiotSharp.Endpoints.MatchEndpoint.Participant GetParticipantByMatch(Match match)
         {
+            if (!IsValidToken) return null;
             var Participants = match.Info.Participants.ToArray();
             foreach (var Participant in Participants)
             {
@@ -185,6 +218,7 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<List<string>> GetMatchListAsync()
         {
+            if (!IsValidToken) return null;
             try
             {
                 return await riotApi.Match.GetMatchListAsync(Region.Europe, summoner.Puuid, 0, 1).ConfigureAwait(false);
@@ -197,9 +231,10 @@ namespace SkillzBot.API.Riot
         }  
         public static async Task UpdateSummonerByNameAsync(string summonerName)
         {
+            if (!IsValidToken) return;
             try
             {
-                summoner = await riotApi.Summoner.GetSummonerByNameAsync(Region.Euw, summonerName).ConfigureAwait(false);
+                summoner = await riotApi.Summoner.GetSummonerByNameAsync(region, summonerName).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -208,11 +243,23 @@ namespace SkillzBot.API.Riot
         }
         public static async Task<Summoner> GetSummonerByNameAsync(string summonerName)
         {
-            return await riotApi.Summoner.GetSummonerByNameAsync(Region.Euw, summonerName).ConfigureAwait(false);
+            if (!IsValidToken) return null;
+            return await riotApi.Summoner.GetSummonerByNameAsync(region, summonerName).ConfigureAwait(false);
         }
         public static async Task<List<LeagueEntry>> GetLeagueEntriesBySummonerAsync(string summonerId)
         {
-            return await riotApi.League.GetLeagueEntriesBySummonerAsync(Region.Euw, summonerId).ConfigureAwait(false);
+            if (!IsValidToken) return null;
+            return await riotApi.League.GetLeagueEntriesBySummonerAsync(region, summonerId).ConfigureAwait(false);
+        }
+        public static void UpdateRegion(string newRegion)
+        {
+            region = newRegion switch
+            {
+                "ru" => Region.Ru,
+                "euw" => Region.Euw,
+                "na" => Region.Na,
+                _ => Region.Euw,
+            };
         }
     }
 }

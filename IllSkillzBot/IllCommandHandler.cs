@@ -18,7 +18,9 @@ namespace SkillzBot.IllSkillzBot
                 case "!help":
                     IllCommands.Help(user);
                     break;
-
+                case "!ttvgg":
+                    await IllCommands.Ttvgg(user).ConfigureAwait(false);
+                    break;
                 case "!points":
                     await IllCommands.Points(user).ConfigureAwait(false);
                     break;

@@ -76,6 +76,8 @@ namespace SkillzBot.JSON.Settings
 
         [JsonProperty("GPTApiToken")]
         public string GPTApiToken { get; set; }
+        [JsonProperty("SummonerRegion")]
+        public string SummonerRegion { get; set; }
     }
 
     public partial class SettingsJson

@@ -16,6 +16,7 @@ using SkillzBot.Singleton;
 using SkillzBot.IRC;
 using TwitchLib.PubSub.Models.Responses;
 using TwitchLib.PubSub.Models.Responses.Messages.AutomodCaughtMessage;
+using SkillzBot.Utils;
 
 namespace SkillzBot.API.StreamElements
 {
@@ -23,14 +24,25 @@ namespace SkillzBot.API.StreamElements
     {
         private static readonly HttpClient httpClient = new HttpClient();
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
+        private static readonly bool ValidToken = false;
         static StreamElementsAPI()
         {
+            Console.Write("Initializing StreamElements API... ");
+            if (singleton.StreamElementsApiToken == null)
+            {
+                Console.WriteLine();
+                Console.WriteLine("No valid StreamElements API token. StreamElements API functionality is offline");
+                return;
+            }
+            ValidToken = true;
             httpClient.BaseAddress = new Uri("https://api.streamelements.com/kappa/v2/");
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", singleton.StreamElementsApiToken);
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            Console.WriteLine("OK.");
         }
         public static async Task<bool> SendMediaAsync(string youTubeVideoId, CancellationToken cancellationToken = default)
         {
+            if (!ValidToken) return true;
             try
             {
                 var payload = new { video = youTubeVideoId };
@@ -44,7 +56,7 @@ namespace SkillzBot.API.StreamElements
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
-            {                
+            {
                 if (ex is WebException webEx)
                 {
                     if (webEx.Response is HttpWebResponse httpResp)
@@ -60,6 +72,7 @@ namespace SkillzBot.API.StreamElements
         }
         public static async Task<MediaHistoryJSON> GetHistory(CancellationToken cancellationToken = default)
         {
+            if (!ValidToken) return null;
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/history?limit=1&offset=0");
@@ -84,6 +97,7 @@ namespace SkillzBot.API.StreamElements
         }
         public static async Task<List<MediaQueueJson>> GetQueue(CancellationToken cancellationToken = default)
         {
+            if (!ValidToken) return null;
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/queue");
@@ -108,6 +122,7 @@ namespace SkillzBot.API.StreamElements
         }
         public static async Task<StreamElementsJSON> GetCurrentSong(CancellationToken cancellationToken = default)
         {
+            if (!ValidToken) return null;
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/playing");

@@ -22,7 +22,8 @@ namespace SkillzBot.IRC
         private static readonly TwitchClient client;
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         static TtvIRCClient()
-        {       
+        {
+            Console.Write("Initializing Ttv IRC Client... ");
             try
             {
                 var clientOptions = new ClientOptions
@@ -37,10 +38,12 @@ namespace SkillzBot.IRC
                 client.OnMessageReceived += Client_OnMessageReceived;
                 client.OnUserTimedout += Client_OnUserTimedout;
                 client.OnDisconnected += Client_OnDisconnected;
-                client.Connect();                
+                client.Connect();
+                Console.WriteLine("OK.");
             }
             catch (Exception e)
             {
+                Console.WriteLine("ERROR.");
                 Log.WriteLog(e, "TtvIRCClient()");
             }
         }        
