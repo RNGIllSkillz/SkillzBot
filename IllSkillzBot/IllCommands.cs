@@ -20,7 +20,6 @@ using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
 using SkillzBot.API.OpenAI;
-using Google.Protobuf.WellKnownTypes;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -263,7 +262,7 @@ namespace SkillzBot.IllSkillzBot
             }
             else
             {
-                user = await TtvAPI.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+                await TtvAPI.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason).ConfigureAwait(false);
                 user.banCount++;
             }
             return user;
@@ -472,6 +471,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task GetTreck(UserObject user)
         {
+            return;
             int secCD = 10;
             if (user.isSub == 1) secCD = 10;
             if (user.isVip == 1) secCD = 5;
@@ -500,6 +500,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task GetTrackQueue(UserObject user)
         {
+            return;
             int secCD = 60;
             if (user.isSub == 1) secCD = 30;
             if (user.isVip == 1) secCD = 15;
@@ -925,29 +926,45 @@ namespace SkillzBot.IllSkillzBot
                 singleton.debug = true;
             TtvIRCClient.SendMessage($"Debug mode is {singleton.debug}");
         }        
+        public static void ToggleSilentMode(UserObject user)
+        {
+            if (user.Name != singleton.rootUser || user.isMod != 1 || user.IsBroadcaster != 1) return;
+            if (singleton.IsSilent)
+                singleton.IsSilent = false;
+            else
+                singleton.IsSilent = true;
+            TtvIRCClient.SendMessage($"SilentMode mode is {singleton.IsSilent}");
+        }
         public static async Task Ttvgg(UserObject user)
         {
-            int secCD = 120;
-            if (user.isSub == 1) secCD = 60;
-            if (user.isVip == 1) secCD = 15;
+            int secCD = 30;
+            if (user.isSub == 1) secCD = 15;
+            if (user.isVip == 1) secCD = 0;
             if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
-            if (DateTimeOffset.Now.ToUnixTimeSeconds() - ttvggCD >= secCD)
+            long currentUnixTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+            if (currentUnixTime - ttvggCD >= secCD)
             {
-                ttvggCD = DateTimeOffset.Now.ToUnixTimeSeconds();
-                var roulettCon = await MySQL.GetTopPos(user.Name, "roulettCon").ConfigureAwait(false);
-                var UvalCon = await MySQL.GetTopPos(user.Name, "UvalCon").ConfigureAwait(false);
-                var messageCon = await MySQL.GetTopPos(user.Name, "messageCon").ConfigureAwait(false);
-                var Points = await MySQL.GetTopPos(user.Name, "Points").ConfigureAwait(false);
-                var QuizPoints = await MySQL.GetTopPos(user.Name, "QuizPoints").ConfigureAwait(false);
-                var QuizTotal = await MySQL.GetTopPos(user.Name, "QuizTotal").ConfigureAwait(false);
-                var roulettCD = user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds();
+                if (user.isMod != 1 || user.Name != singleton.rootUser)
+                    ttvggCD = currentUnixTime;
+                var taskList = new List<Task<int[]>>
+                {
+                    MySQL.GetTopPos(user.Name, "roulettCon"),
+                    MySQL.GetTopPos(user.Name, "UvalCon"),
+                    MySQL.GetTopPos(user.Name, "messageCon"),
+                    MySQL.GetTopPos(user.Name, "Points"),
+                    MySQL.GetTopPos(user.Name, "QuizPoints"),
+                    MySQL.GetTopPos(user.Name, "QuizTotal")
+                };
+                var results = await Task.WhenAll(taskList).ConfigureAwait(false);
+                var roulettCD = user.roulettCD - currentUnixTime;
+                roulettCD = roulettCD < 0 ? 0 : roulettCD;
                 TimeSpan time = TimeSpan.FromSeconds(roulettCD);
-                TtvIRCClient.SendMessage($"@{user.Name}, твой винстрик в рулетке {user.roulettCon} {IntUtil.CalculateTopPercentage(roulettCon)}, " +
-                    $"всего ты отправил {user.messageCon} сообщений {IntUtil.CalculateTopPercentage(messageCon)}, " +
-                    $"ты был в увале {user.UvalCon} раз {IntUtil.CalculateTopPercentage(UvalCon)}, " +
-                    $"у тебя есть {user.QuizPoints} баллов квиза {IntUtil.CalculateTopPercentage(QuizPoints)}, " +
-                    $"за все время ты набрал {user.QuizTotal} баллов квиза {IntUtil.CalculateTopPercentage(QuizTotal)}, " +
-                    $"у тебя есть {user.Points} поинтов {IntUtil.CalculateTopPercentage(Points)}, " +
+                TtvIRCClient.SendMessage($"@{user.Name}, твой винстрик в рулетке {user.roulettCon} {IntUtil.CalculateTopPercentage(results[0])}, " +
+                    $"всего ты отправил {user.messageCon} сообщений {IntUtil.CalculateTopPercentage(results[2])}, " +
+                    $"ты был в увале {user.UvalCon} раз {IntUtil.CalculateTopPercentage(results[1])}, " +
+                    $"у тебя есть {user.QuizPoints} баллов квиза {IntUtil.CalculateTopPercentage(results[4])}, " +
+                    $"за все время ты набрал {user.QuizTotal} баллов квиза {IntUtil.CalculateTopPercentage(results[5])}, " +
+                    $"у тебя есть {user.Points} поинтов {IntUtil.CalculateTopPercentage(results[3])}, " +
                     $"кулдаун у твоей рулетки продлится еще {time:hh\\:mm\\:ss}");
             }
         }

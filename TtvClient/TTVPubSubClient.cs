@@ -182,7 +182,7 @@ namespace SkillzBot.PubSub
         {
             if (e.Type == PredictionType.EventCreated)
             {
-                TtvAPI.Announce(string.Format(STRINGS.PredictionStarted, e.Title)).GetAwaiter().GetResult();
+                TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Title));
             }
         }
 

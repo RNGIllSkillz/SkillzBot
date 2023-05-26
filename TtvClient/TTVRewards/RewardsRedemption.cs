@@ -38,7 +38,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     if (user.dbID == -404)
                     {
                         TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
-                        //await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                     else
                     {
@@ -105,7 +105,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (user.dbID == -404)
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
-                            //await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                         else
                         {
@@ -166,7 +166,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     if (user.dbID == -404)
                     {
                         TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
-                        //await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                     else
                     {
@@ -175,7 +175,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                             double duration = 600;
                             if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
                                 duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;                            
-                            //await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
+                            await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                             TtvIRCClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1));
                             if (UserName != singleton.rootUser)
                                 await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
@@ -216,7 +216,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (user.dbID == -404)
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
-                            //await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                         else
                         {
@@ -317,7 +317,8 @@ namespace SkillzBot.TtvClient.TTVRewards
 
                         if (await StreamElementsAPI.SendMediaAsync(yID).ConfigureAwait(false))
                         {
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.Track200_Success, UserName, response[2]));
+                            //TtvIRCClient.SendMessage(string.Format(STRINGS.Track200_Success, UserName, response[2])); //dont show added track.
+                            TtvIRCClient.SendMessage($"{UserName} Трек добавлен в очередь");
                             MediaqueueWriter.Write(user.TwitchID, yID);
                             if (rewardID == null) return true;
                             if (UserName == singleton.rootUser)
@@ -508,15 +509,15 @@ namespace SkillzBot.TtvClient.TTVRewards
             else
                 await TtvAPI.CencelReward(rewardID, redemID);
         }
-        public static async Task<UserObject> TimeOutModerator(UserObject user, double duration, string reason)
+        public static async Task TimeOutModerator(UserObject user, double duration, string reason)
         {
-            var result = await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), reason).ConfigureAwait(false);
+            await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), reason).ConfigureAwait(false);
             if (Convert.ToBoolean(user.isMod))
             {
                 Task backgroundTask = BackGroundTasks.UserUntimeoutTrigger(user.Name);
                 lock (_lock)
                 {
-                    if (_runningTasks.Contains(backgroundTask)) return result;
+                    if (_runningTasks.Contains(backgroundTask)) return;
                     _runningTasks.Add(backgroundTask);
                     mods.Add(user.Name);
                 }
@@ -533,7 +534,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     }
                 }
             }
-            return result;
+            return;
         }
     }
 }

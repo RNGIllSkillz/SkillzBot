@@ -10,13 +10,9 @@ using SkillzBot.JSON.MediaQueue;
 using Newtonsoft.Json;
 using System.Net;
 using System.Threading;
-using System.IO;
 using SkillzBot.JSON.StreamElements;
 using SkillzBot.Singleton;
 using SkillzBot.IRC;
-using TwitchLib.PubSub.Models.Responses;
-using TwitchLib.PubSub.Models.Responses.Messages.AutomodCaughtMessage;
-using SkillzBot.Utils;
 
 namespace SkillzBot.API.StreamElements
 {
@@ -98,9 +94,9 @@ namespace SkillzBot.API.StreamElements
         public static async Task<List<MediaQueueJson>> GetQueue(CancellationToken cancellationToken = default)
         {
             if (!ValidToken) return null;
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/queue");
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/queue");
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -123,9 +119,9 @@ namespace SkillzBot.API.StreamElements
         public static async Task<StreamElementsJSON> GetCurrentSong(CancellationToken cancellationToken = default)
         {
             if (!ValidToken) return null;
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/playing");
             try
-            {
-                using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/playing");
+            {                
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -144,6 +140,25 @@ namespace SkillzBot.API.StreamElements
                 Log.WriteLog(ex, "GetCurrentSong()");
                 return null;
             }            
+        }
+        public static async Task SendChatMessage(string message, CancellationToken cancellationToken = default)
+        {
+            if (!ValidToken) return;
+            var jsonPayload = JsonConvert.SerializeObject(new { message });
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"bot/{singleton.StreamElementsID}/say")
+            {
+                Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
+            };
+            try
+            {
+                using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)                
+                    Log.WriteLog(null, $"SendChatMessage() {response.StatusCode}");                
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, $"SendChatMessage({message})");
+            }
         }
     }
 }

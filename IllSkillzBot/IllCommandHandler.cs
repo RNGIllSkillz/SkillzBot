@@ -174,6 +174,9 @@ namespace SkillzBot.IllSkillzBot
                 case "!debug":
                     IllCommands.ToggleDebug(user);
                     break;
+                case "!silent":
+                    IllCommands.ToggleSilentMode(user);
+                    break;
                 default:
                     break;
             }

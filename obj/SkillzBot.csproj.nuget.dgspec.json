@@ -98,7 +98,11 @@
             },
             "TwitchLib.EventSub.Websockets": {
               "target": "Package",
-              "version": "[0.3.0, )"
+              "version": "[0.4.0, )"
+            },
+            "eladaus.urldetector": {
+              "target": "Package",
+              "version": "[1.4.0, )"
             }
           },
           "imports": [
@@ -131,7 +135,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.203\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.302\\RuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {

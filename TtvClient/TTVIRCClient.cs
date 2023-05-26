@@ -14,6 +14,7 @@ using SkillzBot.MYSQL;
 using SkillzBot.Singleton;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
+using SkillzBot.API.StreamElements;
 
 namespace SkillzBot.IRC
 {
@@ -103,12 +104,14 @@ namespace SkillzBot.IRC
         }  
         public static void SendMessage(string messageToSend)
         {
+            if (singleton.IsSilent) return;            
             const int MaxLength = 500;
             if (messageToSend.Length <= MaxLength)
             {
                 try
                 {
-                    client.SendMessage(singleton.ChannelName, messageToSend);
+                    StreamElementsAPI.SendChatMessage(messageToSend).GetAwaiter().GetResult();
+                    //client.SendMessage(singleton.ChannelName, messageToSend);
                 }
                 catch (Exception ex)
                 {
@@ -132,7 +135,8 @@ namespace SkillzBot.IRC
                     {
                         try
                         {
-                            client.SendMessage(singleton.ChannelName, STRINGS.SendMessageERROR);
+                            StreamElementsAPI.SendChatMessage(STRINGS.SendMessageERROR).GetAwaiter().GetResult();
+                            //client.SendMessage(singleton.ChannelName, STRINGS.SendMessageERROR);
                         }
                         catch (Exception ex)
                         {
@@ -145,7 +149,8 @@ namespace SkillzBot.IRC
                 string messagePart = messageToSend.Substring(startIndex, length);
                 try
                 {
-                    client.SendMessage(singleton.ChannelName, messagePart);
+                    StreamElementsAPI.SendChatMessage(messagePart).GetAwaiter().GetResult();                    
+                    //client.SendMessage(singleton.ChannelName, messagePart);
                 }
                 catch (Exception ex)
                 {

@@ -23,6 +23,8 @@ namespace SkillzBot.Utils
         private readonly static char[] k;
         private readonly static char[] t;
         private readonly static char[] e;
+        private const string urlPattern = @"https?:\/\/clips\.twitch\.tv\/[A-Za-z0-9_-]+";
+        private const string YouTubeIDPattern = @"(?<=v=|\/)([a-zA-Z0-9_-]{11})(?=\&|\?|$)";
 
         static StringUtil()
         {
@@ -86,8 +88,7 @@ namespace SkillzBot.Utils
         public static string ExtractYouTubeVideoId(string input)
         {
             string videoId = null;
-            string pattern = @"(?<=v=|\/)([a-zA-Z0-9_-]{11})(?=\&|\?|$)";
-            Match match = Regex.Match(input, pattern);
+            Match match = Regex.Match(input, YouTubeIDPattern);
             if (match.Success)
             {
                 videoId = match.Groups[1].Value;
@@ -245,6 +246,23 @@ namespace SkillzBot.Utils
             var pattern = @"^(oauth:|RGAPI-|)[a-zA-Z0-9_-]+$";
             var regex = new Regex(pattern);
             return regex.IsMatch(token);
+        }
+        public static string ExtractClipId(string input)
+        {
+            Match match = Regex.Match(input, urlPattern);
+            if (match.Success && match.Value == input)
+            {
+                if (Uri.TryCreate(match.Value, UriKind.Absolute, out Uri uri) && uri.Host == "clips.twitch.tv")
+                {
+                    string[] segments = uri.Segments;
+                    if (segments.Length > 1)
+                    {
+                        string clipId = segments[1].Trim('/');
+                        return clipId;
+                    }
+                }
+            }
+            return null;
         }
     }
 }

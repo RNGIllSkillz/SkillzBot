@@ -4,17 +4,12 @@ using System.IO;
 using SkillzBot.WRITERS;
 using SkillzBot.IRC;
 using Newtonsoft.Json;
-using SkillzBot.MODELS;
 using System.Threading.Tasks;
 using SkillzBot.PubSub;
 using SkillzBot.Singleton;
 using SkillzBot.MYSQL;
 using SkillzBot.Readers;
-using SkillzBot.API.StreamElements;
-using SkillzBot.API.Riot;
 using SkillzBot.API.Twitch;
-using SkillzBot.API.YouTube;
-using System.Resources;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using System.Threading;
@@ -26,8 +21,9 @@ namespace IllSkillzBot
     {
         static private int PubSubReconnects = 0;
         static string dataPath;
+        static string ConfigPath;
         private static PubSubClient PubSubClientInst;
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
+        private static IllSingleton singleton;
         static async Task Main()
         {
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
@@ -44,7 +40,7 @@ namespace IllSkillzBot
             dataPath = AppDomain.CurrentDomain.BaseDirectory + $"Channels_Data/{channelName}/DATA/";
             Directory.CreateDirectory(dataPath);
 
-            string ConfigPath = dataPath + channelName + ".ini";
+            ConfigPath = dataPath + channelName + ".ini";
             if (!File.Exists(ConfigPath))
             {
                 Console.WriteLine("Файл конфигурации не найдет. Первое подключение к каналу?");
@@ -77,9 +73,7 @@ namespace IllSkillzBot
                     Environment.Exit(1);
             }
 
-            Config config = new Config(ConfigPath);            
-            await SetUpSingleton(config).ConfigureAwait(false);
-
+            singleton = IllSingleton.GetInstance();
             MySQL MySQLClientInst = new MySQL();
 
             await StartUpConfigs().ConfigureAwait(false);
@@ -101,6 +95,9 @@ namespace IllSkillzBot
                     case "reward":
                         await TtvAPI.UpdateReward(singleton.CenceleUval, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                         break;
+                    case "addmod":
+                        await TtvAPI.AddChannelModerator("909916537").ConfigureAwait(false);
+                        break;
                 }                    
             }
         }
@@ -116,42 +113,7 @@ namespace IllSkillzBot
                 singleton.BroadcasterIsOnline = false;
                 Console.WriteLine($"{singleton.ChannelName} is Offline!");
             }
-        }
-        static async Task SetUpSingleton(Config config)
-        {
-            singleton.BotTwitchName = config.GetBotConfigs().BotTwitchName;
-            singleton.BotTwitchAuth = config.GetBotConfigs().BotTwitchAuth;
-            singleton.RiotApiToken = config.GetBotConfigs().RiotApiToken;
-            singleton.YouTubeApiToken = config.GetBotConfigs().YouTubeApiToken;
-            singleton.TApiClientId = config.GetBotConfigs().TApiClientId;
-            singleton.TApiAccessToken = config.GetBotConfigs().TApiAccessToken;
-            singleton.ChannelName = config.GetBotConfigs().ChannelName;
-            singleton.BrodcasterId = config.GetBotConfigs().BrodcasterId;
-            singleton.ZakazTrekaId = config.GetBotConfigs().ZakazTrekaId;
-            singleton.Pi4KaId = config.GetBotConfigs().Pi4KaId;
-            singleton.UvalId = config.GetBotConfigs().UvalId;
-            singleton.UvalSabId = config.GetBotConfigs().UvalSabId;
-            singleton.UvalVipId = config.GetBotConfigs().UvalVipId;
-            singleton.EmoteModeId = config.GetBotConfigs().EmoteModeId;
-            singleton.SUMMONER_NAME = config.GetBotConfigs().SummonerName;
-            singleton.CenceleUval = config.GetBotConfigs().CenceleUval;
-            singleton.uvalMod = config.GetBotConfigs().uvalMod;
-            singleton.MySQL_User = config.GetBotConfigs().MySQL_User;
-            singleton.MySQL_password = config.GetBotConfigs().MySQL_password;
-            singleton.StreamElementsApiToken = config.GetBotConfigs().StreamElementsApiToken;
-            singleton.StreamElementsID = config.GetBotConfigs().StreamElementsID;
-            singleton.ChatWithBot = config.GetBotConfigs().ChatWithBot;
-            singleton.ReleaseBot = config.GetBotConfigs().ReleaseBot;
-            singleton.GPTApiToken = config.GetBotConfigs().GPTApiToken;
-            singleton.SummonerRegion = config.GetBotConfigs().SummonerRegion;
-            singleton.autoPred = true;
-            singleton.BroadcasterIsOnline = false;
-            singleton.FirstQuizzOfTheDay = true;
-            singleton.AntiBotProtectionLvL = 0;
-            singleton.wisEnabled = true;
-            singleton.rootUser = "rng_backtrack";
-            await TempDataReader.ReadGameStats().ConfigureAwait(false);
-        }
+        }        
         static string CreadDefoults(string DataPath)
         {
             string dicDir = DataPath + "dic.txt";
@@ -238,7 +200,11 @@ namespace IllSkillzBot
         public static string GetChannelName()
         {
             return dataPath;
-        }       
+        }
+        public static string GetConfigPath()
+        {
+            return ConfigPath;
+        }
         public static void PubSubReconnect()
         {
             if (PubSubClientInst != null)

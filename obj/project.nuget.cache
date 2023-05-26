@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "jd5qhfbS3z48xA4rUSJKkH8QzTqtMXHL2z9f1NmBewk5AMGh2BN5zO8UasvcgS5GxkNydKsrf0EkoGPqcpT7gA==",
+  "dgSpecHash": "DRj7mwiFiSGfYLg0oteVkwRuQ3rOeySsXs8WdG21vQmov2P406SlxPf93vsC6SqCZF70D7Jd8OYFYYkd1+ZFGQ==",
   "success": true,
   "projectFilePath": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\atras\\.nuget\\packages\\eladaus.urldetector\\1.4.0\\eladaus.urldetector.1.4.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\f23.stringsimilarity\\5.1.0\\f23.stringsimilarity.5.1.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\google.apis\\1.60.0\\google.apis.1.60.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\google.apis.auth\\1.60.0\\google.apis.auth.1.60.0.nupkg.sha512",
@@ -68,6 +69,7 @@
     "C:\\Users\\atras\\.nuget\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.collections\\4.3.0\\system.collections.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.collections.concurrent\\4.3.0\\system.collections.concurrent.4.3.0.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\system.collections.immutable\\1.3.0\\system.collections.immutable.1.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.configuration.configurationmanager\\6.0.1\\system.configuration.configurationmanager.6.0.1.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.diagnostics.debug\\4.3.0\\system.diagnostics.debug.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.diagnostics.diagnosticsource\\7.0.0\\system.diagnostics.diagnosticsource.7.0.0.nupkg.sha512",
@@ -129,7 +131,7 @@
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client.models\\3.3.1\\twitchlib.client.models.3.3.1.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.communication\\1.0.6\\twitchlib.communication.1.0.6.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.core\\2.3.1\\twitchlib.eventsub.core.2.3.1.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.websockets\\0.3.0\\twitchlib.eventsub.websockets.0.3.0.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.websockets\\0.4.0\\twitchlib.eventsub.websockets.0.4.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.pubsub\\3.2.6\\twitchlib.pubsub.3.2.6.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.runtime.linux-x64\\3.1.32\\microsoft.netcore.app.runtime.linux-x64.3.1.32.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.host.linux-x64\\3.1.32\\microsoft.netcore.app.host.linux-x64.3.1.32.nupkg.sha512",

@@ -11,6 +11,8 @@ using TwitchLib.Client.Events;
 using SkillzBot.API.Twitch;
 using SkillzBot.Singleton;
 using System.Linq;
+using System.Text.RegularExpressions;
+using urldetector.detection;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -24,7 +26,7 @@ namespace SkillzBot.IllSkillzBot
         private static readonly HashSet<string> whiteList;
         private static readonly HashSet<string> userBlackList;
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
-        private static readonly int[] Arabic2;
+        private static readonly int[] Arabic2;        
 
         static IllChatFilters()
         {
@@ -110,14 +112,27 @@ namespace SkillzBot.IllSkillzBot
             if (userBlackList.Contains(userID)) return true;
             return false;
         }
-        public static async Task DeleteLinks(UserObject user, OnMessageReceivedArgs e)
+        public static async Task<bool> DeleteLinks(UserObject user, OnMessageReceivedArgs e)
         {
-            if (!e.ChatMessage.Message.Contains("http") || 
-                e.ChatMessage.CustomRewardId == singleton.ZakazTrekaId || 
-                e.ChatMessage.Message.Contains("clips") || 
-                user.isMod == 1 || 
-                user.IsBroadcaster == 1) return;
-            await TtvAPI.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
+            if (user.isMod == 1 || user.IsBroadcaster == 1) return false;
+            if (!NetUtil.IsValidLink(e.ChatMessage.Message)) return false;
+            UrlDetector parser = new UrlDetector(e.ChatMessage.Message, UrlDetectorOptions.Default);
+            var detectedUrls = parser.Detect();
+            if (detectedUrls.Count == 1)
+            {
+                var clipId = StringUtil.ExtractClipId(e.ChatMessage.Message);
+                if (clipId == null || !await TtvAPI.CheckClipExistence(clipId).ConfigureAwait(false))
+                {
+                    await TtvAPI.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
+                    return true;
+                }
+            }
+            if (detectedUrls.Count > 1)
+            {
+                await TtvAPI.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
+                return true;
+            }
+            return false;
         }
         public static bool FilterASCII(OnMessageReceivedArgs e)
         {            

@@ -85,8 +85,9 @@ namespace SkillzBot.Tasks
         }
         public static async Task UserUntimeoutTrigger(string UserName)
         {
+            await Task.Delay(2000).ConfigureAwait(false); // wait for PubSub time out event
             while (true)
-            {
+            {                
                 var user = await MySQL.GetUser(UserName).ConfigureAwait(false);
                 if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
                 {

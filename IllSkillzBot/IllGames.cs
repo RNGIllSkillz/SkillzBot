@@ -38,9 +38,9 @@ namespace SkillzBot.IllSkillzBot
                         TtvIRCClient.SendMessage(string.Format(STRINGS.RouletteLoose, user.Name));
                     user.roulettCon = 0;
                     if (Convert.ToBoolean(user.isMod))
-                        user = await TtvClient.TTVRewards.RewardsRedemption.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                        await TtvClient.TTVRewards.RewardsRedemption.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
                     else
-                        user = await TtvAPI.TimeOutUser(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                        await TtvAPI.TimeOutUser(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
                 }
                 else
                 {
@@ -76,8 +76,7 @@ namespace SkillzBot.IllSkillzBot
             var results = await MySQL.SudoSQLReader(SQL_string).ConfigureAwait(false);
             int questionID = IntUtil.Random(1, results[0].dbID);
             _Quizz = await MySQL.GetQuiz(questionID).ConfigureAwait(false);
-            if (!await TtvAPI.Announce(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion))).ConfigureAwait(false))
-                TtvIRCClient.SendMessage(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion)));
+            TtvIRCClient.SendMessage(string.Format(STRINGS.QuizStart, StringUtil.Shuffle(_Quizz.QuizzQuestion)));
             singleton.QuizIsRunning = true;
             double QuizRunTimer = DateTimeOffset.Now.ToUnixTimeSeconds();
             while (singleton.QuizIsRunning)

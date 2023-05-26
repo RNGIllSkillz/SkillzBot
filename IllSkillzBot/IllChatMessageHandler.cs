@@ -65,21 +65,21 @@ namespace SkillzBot.IllSkillzBot
                 return await IllCommands.IllBanUser(user).ConfigureAwait(false);
             await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);
             if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
-                return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutBadPic).ConfigureAwait(false);
+                await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutBadPic).ConfigureAwait(false);
             if (IllChatFilters.FilterASCII(e))
-                return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutPic).ConfigureAwait(false);
-            if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
-                return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
+                await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutPic).ConfigureAwait(false);
+            //if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
+                //return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
             if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))
-                return await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+                await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOut1wReason).ConfigureAwait(false);
             if (IllSingleton.GetInstance().QuizIsRunning)
                 user = IllGames.UserGuessAnswer(user, e.ChatMessage.Message);
             else
                 IllGames.QuizzActiveUser(user.TwitchID.ToString());
             if (e.ChatMessage.Message.StartsWith("!"))
                 user = await IllCommandHandler.CommandHandler(user, e.ChatMessage.Message).ConfigureAwait(false);
-            if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
-                IllCommands.TypeInChat(e.ChatMessage.Message);
+            //if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
+                //IllCommands.TypeInChat(e.ChatMessage.Message);
             if (user.isMod != 1) return user;
             if (e.ChatMessage.Message.StartsWith("@bot_illskillz", StringComparison.OrdinalIgnoreCase))
             {                

@@ -8,7 +8,6 @@ using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomRewardRedemptionStatus;
 using TwitchLib.Api.Helix.Models.Predictions.CreatePrediction;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
-using TwitchLib.Api.Core.Models.Undocumented.Chatters;
 using TwitchLib.Api.Helix.Models.Clips.CreateClip;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
 using TwitchLib.Api.Helix.Models.Moderation.BanUser;
@@ -16,15 +15,13 @@ using TwitchLib.Api.Helix.Models.Channels.GetChannelVIPs;
 using SkillzBot.MODELS;
 using TwitchLib.Api.Helix.Models.Chat.ChatSettings;
 using SkillzBot.Singleton;
-using Newtonsoft.Json;
-using SkillzBot.JSON.nChatters;
-using System.Net;
 using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomRewardRedemption;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using SkillzBot.Utils;
+
 namespace SkillzBot.API.Twitch
 {
     public sealed class TtvAPI
@@ -689,10 +686,10 @@ namespace SkillzBot.API.Twitch
                 Log.WriteLog(ex, "SetEmoteOnlyMode");
             }
         }
-        public static async Task<UserObject> TimeOutUser(UserObject user, int Duration, string Reasone)
+        public static async Task TimeOutUser(UserObject user, int Duration, string Reasone)
         {
-            if (!ValidToken) return user;
-            if (user.isMod == 1) return user;
+            if (!ValidToken) return;
+            if (user.isMod == 1) return;
             try
             {
                 await TimeOutUserAsync(user.TwitchID.ToString(), Duration, Reasone).ConfigureAwait(false);
@@ -700,14 +697,11 @@ namespace SkillzBot.API.Twitch
             catch (Exception ex)
             {
                 Log.WriteLog(ex, "TimeOutUser");
-                return user;
             }
-            user.UvalCon++;            
-            return user;
         }
-        public static async Task<UserObject> TimeOutModerator(UserObject user, int Duration, string Reasone)
+        public static async Task TimeOutModerator(UserObject user, int Duration, string Reasone)
         {
-            if (!ValidToken) return user;
+            if (!ValidToken) return;
             try
             {
                 await TimeOutUserAsync(user.TwitchID.ToString(), Duration, Reasone).ConfigureAwait(false);
@@ -715,10 +709,7 @@ namespace SkillzBot.API.Twitch
             catch (Exception ex)
             {
                 Log.WriteLog(ex, "TimeOutUser");
-                return user;
             }
-            user.UvalCon++;
-            return user;
         }
         /*
         public static async Task<SChatters> GetChattersAsyncDepricated()
@@ -759,6 +750,22 @@ namespace SkillzBot.API.Twitch
             {
                 Log.WriteLog(ex, "GetChattersAsync");
                 return null;
+            }
+        }
+        public static async Task<bool> CheckClipExistence(string clipID)
+        {
+            if (!ValidToken) return false;
+            try
+            {
+                var clips = await API.Helix.Clips.GetClipsAsync(new List<string> { clipID }).ConfigureAwait(false);
+                if (clips.Clips.Count() == 0 || clips.Clips[0].BroadcasterId != BrodcasterID)
+                    return false;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetClipByID");
+                return false;
             }
         }
     }

@@ -34,8 +34,8 @@ namespace SkillzBot.Utils
                 proBab = t * proBab;
             }
             proBab *= 100;
-            int precision = ((decimal)proBab == decimal.Truncate((decimal)proBab)) ? 0 : 5;
-            return proBab.ToString($"F{precision}") + "%";
+            int precision = ((decimal)proBab == decimal.Truncate((decimal)proBab)) ? 0 : 4;
+            return proBab.ToString($"F{precision}").TrimEnd('0').TrimEnd('.') + "%";
         }
         public static async Task<int> CalculateCancelUvalCost(string subscriptionType, double remainingDuration)
         {
@@ -68,8 +68,8 @@ namespace SkillzBot.Utils
             if (totalPeople == 0) return null;
             var topPercent = (decimal)rank / totalPeople * 100;
             if (topPercent > 80) return null;
-            int precision = (topPercent == decimal.Truncate(topPercent)) ? 0 : 5;
-            return "(top " + topPercent.ToString($"F{precision}")+"%)";
+            int precision = (topPercent == decimal.Truncate(topPercent)) ? 0 : 4;
+            return "(top " + topPercent.ToString($"F{precision}").TrimEnd('0').TrimEnd('.') + "%)";
         }
     }
 }

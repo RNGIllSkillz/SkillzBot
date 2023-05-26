@@ -2,6 +2,19 @@
   "version": 3,
   "targets": {
     ".NETCoreApp,Version=v3.1": {
+      "eladaus.urldetector/1.4.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections.Immutable": "1.3.0",
+          "System.Memory": "4.5.3"
+        },
+        "compile": {
+          "lib/netstandard2.0/urldetector.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/urldetector.dll": {}
+        }
+      },
       "F23.StringSimilarity/5.1.0": {
         "type": "package",
         "dependencies": {
@@ -627,7 +640,7 @@
           "System.Runtime": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.3/_._": {
+          "ref/netstandard1.3/System.Collections.dll": {
             "related": ".xml"
           }
         }
@@ -653,6 +666,29 @@
         },
         "runtime": {
           "lib/netstandard1.3/System.Collections.Concurrent.dll": {}
+        }
+      },
+      "System.Collections.Immutable/1.3.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections": "4.3.0",
+          "System.Diagnostics.Debug": "4.3.0",
+          "System.Globalization": "4.3.0",
+          "System.Linq": "4.3.0",
+          "System.Resources.ResourceManager": "4.3.0",
+          "System.Runtime": "4.3.0",
+          "System.Runtime.Extensions": "4.3.0",
+          "System.Threading": "4.3.0"
+        },
+        "compile": {
+          "lib/netstandard1.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard1.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
         }
       },
       "System.Configuration.ConfigurationManager/6.0.1": {
@@ -683,7 +719,7 @@
           "System.Runtime": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.3/_._": {
+          "ref/netstandard1.3/System.Diagnostics.Debug.dll": {
             "related": ".xml"
           }
         }
@@ -758,7 +794,7 @@
           "System.Runtime": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.3/_._": {
+          "ref/netstandard1.3/System.Globalization.dll": {
             "related": ".xml"
           }
         }
@@ -876,7 +912,7 @@
           "System.Runtime.Extensions": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.6/_._": {
+          "ref/netstandard1.6/System.Linq.dll": {
             "related": ".xml"
           }
         },
@@ -998,7 +1034,7 @@
           "System.Runtime": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.0/_._": {
+          "ref/netstandard1.0/System.Resources.ResourceManager.dll": {
             "related": ".xml"
           }
         }
@@ -1039,7 +1075,7 @@
           "System.Runtime": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.5/_._": {
+          "ref/netstandard1.5/System.Runtime.Extensions.dll": {
             "related": ".xml"
           }
         }
@@ -1504,7 +1540,7 @@
           "System.Threading.Tasks": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.3/_._": {
+          "ref/netstandard1.3/System.Threading.dll": {
             "related": ".xml"
           }
         },
@@ -1760,13 +1796,13 @@
           }
         }
       },
-      "TwitchLib.EventSub.Websockets/0.3.0": {
+      "TwitchLib.EventSub.Websockets/0.4.0": {
         "type": "package",
         "dependencies": {
           "Microsoft.Extensions.Logging": "7.0.0",
           "System.Memory": "4.5.5",
           "System.Text.Json": "7.0.1",
-          "TwitchLib.EventSub.Core": "2.3.0"
+          "TwitchLib.EventSub.Core": "2.3.1"
         },
         "compile": {
           "lib/netstandard2.1/TwitchLib.EventSub.Websockets.dll": {
@@ -1799,6 +1835,19 @@
       }
     },
     ".NETCoreApp,Version=v3.1/linux-x64": {
+      "eladaus.urldetector/1.4.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections.Immutable": "1.3.0",
+          "System.Memory": "4.5.3"
+        },
+        "compile": {
+          "lib/netstandard2.0/urldetector.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/urldetector.dll": {}
+        }
+      },
       "F23.StringSimilarity/5.1.0": {
         "type": "package",
         "dependencies": {
@@ -2605,6 +2654,29 @@
           "lib/netstandard1.3/System.Collections.Concurrent.dll": {}
         }
       },
+      "System.Collections.Immutable/1.3.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections": "4.3.0",
+          "System.Diagnostics.Debug": "4.3.0",
+          "System.Globalization": "4.3.0",
+          "System.Linq": "4.3.0",
+          "System.Resources.ResourceManager": "4.3.0",
+          "System.Runtime": "4.3.0",
+          "System.Runtime.Extensions": "4.3.0",
+          "System.Threading": "4.3.0"
+        },
+        "compile": {
+          "lib/netstandard1.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard1.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.Configuration.ConfigurationManager/6.0.1": {
         "type": "package",
         "dependencies": {
@@ -2634,7 +2706,7 @@
           "runtime.unix.System.Diagnostics.Debug": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.3/_._": {
+          "ref/netstandard1.3/System.Diagnostics.Debug.dll": {
             "related": ".xml"
           }
         }
@@ -2815,7 +2887,7 @@
           "System.Runtime.Extensions": "4.3.0"
         },
         "compile": {
-          "ref/netstandard1.6/_._": {
+          "ref/netstandard1.6/System.Linq.dll": {
             "related": ".xml"
           }
         },
@@ -3649,13 +3721,13 @@
           }
         }
       },
-      "TwitchLib.EventSub.Websockets/0.3.0": {
+      "TwitchLib.EventSub.Websockets/0.4.0": {
         "type": "package",
         "dependencies": {
           "Microsoft.Extensions.Logging": "7.0.0",
           "System.Memory": "4.5.5",
           "System.Text.Json": "7.0.1",
-          "TwitchLib.EventSub.Core": "2.3.0"
+          "TwitchLib.EventSub.Core": "2.3.1"
         },
         "compile": {
           "lib/netstandard2.1/TwitchLib.EventSub.Websockets.dll": {
@@ -3689,6 +3761,19 @@
     }
   },
   "libraries": {
+    "eladaus.urldetector/1.4.0": {
+      "sha512": "Hu9BhfcyDJbMRU/i9XA/W4XJsmMUenlvIyul0L8f22P4SJawxuabyhBJPX1fT0+y63Xyq3+sVEpNHY3QkGpLlw==",
+      "type": "package",
+      "path": "eladaus.urldetector/1.4.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.txt",
+        "eladaus.urldetector.1.4.0.nupkg.sha512",
+        "eladaus.urldetector.nuspec",
+        "lib/netstandard2.0/urldetector.dll"
+      ]
+    },
     "F23.StringSimilarity/5.1.0": {
       "sha512": "RcFtnxG3Pw/wBxQFZv65Wb9VZRLyjorw4rLPW0yqPXasINT3zBKz8cBzKRlESvXve4qrRyo/XSfYfYgmKs/lkg==",
       "type": "package",
@@ -5174,6 +5259,23 @@
         "ref/xamarinwatchos10/_._",
         "system.collections.concurrent.4.3.0.nupkg.sha512",
         "system.collections.concurrent.nuspec"
+      ]
+    },
+    "System.Collections.Immutable/1.3.0": {
+      "sha512": "zukBRPUuNxwy9m4TGWLxKAnoiMc9+B+8VXeXVyPiBPvOd7yLgAlZ1DlsRWJjMx4VsvhhF2+6q6kO2GRbPja6hA==",
+      "type": "package",
+      "path": "system.collections.immutable/1.3.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "ThirdPartyNotices.txt",
+        "dotnet_library_license.txt",
+        "lib/netstandard1.0/System.Collections.Immutable.dll",
+        "lib/netstandard1.0/System.Collections.Immutable.xml",
+        "lib/portable-net45+win8+wp8+wpa81/System.Collections.Immutable.dll",
+        "lib/portable-net45+win8+wp8+wpa81/System.Collections.Immutable.xml",
+        "system.collections.immutable.1.3.0.nupkg.sha512",
+        "system.collections.immutable.nuspec"
       ]
     },
     "System.Configuration.ConfigurationManager/6.0.1": {
@@ -8925,10 +9027,10 @@
         "twitchlib.eventsub.core.nuspec"
       ]
     },
-    "TwitchLib.EventSub.Websockets/0.3.0": {
-      "sha512": "pVffzdP7XAafhqNYgYEJDsvbN3m3rNHh34RXSN7ulIG1YB52pt2jsqMdNRcjqkps0Xn9uquDoGv8xhZK90Y6hw==",
+    "TwitchLib.EventSub.Websockets/0.4.0": {
+      "sha512": "hYtuTuenGS61xYQ5r1dEqwNa1rSi0KeYeOyFymQBnTcdw/GNbWUyUZvZHlzaPqE4xETqf0lQkW/NpLpvDCG3FQ==",
       "type": "package",
-      "path": "twitchlib.eventsub.websockets/0.3.0",
+      "path": "twitchlib.eventsub.websockets/0.4.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -8941,7 +9043,7 @@
         "lib/netstandard2.0/TwitchLib.EventSub.Websockets.xml",
         "lib/netstandard2.1/TwitchLib.EventSub.Websockets.dll",
         "lib/netstandard2.1/TwitchLib.EventSub.Websockets.xml",
-        "twitchlib.eventsub.websockets.0.3.0.nupkg.sha512",
+        "twitchlib.eventsub.websockets.0.4.0.nupkg.sha512",
         "twitchlib.eventsub.websockets.nuspec"
       ]
     },
@@ -8975,7 +9077,8 @@
       "TwitchLib.Api.Helix >= 3.9.0",
       "TwitchLib.Communication >= 1.0.6",
       "TwitchLib.EventSub.Core >= 2.3.1",
-      "TwitchLib.EventSub.Websockets >= 0.3.0"
+      "TwitchLib.EventSub.Websockets >= 0.4.0",
+      "eladaus.urldetector >= 1.4.0"
     ]
   },
   "packageFolders": {
@@ -9075,7 +9178,11 @@
           },
           "TwitchLib.EventSub.Websockets": {
             "target": "Package",
-            "version": "[0.3.0, )"
+            "version": "[0.4.0, )"
+          },
+          "eladaus.urldetector": {
+            "target": "Package",
+            "version": "[1.4.0, )"
           }
         },
         "imports": [
@@ -9108,7 +9215,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.203\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.302\\RuntimeIdentifierGraph.json"
       }
     },
     "runtimes": {
