@@ -2,7 +2,6 @@
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using SkillzBot.IllSkillzBot;
-using SkillzBot.IRC;
 using SkillzBot.Tasks;
 using SkillzBot.WRITERS;
 using System;

@@ -69,15 +69,24 @@ namespace SkillzBot.JSON.Settings
 
         [JsonProperty("StreamElementsID")]
         public string StreamElementsID { get; set; }
+
         [JsonProperty("ChatWithBot")]
         public string ChatWithBot { get; set; }
+
         [JsonProperty("ReleaseBot")]
         public string ReleaseBot { get; set; }
 
         [JsonProperty("GPTApiToken")]
         public string GPTApiToken { get; set; }
+
         [JsonProperty("SummonerRegion")]
         public string SummonerRegion { get; set; }
+
+        [JsonProperty("MySQL_IP")]
+        public string MySQL_IP { get; set; }
+
+        [JsonProperty("MySQL_Port")]
+        public int MySQL_Port { get; set; }
     }
 
     public partial class SettingsJson

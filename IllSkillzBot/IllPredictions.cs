@@ -953,6 +953,7 @@ namespace SkillzBot.IllSkillzBot
         private static async Task UpdateDailyStats(bool won)
         {
             var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+            int LowEloMaxLP = 100;
             if (buffdata == null) return;
             if (int.TryParse(buffdata[1], out int bufflp))
                 if (won)
@@ -963,7 +964,7 @@ namespace SkillzBot.IllSkillzBot
                     {
                         if (buffdata[0] != singleton.elo || buffdata[2] != singleton.tier)
                         {
-                            singleton.earnedLP += 100 - singleton.startLP + bufflp;
+                            singleton.earnedLP += LowEloMaxLP - singleton.startLP + bufflp;
                             singleton.startLP = 0;
                             singleton.elo = buffdata[0];
                             singleton.tier = buffdata[2];
@@ -977,7 +978,7 @@ namespace SkillzBot.IllSkillzBot
                     else
                     {
                         if (singleton.tier.Equals("diamond", StringComparison.OrdinalIgnoreCase))
-                            singleton.earnedLP += 100 - singleton.startLP + bufflp;
+                            singleton.earnedLP += LowEloMaxLP - singleton.startLP + bufflp;
                         else
                             singleton.earnedLP += bufflp - singleton.startLP;
                         singleton.startLP = bufflp;
@@ -993,7 +994,7 @@ namespace SkillzBot.IllSkillzBot
                     {
                         if (buffdata[0] != singleton.elo || buffdata[2] != singleton.tier)
                         {
-                            singleton.startLP = 100;
+                            singleton.startLP = LowEloMaxLP;
                             singleton.elo = buffdata[0];
                             singleton.tier = buffdata[2];
                         }

@@ -16,6 +16,7 @@ namespace SkillzBot.IllSkillzBot
     {
         private static QuizzObject _Quizz = new QuizzObject();  
         private static readonly List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
+        private static readonly object _ActiveUsers_ListLock = new object();
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         static IllGames()
         {
@@ -93,33 +94,40 @@ namespace SkillzBot.IllSkillzBot
         {
             if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return false;
             singleton.QuizIsRunning = false;
-            if (singleton.AntiBotProtectionLvL == 2)
-                Quizz_ActiveUsers_List.Clear();
+            if (singleton.AntiBotProtectionLvL == 2)            
+                lock (_ActiveUsers_ListLock)                
+                    Quizz_ActiveUsers_List.Clear(); 
             return true;
         }
         public static void QuizzActiveUser(string ttvID)
         {
-            foreach (var User in Quizz_ActiveUsers_List)
+            lock (_ActiveUsers_ListLock)
             {
-                if (User.TwitchID != ttvID) continue;
-                User.MessageCount++;
-                return;
+                foreach (var User in Quizz_ActiveUsers_List)
+                {
+                    if (User.TwitchID != ttvID) continue;
+                    User.MessageCount++;
+                    return;
+                }
+                Quizz_ActiveUsers_List.Add(new quizz_activeUser()
+                {
+                    TwitchID = ttvID,
+                    MessageCount = 0
+                });
             }
-            Quizz_ActiveUsers_List.Add(new quizz_activeUser()
-            {
-                TwitchID = ttvID,
-                MessageCount = 0
-            });
         }
         private static bool CheckQuizzActiveUser(string ttvID)
         {
-            foreach (var user in Quizz_ActiveUsers_List)
+            lock (_ActiveUsers_ListLock)
             {
-                if (user.TwitchID != ttvID) continue;
-                if (singleton.AntiBotProtectionLvL == 0) return true;
-                if (user.MessageCount > 0) return true;
+                foreach (var user in Quizz_ActiveUsers_List)
+                {
+                    if (user.TwitchID != ttvID) continue;
+                    if (singleton.AntiBotProtectionLvL == 0) return true;
+                    if (user.MessageCount > 0) return true;
+                }
+                return false;
             }
-            return false;
         }
         public static UserObject UserGuessAnswer(UserObject user, string message)
         {            
@@ -134,7 +142,8 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void ClearQuizzActiveUsers()
         {
-            Quizz_ActiveUsers_List.Clear();
+            lock (_ActiveUsers_ListLock)            
+                Quizz_ActiveUsers_List.Clear();            
         }
         #endregion
     }

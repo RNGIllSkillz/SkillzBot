@@ -10,7 +10,7 @@
       "SkillzBot/1.0.0": {
         "dependencies": {
           "F23.StringSimilarity": "5.1.0",
-          "Google.Apis.YouTube.v3": "1.60.0.3043",
+          "Google.Apis.YouTube.v3": "1.60.0.3064",
           "MySql.Data": "8.0.33",
           "Newtonsoft.Json": "13.0.3",
           "OpenAI": "1.7.2",
@@ -22,7 +22,7 @@
           "TwitchLib.Api.Core.Interfaces": "3.9.0",
           "TwitchLib.Api.Helix": "3.9.0",
           "TwitchLib.Communication": "1.0.6",
-          "TwitchLib.EventSub.Core": "2.3.1",
+          "TwitchLib.EventSub.Core": "2.4.3",
           "TwitchLib.EventSub.Websockets": "0.4.0",
           "eladaus.urldetector": "1.4.0",
           "IllPubSub": "3.2.6.0",
@@ -813,15 +813,15 @@
           }
         }
       },
-      "Google.Apis.YouTube.v3/1.60.0.3043": {
+      "Google.Apis.YouTube.v3/1.60.0.3064": {
         "dependencies": {
           "Google.Apis": "1.60.0",
           "Google.Apis.Auth": "1.60.0"
         },
         "runtime": {
           "lib/netstandard2.0/Google.Apis.YouTube.v3.dll": {
-            "assemblyVersion": "1.60.0.3043",
-            "fileVersion": "1.60.0.3043"
+            "assemblyVersion": "1.60.0.3064",
+            "fileVersion": "1.60.0.3064"
           }
         }
       },
@@ -1839,11 +1839,11 @@
           }
         }
       },
-      "TwitchLib.EventSub.Core/2.3.1": {
+      "TwitchLib.EventSub.Core/2.4.3": {
         "runtime": {
           "lib/netstandard2.1/TwitchLib.EventSub.Core.dll": {
-            "assemblyVersion": "2.3.1.0",
-            "fileVersion": "2.3.1.0"
+            "assemblyVersion": "2.4.3.0",
+            "fileVersion": "2.4.3.0"
           }
         }
       },
@@ -1852,7 +1852,7 @@
           "Microsoft.Extensions.Logging": "7.0.0",
           "System.Memory": "4.5.5",
           "System.Text.Json": "7.0.1",
-          "TwitchLib.EventSub.Core": "2.3.1"
+          "TwitchLib.EventSub.Core": "2.4.3"
         },
         "runtime": {
           "lib/netstandard2.1/TwitchLib.EventSub.Websockets.dll": {
@@ -1938,12 +1938,12 @@
       "path": "google.apis.core/1.60.0",
       "hashPath": "google.apis.core.1.60.0.nupkg.sha512"
     },
-    "Google.Apis.YouTube.v3/1.60.0.3043": {
+    "Google.Apis.YouTube.v3/1.60.0.3064": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Lf0fu2aV+kiC0HuKLbhjtfT1I938+3EaCU3e2gb8Sjc7a7Ud3c2ijMgZOAUTIsGOW+Kh7hMIZqzGeoQAutpgdg==",
-      "path": "google.apis.youtube.v3/1.60.0.3043",
-      "hashPath": "google.apis.youtube.v3.1.60.0.3043.nupkg.sha512"
+      "sha512": "sha512-PZZK3JaPxeOzbc2+qcyWh5uhSP+eekvfiw/z/vrkHVnXyUgv0cFUvO32lLKxb04lODhcUC/O0sPNWSO86MU8Mg==",
+      "path": "google.apis.youtube.v3/1.60.0.3064",
+      "hashPath": "google.apis.youtube.v3.1.60.0.3064.nupkg.sha512"
     },
     "Google.Protobuf/3.21.9": {
       "type": "package",
@@ -2785,12 +2785,12 @@
       "path": "twitchlib.communication/1.0.6",
       "hashPath": "twitchlib.communication.1.0.6.nupkg.sha512"
     },
-    "TwitchLib.EventSub.Core/2.3.1": {
+    "TwitchLib.EventSub.Core/2.4.3": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-6uoFu2k4Zw7X5ZPl5vf9bRM5rH3ET62ZykT8lsH/S6Wa47yNu2Jvd1WbmW4J9hWD/oDJM1jPBFH8QC/e+FKM2g==",
-      "path": "twitchlib.eventsub.core/2.3.1",
-      "hashPath": "twitchlib.eventsub.core.2.3.1.nupkg.sha512"
+      "sha512": "sha512-oRo1zusqZaGIc03B7JU0+JGhveXZa/vNhEHnWwxNw0hMd9yd++jXSYoxzebTf+od/DG3P3+oxSNoaBR7/7ggKg==",
+      "path": "twitchlib.eventsub.core/2.4.3",
+      "hashPath": "twitchlib.eventsub.core.2.4.3.nupkg.sha512"
     },
     "TwitchLib.EventSub.Websockets/0.4.0": {
       "type": "package",

@@ -24,6 +24,7 @@ namespace IllSkillzBot
         static string ConfigPath;
         private static PubSubClient PubSubClientInst;
         private static IllSingleton singleton;
+        private static ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
         static async Task Main()
         {
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
@@ -32,8 +33,15 @@ namespace IllSkillzBot
             AppDomain currentDomain = AppDomain.CurrentDomain;
             currentDomain.UnhandledException += new UnhandledExceptionEventHandler(MainHandler);
             Console.OutputEncoding = Encoding.UTF8;
-            
 
+            ///docker
+            dataPath = AppDomain.CurrentDomain.BaseDirectory + $"Channels_Data/general_hs_/DATA/";
+            Directory.CreateDirectory(dataPath);
+            string channelName = "general_hs_";
+            ConfigPath = dataPath + "general_hs_.ini";
+            singleton = IllSingleton.GetInstance();
+
+            /*
             Console.WriteLine("Введите название канала");
             string channelName = Console.ReadLine().ToLower();
 
@@ -41,6 +49,7 @@ namespace IllSkillzBot
             Directory.CreateDirectory(dataPath);
 
             ConfigPath = dataPath + channelName + ".ini";
+
             if (!File.Exists(ConfigPath))
             {
                 Console.WriteLine("Файл конфигурации не найдет. Первое подключение к каналу?");
@@ -74,6 +83,7 @@ namespace IllSkillzBot
             }
 
             singleton = IllSingleton.GetInstance();
+            */
             MySQL MySQLClientInst = new MySQL();
 
             await StartUpConfigs().ConfigureAwait(false);
@@ -81,8 +91,11 @@ namespace IllSkillzBot
             PubSubClientInst = new PubSubClient();
             QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
             await quartzBackgroundTaskManager.ScheduleTasks().ConfigureAwait(false);
+            _resetEvent.Wait();
+            /*
             while (true)
             {
+                
                 string input = Console.ReadLine();
                 Console.Clear();
                 Console.WriteLine(channelName);
@@ -98,8 +111,9 @@ namespace IllSkillzBot
                     case "addmod":
                         await TtvAPI.AddChannelModerator("909916537").ConfigureAwait(false);
                         break;
-                }                    
-            }
+                }
+        }
+        */
         }
         private static async Task StartUpConfigs()
         {            

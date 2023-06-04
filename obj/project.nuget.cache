@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "DRj7mwiFiSGfYLg0oteVkwRuQ3rOeySsXs8WdG21vQmov2P406SlxPf93vsC6SqCZF70D7Jd8OYFYYkd1+ZFGQ==",
+  "dgSpecHash": "GtVY+e23eyjatZO58oC2YlOlS3Npg7oecDJzlQLcAhh8PzIi41TnUiB8JvrPP19bQ1pmmq89v5J0FUtucngzVw==",
   "success": true,
   "projectFilePath": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
   "expectedPackageFiles": [
@@ -9,7 +9,7 @@
     "C:\\Users\\atras\\.nuget\\packages\\google.apis\\1.60.0\\google.apis.1.60.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\google.apis.auth\\1.60.0\\google.apis.auth.1.60.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\google.apis.core\\1.60.0\\google.apis.core.1.60.0.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\google.apis.youtube.v3\\1.60.0.3043\\google.apis.youtube.v3.1.60.0.3043.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\google.apis.youtube.v3\\1.60.0.3064\\google.apis.youtube.v3.1.60.0.3064.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\google.protobuf\\3.21.9\\google.protobuf.3.21.9.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\k4os.compression.lz4\\1.3.5\\k4os.compression.lz4.1.3.5.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\k4os.compression.lz4.streams\\1.3.5\\k4os.compression.lz4.streams.1.3.5.nupkg.sha512",
@@ -130,7 +130,7 @@
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client.enums\\3.3.1\\twitchlib.client.enums.3.3.1.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client.models\\3.3.1\\twitchlib.client.models.3.3.1.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.communication\\1.0.6\\twitchlib.communication.1.0.6.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.core\\2.3.1\\twitchlib.eventsub.core.2.3.1.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.core\\2.4.3\\twitchlib.eventsub.core.2.4.3.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.websockets\\0.4.0\\twitchlib.eventsub.websockets.0.4.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.pubsub\\3.2.6\\twitchlib.pubsub.3.2.6.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.runtime.linux-x64\\3.1.32\\microsoft.netcore.app.runtime.linux-x64.3.1.32.nupkg.sha512",

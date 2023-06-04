@@ -12,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="eladaus.urldetector" Version="1.4.0" />
     <PackageReference Include="F23.StringSimilarity" Version="5.1.0" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.60.0.3043" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.60.0.3064" />
     <PackageReference Include="MySql.Data" Version="8.0.33" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="OpenAI" Version="1.7.2" />
@@ -24,18 +24,18 @@
     <PackageReference Include="TwitchLib.Api.Core.Interfaces" Version="3.9.0" />
     <PackageReference Include="TwitchLib.Api.Helix" Version="3.9.0" />
     <PackageReference Include="TwitchLib.Communication" Version="1.0.6" />
-    <PackageReference Include="TwitchLib.EventSub.Core" Version="2.3.1" />
+    <PackageReference Include="TwitchLib.EventSub.Core" Version="2.4.3" />
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.4.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="IllPubSub">
-      <HintPath>..\TwitchLib.PubSub\TwitchLib.PubSub\bin\Debug\netstandard2.0\IllPubSub.dll</HintPath>
-    </Reference>
-    <Reference Include="RiotSharp">
-      <HintPath>\\192.168.255.10\pData\prj\twitch\chatTLBot\SkillzBot\SkillzBot\RiotSharp.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="IllPubSub">
+			<HintPath>dlls\IllPubSub.dll</HintPath>
+		</Reference>
+		<Reference Include="RiotSharp">
+			<HintPath>dlls\RiotSharp.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Update="STRINGS\STRINGS.ko.resx">
