@@ -87,6 +87,20 @@ public class QuartzBackgroundTaskManager
 
         return jobList.ToString();
     }
+    public async Task<bool> KillJobByName(string jobName)
+    {
+        var jobKey = new JobKey(jobName, "TaskGroup");
+
+        if (await _scheduler.CheckExists(jobKey).ConfigureAwait(false))
+        {
+            await _scheduler.DeleteJob(jobKey).ConfigureAwait(false);
+            return true;
+        }
+        else
+        {
+            return false; // Job with the specified name does not exist
+        }
+    }
     public async Task<string> GetAllJobsNames()
     {
         var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup()).ConfigureAwait(false);
