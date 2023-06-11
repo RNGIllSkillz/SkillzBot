@@ -12,7 +12,7 @@ namespace SkillzBot.Readers
 {
     internal class TempDataReader
     {
-        static readonly string dataPath = IllSkillzBotMain.GetChannelName();
+        static readonly string dataPath = IllSkillzBotMain.GetDataPath();
         static readonly string mediaQueueDir = Path.Combine(dataPath, "mediaqueue.txt");
         readonly private static string dailyStatsDir = Path.Combine(dataPath, "dailyStats.txt");
         public static int GetUserIDByTreckID(string treckID)

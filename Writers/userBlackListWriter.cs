@@ -10,7 +10,7 @@ namespace SkillzBot.WRITERS
         readonly static Mutex mutexObj = new Mutex();
         #region Getting Directories
 
-        readonly static string dataPath = IllSkillzBotMain.GetChannelName();
+        readonly static string dataPath = IllSkillzBotMain.GetDataPath();
         readonly static string filePath = Path.Combine(dataPath, "userblacklist.txt");
 
         #endregion

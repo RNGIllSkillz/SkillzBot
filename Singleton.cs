@@ -378,6 +378,12 @@ namespace SkillzBot.Singleton
         }
         public string MySQL_IP { get; private set; }
         public int MySQL_Port { get; private set; }
+        public string PichkaListFileName { get; private set; }
+        public string MediaListFileName { get; private set; }
+        public string ChannelListFileName { get; private set; }
+        public string DicFileName { get; private set; }
+        public string DicWhiteListFileName { get; private set; }
+        public string UserblacklistFileName { get; private set; }
         private IllSingleton() { }
 
         public static IllSingleton GetInstance()
@@ -396,7 +402,13 @@ namespace SkillzBot.Singleton
                         AntiBotProtectionLvL = 0,
                         wisEnabled = true,
                         rootUser = "ronink",
-                        IsSilent = false
+                        IsSilent = false,
+                        PichkaListFileName = "pichkaList.txt",
+                        MediaListFileName = "mediaList.txt",
+                        ChannelListFileName = "channelList.txt",
+                        DicFileName = "dic.txt",
+                        DicWhiteListFileName = "dicWhiteList.txt",
+                        UserblacklistFileName = "userblacklist.txt"
                     };
                     Config config = new Config(IllSkillzBotMain.GetConfigPath());
                     SetUpSingleton(_instance, config).GetAwaiter().GetResult();

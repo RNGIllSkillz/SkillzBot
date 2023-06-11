@@ -20,6 +20,7 @@ using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
 using SkillzBot.API.OpenAI;
+using System.IO;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -968,5 +969,45 @@ namespace SkillzBot.IllSkillzBot
                     $"кулдаун у твоей рулетки продлится еще {time:hh\\:mm\\:ss}");
             }
         }
+        public static async Task RemoveUserFromBlacklist(UserObject user, string[] input)
+        {            
+            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
+            {
+                if (input.Length != 2)
+                {
+                    TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                    return;
+                }
+                var UserToUnban = await MySQL.GetUser(input[1]).ConfigureAwait(false);
+                if (UserToUnban.dbID == -404)
+                {
+                    TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
+                    return;
+                }
+                var path = IllSkillzBotMain.GetDataPath();
+                path = Path.Combine(path, singleton.UserblacklistFileName);
+                if (FileManipulator.DeleteLineFromFile(path, UserToUnban.TwitchID.ToString()))
+                {
+                    IllChatFilters.EditUserBlackList(UserToUnban.TwitchID.ToString());
+                    TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} удален из черного списка");
+                }
+                else
+                    TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} не был найдет в черном списке");
+            }
+        }
+        public static void AddTowhiteList(UserObject user, string[] input)
+        {
+            if (user.Name != singleton.rootUser) return;
+            if (input.Length != 2)
+            {
+                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                return;
+            }
+            var path = IllSkillzBotMain.GetDataPath();
+            path = Path.Combine(path, singleton.DicWhiteListFileName);
+            FileManipulator.AddLineToFile(path, input[1]);
+            IllChatFilters.AddToWhiteList(input[1]);
+        }
+        
     }
 }

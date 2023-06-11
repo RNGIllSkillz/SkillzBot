@@ -18,24 +18,24 @@ namespace SkillzBot.IllSkillzBot
 {
     sealed class IllChatFilters
     {
-        private static readonly string dataPath = IllSkillzBotMain.GetChannelName();
+        private static readonly string dataPath = IllSkillzBotMain.GetDataPath();
         private static readonly HashSet<string> pichkaBlack;
         private static readonly HashSet<string> mediaBlack;
         private static readonly HashSet<string> channelBlack;
         private static readonly HashSet<string> dictionary;
-        private static readonly HashSet<string> whiteList;
-        private static readonly HashSet<string> userBlackList;
+        private static HashSet<string> whiteList;
+        private static HashSet<string> userBlackList;
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static readonly int[] Arabic2;        
 
         static IllChatFilters()
         {
-            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "pichkaList.txt")));
-            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "mediaList.txt")));
-            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "channelList.txt")));
-            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "dic.txt")));
-            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "dicWhiteList.txt")));
-            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, "userblacklist.txt")));
+            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.PichkaListFileName)));
+            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.MediaListFileName)));
+            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.ChannelListFileName)));
+            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.DicFileName)));
+            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.DicWhiteListFileName)));
+            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.UserblacklistFileName)));
             Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
         }
         public static bool CheckBooB(string message)
@@ -148,6 +148,14 @@ namespace SkillzBot.IllSkillzBot
                     return true;
             }
             return false;
+        }
+        public static void EditUserBlackList(string UserTtvID)
+        {
+            userBlackList.Remove(UserTtvID);
+        }
+        public static void AddToWhiteList(string WordToAdd)
+        {
+            whiteList.Add(WordToAdd);
         }
     }
 }

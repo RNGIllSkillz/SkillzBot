@@ -35,10 +35,10 @@ namespace IllSkillzBot
             Console.OutputEncoding = Encoding.UTF8;
 
             ///docker
-            dataPath = AppDomain.CurrentDomain.BaseDirectory + $"Channels_Data/general_hs_/DATA/";
+            dataPath = Path.Combine(currentDomain.BaseDirectory, "Channels_Data/general_hs_/DATA/");
             Directory.CreateDirectory(dataPath);
             string channelName = "general_hs_";
-            ConfigPath = dataPath + "general_hs_.ini";
+            ConfigPath = Path.Combine(dataPath, "general_hs_.ini");
             singleton = IllSingleton.GetInstance();
 
             /*
@@ -211,7 +211,7 @@ namespace IllSkillzBot
             Exception e = (Exception)args.ExceptionObject;
             Log.WriteLog(e, "MainHandler caught : ");
         }
-        public static string GetChannelName()
+        public static string GetDataPath()
         {
             return dataPath;
         }
@@ -226,7 +226,7 @@ namespace IllSkillzBot
                 PubSubClientInst.Dispose();
                 PubSubClientInst = null;
                 GC.Collect();
-                Thread.Sleep(10000);
+                Thread.Sleep(2000);
                 PubSubReconnects++;
                 if (PubSubReconnects < 15)
                     PubSubClientInst = new PubSubClient();

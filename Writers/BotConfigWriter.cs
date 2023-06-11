@@ -14,7 +14,7 @@ namespace SkillzBot.Writers
     internal class BotConfigWriter
     {
         private static readonly Mutex mutexObj = new Mutex();
-        private static readonly string dataPath = IllSkillzBotMain.GetChannelName();
+        private static readonly string dataPath = IllSkillzBotMain.GetDataPath();
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static readonly string filePath = Path.Combine(dataPath, $"{singleton.ChannelName}.ini");
 

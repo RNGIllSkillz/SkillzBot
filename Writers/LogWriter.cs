@@ -14,7 +14,7 @@ namespace SkillzBot.WRITERS
 
         public LogWriter()
         {
-            string channelName = IllSkillzBotMain.GetChannelName();
+            string channelName = IllSkillzBotMain.GetDataPath();
             _logFilePath = Path.Combine(channelName, "log.txt");
         }
 

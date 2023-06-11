@@ -177,6 +177,12 @@ namespace SkillzBot.IllSkillzBot
                 case "!silent":
                     IllCommands.ToggleSilentMode(user);
                     break;
+                case "!unban":
+                    await IllCommands.RemoveUserFromBlacklist(user, Command).ConfigureAwait(false);
+                    break;
+                case "!addwhite":
+                    IllCommands.AddTowhiteList(user, Command);
+                    break;
                 default:
                     break;
             }

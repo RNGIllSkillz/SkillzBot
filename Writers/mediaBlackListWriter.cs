@@ -8,7 +8,7 @@ namespace SkillzBot.WRITERS
     internal class MediaBlackListWriter
     {
         readonly static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetChannelName();
+        readonly static string dataPath = IllSkillzBotMain.GetDataPath();
         readonly static string filePath = Path.Combine(dataPath, "mediaList.txt");
 
         public static void Write(string Message)
