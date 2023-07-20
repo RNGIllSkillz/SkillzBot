@@ -89,11 +89,11 @@ namespace SkillzBot.IllSkillzBot
                 user = await IllCommandHandler.CommandHandler(user, e.ChatMessage.Message).ConfigureAwait(false);
             //if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
                 //IllCommands.TypeInChat(e.ChatMessage.Message);
-            if (user.isMod != 1) return user;
-            if (e.ChatMessage.Message.StartsWith("@bot_illskillz", StringComparison.OrdinalIgnoreCase))
-            {                
-                TtvIRCClient.SendMessage($"@{e.ChatMessage.DisplayName} {await IllCommands.GetGPTResponce(e.ChatMessage.DisplayName, e.ChatMessage.Message).ConfigureAwait(false)}");                
-            }
+            //if (user.isMod != 1) return user;
+            //if (e.ChatMessage.Message.StartsWith("@bot_illskillz", StringComparison.OrdinalIgnoreCase))
+            //{                
+                //TtvIRCClient.SendMessage($"@{e.ChatMessage.DisplayName} {await IllCommands.GetGPTResponce(e.ChatMessage.DisplayName, e.ChatMessage.Message).ConfigureAwait(false)}");                
+            //}
             return user;
         }
         public static async Task SaveBuffer(bool IsForced)
