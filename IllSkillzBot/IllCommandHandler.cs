@@ -56,7 +56,7 @@ namespace SkillzBot.IllSkillzBot
                     break;
 
                 case "!очередь":
-                    await IllCommands.GetTrackQueue(user).ConfigureAwait(false);
+                    //await IllCommands.GetTrackQueue(user).ConfigureAwait(false);
                     break;
 
                 case "!opgg":
@@ -67,7 +67,7 @@ namespace SkillzBot.IllSkillzBot
                 case "!трек":
                 case "!песня":
                 case "!song":                    
-                    await IllCommands.GetTreck(user).ConfigureAwait(false);
+                    //await IllCommands.GetTreck(user).ConfigureAwait(false);
                     break;
 
                 case "!clip":

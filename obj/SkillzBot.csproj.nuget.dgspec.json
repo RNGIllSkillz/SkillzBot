@@ -46,7 +46,7 @@
             },
             "Google.Apis.YouTube.v3": {
               "target": "Package",
-              "version": "[1.60.0.3064, )"
+              "version": "[1.61.0.3113, )"
             },
             "MySql.Data": {
               "target": "Package",
@@ -62,7 +62,7 @@
             },
             "Quartz": {
               "target": "Package",
-              "version": "[3.6.2, )"
+              "version": "[3.6.3, )"
             },
             "TwitchLib": {
               "target": "Package",
@@ -135,7 +135,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.302\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.304\\RuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {

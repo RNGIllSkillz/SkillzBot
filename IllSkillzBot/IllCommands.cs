@@ -471,8 +471,7 @@ namespace SkillzBot.IllSkillzBot
             }
         }
         public static async Task GetTreck(UserObject user)
-        {
-            return;
+        {            
             int secCD = 10;
             if (user.isSub == 1) secCD = 10;
             if (user.isVip == 1) secCD = 5;
@@ -501,7 +500,6 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task GetTrackQueue(UserObject user)
         {
-            return;
             int secCD = 60;
             if (user.isSub == 1) secCD = 30;
             if (user.isVip == 1) secCD = 15;
@@ -970,34 +968,33 @@ namespace SkillzBot.IllSkillzBot
             }
         }
         public static async Task RemoveUserFromBlacklist(UserObject user, string[] input)
-        {            
-            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
+        {
+            if (user.isMod != 1 && user.IsBroadcaster != 1 && user.Name != singleton.rootUser) return;
+            if (input.Length != 2)
             {
-                if (input.Length != 2)
-                {
-                    TtvIRCClient.SendMessage(STRINGS.InputERROR);
-                    return;
-                }
-                var UserToUnban = await MySQL.GetUser(input[1]).ConfigureAwait(false);
-                if (UserToUnban.dbID == -404)
-                {
-                    TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
-                    return;
-                }
-                var path = IllSkillzBotMain.GetDataPath();
-                path = Path.Combine(path, singleton.UserblacklistFileName);
-                if (FileManipulator.DeleteLineFromFile(path, UserToUnban.TwitchID.ToString()))
-                {
-                    IllChatFilters.EditUserBlackList(UserToUnban.TwitchID.ToString());
-                    TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} удален из черного списка");
-                }
-                else
-                    TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} не был найдет в черном списке");
+                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                return;
             }
+            var UserToUnban = await MySQL.GetUser(input[1]).ConfigureAwait(false);
+            if (UserToUnban.dbID == -404)
+            {
+                TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
+                return;
+            }
+            var path = IllSkillzBotMain.GetDataPath();
+            path = Path.Combine(path, singleton.UserblacklistFileName);
+            if (FileManipulator.DeleteLineFromFile(path, UserToUnban.TwitchID.ToString()))
+            {
+                IllChatFilters.EditUserBlackList(UserToUnban.TwitchID.ToString());
+                TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} удален из черного списка");
+            }
+            else
+                TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} не был найден в черном списке");
+
         }
         public static void AddTowhiteList(UserObject user, string[] input)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (user.IsBroadcaster != 1 && user.Name != singleton.rootUser) return;
             if (input.Length != 2)
             {
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -1007,7 +1004,6 @@ namespace SkillzBot.IllSkillzBot
             path = Path.Combine(path, singleton.DicWhiteListFileName);
             FileManipulator.AddLineToFile(path, input[1]);
             IllChatFilters.AddToWhiteList(input[1]);
-        }
-        
+        }        
     }
 }

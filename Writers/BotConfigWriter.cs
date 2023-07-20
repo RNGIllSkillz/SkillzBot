@@ -58,7 +58,9 @@ namespace SkillzBot.Writers
                     ChatWithBot = singleton.ChatWithBot,
                     ReleaseBot = singleton.ReleaseBot,
                     GPTApiToken = singleton.GPTApiToken,
-                    SummonerRegion = singleton.SummonerRegion
+                    SummonerRegion = singleton.SummonerRegion,
+                    MySQL_IP = singleton.MySQL_IP,
+                    MySQL_Port = singleton.MySQL_Port
                 };
                 File.WriteAllText(filePath, JsonConvert.SerializeObject(Settings, Formatting.Indented));               
             }

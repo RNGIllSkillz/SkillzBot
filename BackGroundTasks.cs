@@ -38,7 +38,8 @@ namespace SkillzBot.Tasks
             await IllChatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
 
             //Calcucate Points
-            //ToDo: Add timestamp to online status            
+            //ToDo: Add timestamp to online status
+            /*
             try
             {
                 //var Chatters = await TtvAPI.GetChatters().ConfigureAwait(false);
@@ -59,6 +60,7 @@ namespace SkillzBot.Tasks
             {
                 Log.WriteLog(ex, "RunEvery5Min()");
             }
+            */
         }
         public static async Task TopRuleteTask()
         {

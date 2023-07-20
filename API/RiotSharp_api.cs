@@ -207,9 +207,7 @@ namespace SkillzBot.API.Riot
         }
         public static RiotSharp.Endpoints.MatchEndpoint.Participant GetParticipantByMatch(Match match)
         {
-            if (!IsValidToken) return null;
-            var Participants = match.Info.Participants.ToArray();
-            foreach (var Participant in Participants)
+            foreach (var Participant in match.Info.Participants)
             {
                 if (string.Equals(StringUtil.RemoveWhitespace(Participant.SummonerName), IllSingleton.GetInstance().SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))                
                     return Participant;                
@@ -244,12 +242,28 @@ namespace SkillzBot.API.Riot
         public static async Task<Summoner> GetSummonerByNameAsync(string summonerName)
         {
             if (!IsValidToken) return null;
-            return await riotApi.Summoner.GetSummonerByNameAsync(region, summonerName).ConfigureAwait(false);
+            try
+            {
+                return await riotApi.Summoner.GetSummonerByNameAsync(region, summonerName).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetSummonerByNameAsync()");
+                return null;
+            }
         }
         public static async Task<List<LeagueEntry>> GetLeagueEntriesBySummonerAsync(string summonerId)
         {
             if (!IsValidToken) return null;
-            return await riotApi.League.GetLeagueEntriesBySummonerAsync(region, summonerId).ConfigureAwait(false);
+            try
+            {
+                return await riotApi.League.GetLeagueEntriesBySummonerAsync(region, summonerId).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetLeagueEntriesBySummonerAsync()");
+                return null;
+            }
         }
         public static void UpdateRegion(string newRegion)
         {

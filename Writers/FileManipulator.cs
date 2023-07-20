@@ -31,11 +31,17 @@ namespace SkillzBot.Writers
         }
         public static void AddLineToFile(string filePath, string lineToAdd)
         {
-            using (FileStream fileStream = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.Read))
-            using (StreamWriter writer = new StreamWriter(fileStream))
+            string[] existingLines = File.ReadAllLines(filePath);
+            string tempFilePath = Path.GetTempFileName();
+            using (StreamWriter writer = new StreamWriter(tempFilePath))
             {
                 writer.WriteLine(lineToAdd);
+                foreach (string existingLine in existingLines)
+                {
+                    writer.WriteLine(existingLine);
+                }
             }
+            File.Replace(tempFilePath, filePath, null);
         }
     }
 }

@@ -4,7 +4,7 @@
 /SkillzBotHost/System.Security.Principal.Windows.dll|cb6cbbd3
 /SkillzBotHost/System.Net.WebSockets.dll|2927ddb4
 /SkillzBotHost/System.Configuration.dll|b40f9262
-/SkillzBotHost/Google.Apis.dll|e23a7871
+/SkillzBotHost/Google.Apis.dll|86b213e9
 /SkillzBotHost/System.Reflection.Emit.ILGeneration.dll|5429272a
 /SkillzBotHost/System.Console.dll|df8fe89c
 /SkillzBotHost/libcoreclrtraceptprovider.so|dbeaa8e7
@@ -61,12 +61,12 @@
 /SkillzBotHost/System.Diagnostics.FileVersionInfo.dll|b88f0899
 /SkillzBotHost/IllPubSub.dll|a41cb824
 /SkillzBotHost/System.Resources.ResourceManager.dll|186ec6ce
-/SkillzBotHost/Quartz.dll|9e0b305f
+/SkillzBotHost/Quartz.dll|4fcdf6fa
 /SkillzBotHost/Microsoft.Extensions.DependencyInjection.Abstractions.dll|7920b12e
 /SkillzBotHost/Microsoft.Win32.Registry.dll|292da2dc
 /SkillzBotHost/System.Security.Cryptography.Algorithms.dll|e912affb
 /SkillzBotHost/System.Xml.XmlDocument.dll|bec2c1c7
-/SkillzBotHost/Google.Apis.Auth.PlatformServices.dll|a551ea5c
+/SkillzBotHost/Google.Apis.Auth.PlatformServices.dll|02060e14
 /SkillzBotHost/System.Collections.Immutable.dll|7bf75b52
 /SkillzBotHost/Microsoft.VisualBasic.dll|77e06adb
 /SkillzBotHost/System.Diagnostics.TraceSource.dll|bf750674
@@ -126,7 +126,7 @@
 /SkillzBotHost/System.Diagnostics.DiagnosticSource.dll|636afcb0
 /SkillzBotHost/System.Runtime.CompilerServices.Unsafe.dll|89d759dc
 /SkillzBotHost/System.Net.dll|d94fd10e
-/SkillzBotHost/Google.Apis.Core.dll|6ddb4f92
+/SkillzBotHost/Google.Apis.Core.dll|593aabb4
 /SkillzBotHost/F23.StringSimilarity.dll|d7d5e317
 /SkillzBotHost/System.IO.Compression.FileSystem.dll|4551dd1a
 /SkillzBotHost/System.Net.NameResolution.dll|19d548ce
@@ -139,7 +139,7 @@
 /SkillzBotHost/System.Dynamic.Runtime.dll|3d25ee96
 /SkillzBotHost/System.Runtime.WindowsRuntime.UI.Xaml.dll|15542f0a
 /SkillzBotHost/System.IO.MemoryMappedFiles.dll|b90ae553
-/SkillzBotHost/hashes.txt|b8b1cb53
+/SkillzBotHost/hashes.txt|0db6cfc6
 /SkillzBotHost/System.Web.HttpUtility.dll|68a08a42
 /SkillzBotHost/Microsoft.Extensions.Primitives.dll|9f05251b
 /SkillzBotHost/System.Data.dll|a1f13125
@@ -150,7 +150,7 @@
 /SkillzBotHost/System.Runtime.Serialization.Primitives.dll|5f2483b3
 /SkillzBotHost/System.Linq.dll|4cc25311
 /SkillzBotHost/System.Text.Encoding.CodePages.dll|8bc2045c
-/SkillzBotHost/SkillzBot.pdb|3257403d
+/SkillzBotHost/SkillzBot.pdb|0fbde63f
 /SkillzBotHost/System.Drawing.dll|722c55d0
 /SkillzBotHost/System.Collections.Concurrent.dll|487539ab
 /SkillzBotHost/TwitchLib.Client.Enums.dll|530ae182
@@ -179,7 +179,7 @@
 /SkillzBotHost/System.Security.Cryptography.OpenSsl.dll|416c42be
 /SkillzBotHost/K4os.Compression.LZ4.Streams.dll|c9fe38b8
 /SkillzBotHost/System.Data.Common.dll|d34b5a26
-/SkillzBotHost/Google.Apis.YouTube.v3.dll|5267d5a4
+/SkillzBotHost/Google.Apis.YouTube.v3.dll|bd3fa3dd
 /SkillzBotHost/System.Net.HttpListener.dll|f670d8d4
 /SkillzBotHost/System.ComponentModel.Annotations.dll|56e2f388
 /SkillzBotHost/mscorlib.dll|8a1cda63
@@ -188,7 +188,7 @@
 /SkillzBotHost/System.Net.WebHeaderCollection.dll|32940297
 /SkillzBotHost/System.ComponentModel.TypeConverter.dll|c4f6a6e8
 /SkillzBotHost/TwitchLib.Communication.dll|657d80fd
-/SkillzBotHost/Google.Apis.Auth.dll|9a3119fd
+/SkillzBotHost/Google.Apis.Auth.dll|d0a2d2a5
 /SkillzBotHost/System.Net.WebClient.dll|81c96707
 /SkillzBotHost/System.Globalization.Extensions.dll|6c0e6a74
 /SkillzBotHost/System.Runtime.InteropServices.WindowsRuntime.dll|eaccd868
@@ -210,7 +210,7 @@
 /SkillzBotHost/System.IO.Compression.Brotli.dll|c3aa58da
 /SkillzBotHost/System.Runtime.CompilerServices.VisualC.dll|94039bd6
 /SkillzBotHost/System.Numerics.Vectors.dll|5a097282
-/SkillzBotHost/SkillzBot.dll|0a121c16
+/SkillzBotHost/SkillzBot.dll|08e1f263
 /SkillzBotHost/System.Drawing.Primitives.dll|6a9d585f
 /SkillzBotHost/System.IO.Compression.ZipFile.dll|38c39600
 /SkillzBotHost/System.Memory.dll|f678bcc1
@@ -232,13 +232,13 @@
 /SkillzBotHost/SkillzBot.runtimeconfig.json|37c840e4
 /SkillzBotHost/System.Reflection.DispatchProxy.dll|596b78ce
 /SkillzBotHost/System.Runtime.Serialization.Formatters.dll|4c808c63
-/SkillzBotHost/SkillzBot.deps.json|78841fc5
+/SkillzBotHost/SkillzBot.deps.json|182d0b1b
 /SkillzBotHost/System.Threading.ThreadPool.dll|54fc26b8
 /SkillzBotHost/TwitchLib.Client.Models.dll|403c7961
 /SkillzBotHost/System.Security.Cryptography.Native.OpenSsl.so|fc371eea
 /SkillzBotHost/TwitchLib.Api.Core.Enums.dll|5db78936
 /SkillzBotHost/SOS_README.md|ab15b8ca
-/SkillzBotHost/fr/SkillzBot.resources.dll|e041c343
-/SkillzBotHost/ru/SkillzBot.resources.dll|0739db72
-/SkillzBotHost/ko/SkillzBot.resources.dll|a004ceee
-/SkillzBotHost/ja/SkillzBot.resources.dll|a063bf0d
+/SkillzBotHost/fr/SkillzBot.resources.dll|249c9dd1
+/SkillzBotHost/ru/SkillzBot.resources.dll|207bd453
+/SkillzBotHost/ko/SkillzBot.resources.dll|ef21b318
+/SkillzBotHost/ja/SkillzBot.resources.dll|4269181c

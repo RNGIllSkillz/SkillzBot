@@ -10,11 +10,11 @@
       "SkillzBot/1.0.0": {
         "dependencies": {
           "F23.StringSimilarity": "5.1.0",
-          "Google.Apis.YouTube.v3": "1.60.0.3064",
+          "Google.Apis.YouTube.v3": "1.61.0.3113",
           "MySql.Data": "8.0.33",
           "Newtonsoft.Json": "13.0.3",
           "OpenAI": "1.7.2",
-          "Quartz": "3.6.2",
+          "Quartz": "3.6.3",
           "TwitchLib": "3.5.3",
           "TwitchLib.Api": "3.9.0",
           "TwitchLib.Api.Core": "3.9.0",
@@ -775,53 +775,53 @@
           }
         }
       },
-      "Google.Apis/1.60.0": {
+      "Google.Apis/1.61.0": {
         "dependencies": {
-          "Google.Apis.Core": "1.60.0"
+          "Google.Apis.Core": "1.61.0"
         },
         "runtime": {
           "lib/netstandard2.0/Google.Apis.dll": {
-            "assemblyVersion": "1.60.0.0",
-            "fileVersion": "1.60.0.0"
+            "assemblyVersion": "1.61.0.0",
+            "fileVersion": "1.61.0.0"
           }
         }
       },
-      "Google.Apis.Auth/1.60.0": {
+      "Google.Apis.Auth/1.61.0": {
         "dependencies": {
-          "Google.Apis": "1.60.0",
-          "Google.Apis.Core": "1.60.0"
+          "Google.Apis": "1.61.0",
+          "Google.Apis.Core": "1.61.0"
         },
         "runtime": {
           "lib/netstandard2.0/Google.Apis.Auth.PlatformServices.dll": {
-            "assemblyVersion": "1.60.0.0",
-            "fileVersion": "1.60.0.0"
+            "assemblyVersion": "1.61.0.0",
+            "fileVersion": "1.61.0.0"
           },
           "lib/netstandard2.0/Google.Apis.Auth.dll": {
-            "assemblyVersion": "1.60.0.0",
-            "fileVersion": "1.60.0.0"
+            "assemblyVersion": "1.61.0.0",
+            "fileVersion": "1.61.0.0"
           }
         }
       },
-      "Google.Apis.Core/1.60.0": {
+      "Google.Apis.Core/1.61.0": {
         "dependencies": {
           "Newtonsoft.Json": "13.0.3"
         },
         "runtime": {
           "lib/netstandard2.0/Google.Apis.Core.dll": {
-            "assemblyVersion": "1.60.0.0",
-            "fileVersion": "1.60.0.0"
+            "assemblyVersion": "1.61.0.0",
+            "fileVersion": "1.61.0.0"
           }
         }
       },
-      "Google.Apis.YouTube.v3/1.60.0.3064": {
+      "Google.Apis.YouTube.v3/1.61.0.3113": {
         "dependencies": {
-          "Google.Apis": "1.60.0",
-          "Google.Apis.Auth": "1.60.0"
+          "Google.Apis": "1.61.0",
+          "Google.Apis.Auth": "1.61.0"
         },
         "runtime": {
           "lib/netstandard2.0/Google.Apis.YouTube.v3.dll": {
-            "assemblyVersion": "1.60.0.3064",
-            "fileVersion": "1.60.0.3064"
+            "assemblyVersion": "1.61.0.3113",
+            "fileVersion": "1.61.0.3113"
           }
         }
       },
@@ -1031,7 +1031,7 @@
           }
         }
       },
-      "Quartz/3.6.2": {
+      "Quartz/3.6.3": {
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "7.0.0",
           "System.Configuration.ConfigurationManager": "6.0.1",
@@ -1039,8 +1039,8 @@
         },
         "runtime": {
           "lib/netstandard2.0/Quartz.dll": {
-            "assemblyVersion": "3.6.2.0",
-            "fileVersion": "3.6.2.0"
+            "assemblyVersion": "3.6.3.0",
+            "fileVersion": "3.6.3.0"
           }
         }
       },
@@ -1917,33 +1917,33 @@
       "path": "f23.stringsimilarity/5.1.0",
       "hashPath": "f23.stringsimilarity.5.1.0.nupkg.sha512"
     },
-    "Google.Apis/1.60.0": {
+    "Google.Apis/1.61.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-T8ojAsKlsMkt5nZhTQuocqHYzm/knVm8o2/JMm4louEjaKzT4x0FihoCIxCYSTRGWkYC27LPWspyG4p76+bMzA==",
-      "path": "google.apis/1.60.0",
-      "hashPath": "google.apis.1.60.0.nupkg.sha512"
+      "sha512": "sha512-KUVqG6MRC7E8anPOLefqb+wnDeIS6IJ1B09GaXg07vAHGVnGxJ8odAtpnCQCN3aUzao3gFnSSEKawDvFrJpYZQ==",
+      "path": "google.apis/1.61.0",
+      "hashPath": "google.apis.1.61.0.nupkg.sha512"
     },
-    "Google.Apis.Auth/1.60.0": {
+    "Google.Apis.Auth/1.61.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-AUuWniIf2muns/9hesiF7yCKeQN+PbdTU864Rb2wDzW4xmepO6tEnoqREPeow95qIAgkOlL/byKeU65d3ox5Ng==",
-      "path": "google.apis.auth/1.60.0",
-      "hashPath": "google.apis.auth.1.60.0.nupkg.sha512"
+      "sha512": "sha512-1tXnTa9WaimJdlrIyHnhjjgFX6fQ1r4ClWqlK9ZYF5YPyswG1GbWhhlPyQg615BnHSulmRINlXIi8AbGJsc1yQ==",
+      "path": "google.apis.auth/1.61.0",
+      "hashPath": "google.apis.auth.1.61.0.nupkg.sha512"
     },
-    "Google.Apis.Core/1.60.0": {
+    "Google.Apis.Core/1.61.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-NOkjqMQblYEZXt2OEgshWayveYW11Pi+Uz0I30Kzl9BvL4TZLJzMqtiu1EdV8XkyyjGuAUgANdi4BOqRDlbVEw==",
-      "path": "google.apis.core/1.60.0",
-      "hashPath": "google.apis.core.1.60.0.nupkg.sha512"
+      "sha512": "sha512-/COXAFLc1SrLDZl7Ahhi0ZyNHM6ADvdd73UjIPXr1MRubHTrBgvdfwoTrCL0C8C6w0ur/RIR1RHUR5orSJozGg==",
+      "path": "google.apis.core/1.61.0",
+      "hashPath": "google.apis.core.1.61.0.nupkg.sha512"
     },
-    "Google.Apis.YouTube.v3/1.60.0.3064": {
+    "Google.Apis.YouTube.v3/1.61.0.3113": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-PZZK3JaPxeOzbc2+qcyWh5uhSP+eekvfiw/z/vrkHVnXyUgv0cFUvO32lLKxb04lODhcUC/O0sPNWSO86MU8Mg==",
-      "path": "google.apis.youtube.v3/1.60.0.3064",
-      "hashPath": "google.apis.youtube.v3.1.60.0.3064.nupkg.sha512"
+      "sha512": "sha512-YI4JEwRmVb8aybqNsHFr7W8HE8+8MNPPvWHLZfV/pZlG8MmjO3047V+AxPwhqECyr3/2eylyK/r+WRYcgOBB5w==",
+      "path": "google.apis.youtube.v3/1.61.0.3113",
+      "hashPath": "google.apis.youtube.v3.1.61.0.3113.nupkg.sha512"
     },
     "Google.Protobuf/3.21.9": {
       "type": "package",
@@ -2085,12 +2085,12 @@
       "path": "portable.bouncycastle/1.9.0",
       "hashPath": "portable.bouncycastle.1.9.0.nupkg.sha512"
     },
-    "Quartz/3.6.2": {
+    "Quartz/3.6.3": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-wCNiVQKdwSz85fOFvEixOuxiIqsenixf34b8w21oGF0qw9oylFPDrV/ri02cX531WelFsN8K5w6E5/qop5mRYw==",
-      "path": "quartz/3.6.2",
-      "hashPath": "quartz.3.6.2.nupkg.sha512"
+      "sha512": "sha512-t7hBo4OLbKigRlWW/b3qRO4peWjVg9NFx6nPgMo/Waie67Rl9ODsfHdBkD+/4sPlAvB9mGWWO84B/ZpVSB81lQ==",
+      "path": "quartz/3.6.3",
+      "hashPath": "quartz.3.6.3.nupkg.sha512"
     },
     "runtime.any.System.Collections/4.3.0": {
       "type": "package",
@@ -3019,6 +3019,43 @@
       "base"
     ],
     "alpine.3.17-x64": [
+      "alpine.3.17",
+      "alpine.3.16-x64",
+      "alpine.3.16",
+      "alpine.3.15-x64",
+      "alpine.3.15",
+      "alpine.3.14-x64",
+      "alpine.3.14",
+      "alpine.3.13-x64",
+      "alpine.3.13",
+      "alpine.3.12-x64",
+      "alpine.3.12",
+      "alpine.3.11-x64",
+      "alpine.3.11",
+      "alpine.3.10-x64",
+      "alpine.3.10",
+      "alpine.3.9-x64",
+      "alpine.3.9",
+      "alpine.3.8-x64",
+      "alpine.3.8",
+      "alpine.3.7-x64",
+      "alpine.3.7",
+      "alpine.3.6-x64",
+      "alpine.3.6",
+      "alpine-x64",
+      "alpine",
+      "linux-musl-x64",
+      "linux-musl",
+      "linux-x64",
+      "linux",
+      "unix-x64",
+      "unix",
+      "any",
+      "base"
+    ],
+    "alpine.3.18-x64": [
+      "alpine.3.18",
+      "alpine.3.17-x64",
       "alpine.3.17",
       "alpine.3.16-x64",
       "alpine.3.16",
@@ -4987,8 +5024,34 @@
       "any",
       "base"
     ],
+    "ubuntu.22.10-x64": [
+      "ubuntu.22.10",
+      "ubuntu-x64",
+      "ubuntu",
+      "debian-x64",
+      "debian",
+      "linux-x64",
+      "linux",
+      "unix-x64",
+      "unix",
+      "any",
+      "base"
+    ],
     "ubuntu.23.04-x64": [
       "ubuntu.23.04",
+      "ubuntu-x64",
+      "ubuntu",
+      "debian-x64",
+      "debian",
+      "linux-x64",
+      "linux",
+      "unix-x64",
+      "unix",
+      "any",
+      "base"
+    ],
+    "ubuntu.23.10-x64": [
+      "ubuntu.23.10",
       "ubuntu-x64",
       "ubuntu",
       "debian-x64",

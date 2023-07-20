@@ -395,13 +395,13 @@ namespace SkillzBot.Singleton
                     _instance = new IllSingleton
                     {
                         inAmatch = false,
-                        debug = false,
+                        debug = true,
                         autoPred = true,
                         BroadcasterIsOnline = false,
                         FirstQuizzOfTheDay = true,
                         AntiBotProtectionLvL = 0,
                         wisEnabled = true,
-                        rootUser = "ronink",
+                        rootUser = "bot_illskillz",
                         IsSilent = false,
                         PichkaListFileName = "pichkaList.txt",
                         MediaListFileName = "mediaList.txt",

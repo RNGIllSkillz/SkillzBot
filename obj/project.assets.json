@@ -31,10 +31,10 @@
           }
         }
       },
-      "Google.Apis/1.60.0": {
+      "Google.Apis/1.61.0": {
         "type": "package",
         "dependencies": {
-          "Google.Apis.Core": "1.60.0"
+          "Google.Apis.Core": "1.61.0"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.dll": {
@@ -47,11 +47,11 @@
           }
         }
       },
-      "Google.Apis.Auth/1.60.0": {
+      "Google.Apis.Auth/1.61.0": {
         "type": "package",
         "dependencies": {
-          "Google.Apis": "1.60.0",
-          "Google.Apis.Core": "1.60.0"
+          "Google.Apis": "1.61.0",
+          "Google.Apis.Core": "1.61.0"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.Auth.PlatformServices.dll": {},
@@ -66,10 +66,10 @@
           }
         }
       },
-      "Google.Apis.Core/1.60.0": {
+      "Google.Apis.Core/1.61.0": {
         "type": "package",
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2"
+          "Newtonsoft.Json": "13.0.3"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.Core.dll": {
@@ -82,11 +82,11 @@
           }
         }
       },
-      "Google.Apis.YouTube.v3/1.60.0.3064": {
+      "Google.Apis.YouTube.v3/1.61.0.3113": {
         "type": "package",
         "dependencies": {
-          "Google.Apis": "1.60.0",
-          "Google.Apis.Auth": "1.60.0"
+          "Google.Apis": "1.61.0",
+          "Google.Apis.Auth": "1.61.0"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.YouTube.v3.dll": {
@@ -447,7 +447,7 @@
           }
         }
       },
-      "Quartz/3.6.2": {
+      "Quartz/3.6.3": {
         "type": "package",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "2.1.1",
@@ -1864,10 +1864,10 @@
           }
         }
       },
-      "Google.Apis/1.60.0": {
+      "Google.Apis/1.61.0": {
         "type": "package",
         "dependencies": {
-          "Google.Apis.Core": "1.60.0"
+          "Google.Apis.Core": "1.61.0"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.dll": {
@@ -1880,11 +1880,11 @@
           }
         }
       },
-      "Google.Apis.Auth/1.60.0": {
+      "Google.Apis.Auth/1.61.0": {
         "type": "package",
         "dependencies": {
-          "Google.Apis": "1.60.0",
-          "Google.Apis.Core": "1.60.0"
+          "Google.Apis": "1.61.0",
+          "Google.Apis.Core": "1.61.0"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.Auth.PlatformServices.dll": {},
@@ -1899,10 +1899,10 @@
           }
         }
       },
-      "Google.Apis.Core/1.60.0": {
+      "Google.Apis.Core/1.61.0": {
         "type": "package",
         "dependencies": {
-          "Newtonsoft.Json": "13.0.2"
+          "Newtonsoft.Json": "13.0.3"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.Core.dll": {
@@ -1915,11 +1915,11 @@
           }
         }
       },
-      "Google.Apis.YouTube.v3/1.60.0.3064": {
+      "Google.Apis.YouTube.v3/1.61.0.3113": {
         "type": "package",
         "dependencies": {
-          "Google.Apis": "1.60.0",
-          "Google.Apis.Auth": "1.60.0"
+          "Google.Apis": "1.61.0",
+          "Google.Apis.Auth": "1.61.0"
         },
         "compile": {
           "lib/netstandard2.0/Google.Apis.YouTube.v3.dll": {
@@ -2266,7 +2266,7 @@
           }
         }
       },
-      "Quartz/3.6.2": {
+      "Quartz/3.6.3": {
         "type": "package",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "2.1.1",
@@ -3788,16 +3788,16 @@
         "logo.png"
       ]
     },
-    "Google.Apis/1.60.0": {
-      "sha512": "T8ojAsKlsMkt5nZhTQuocqHYzm/knVm8o2/JMm4louEjaKzT4x0FihoCIxCYSTRGWkYC27LPWspyG4p76+bMzA==",
+    "Google.Apis/1.61.0": {
+      "sha512": "KUVqG6MRC7E8anPOLefqb+wnDeIS6IJ1B09GaXg07vAHGVnGxJ8odAtpnCQCN3aUzao3gFnSSEKawDvFrJpYZQ==",
       "type": "package",
-      "path": "google.apis/1.60.0",
+      "path": "google.apis/1.61.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "LICENSE",
         "NuGetIcon.png",
-        "google.apis.1.60.0.nupkg.sha512",
+        "google.apis.1.61.0.nupkg.sha512",
         "google.apis.nuspec",
         "lib/net45/Google.Apis.PlatformServices.dll",
         "lib/net45/Google.Apis.dll",
@@ -3811,16 +3811,16 @@
         "lib/netstandard2.0/Google.Apis.xml"
       ]
     },
-    "Google.Apis.Auth/1.60.0": {
-      "sha512": "AUuWniIf2muns/9hesiF7yCKeQN+PbdTU864Rb2wDzW4xmepO6tEnoqREPeow95qIAgkOlL/byKeU65d3ox5Ng==",
+    "Google.Apis.Auth/1.61.0": {
+      "sha512": "1tXnTa9WaimJdlrIyHnhjjgFX6fQ1r4ClWqlK9ZYF5YPyswG1GbWhhlPyQg615BnHSulmRINlXIi8AbGJsc1yQ==",
       "type": "package",
-      "path": "google.apis.auth/1.60.0",
+      "path": "google.apis.auth/1.61.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "LICENSE",
         "NuGetIcon.png",
-        "google.apis.auth.1.60.0.nupkg.sha512",
+        "google.apis.auth.1.61.0.nupkg.sha512",
         "google.apis.auth.nuspec",
         "lib/net45/Google.Apis.Auth.PlatformServices.dll",
         "lib/net45/Google.Apis.Auth.dll",
@@ -3840,16 +3840,16 @@
         "lib/netstandard2.0/Google.Apis.Auth.xml"
       ]
     },
-    "Google.Apis.Core/1.60.0": {
-      "sha512": "NOkjqMQblYEZXt2OEgshWayveYW11Pi+Uz0I30Kzl9BvL4TZLJzMqtiu1EdV8XkyyjGuAUgANdi4BOqRDlbVEw==",
+    "Google.Apis.Core/1.61.0": {
+      "sha512": "/COXAFLc1SrLDZl7Ahhi0ZyNHM6ADvdd73UjIPXr1MRubHTrBgvdfwoTrCL0C8C6w0ur/RIR1RHUR5orSJozGg==",
       "type": "package",
-      "path": "google.apis.core/1.60.0",
+      "path": "google.apis.core/1.61.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "LICENSE",
         "NuGetIcon.png",
-        "google.apis.core.1.60.0.nupkg.sha512",
+        "google.apis.core.1.61.0.nupkg.sha512",
         "google.apis.core.nuspec",
         "lib/net45/Google.Apis.Core.dll",
         "lib/net45/Google.Apis.Core.pdb",
@@ -3862,16 +3862,16 @@
         "lib/netstandard2.0/Google.Apis.Core.xml"
       ]
     },
-    "Google.Apis.YouTube.v3/1.60.0.3064": {
-      "sha512": "PZZK3JaPxeOzbc2+qcyWh5uhSP+eekvfiw/z/vrkHVnXyUgv0cFUvO32lLKxb04lODhcUC/O0sPNWSO86MU8Mg==",
+    "Google.Apis.YouTube.v3/1.61.0.3113": {
+      "sha512": "YI4JEwRmVb8aybqNsHFr7W8HE8+8MNPPvWHLZfV/pZlG8MmjO3047V+AxPwhqECyr3/2eylyK/r+WRYcgOBB5w==",
       "type": "package",
-      "path": "google.apis.youtube.v3/1.60.0.3064",
+      "path": "google.apis.youtube.v3/1.61.0.3113",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "LICENSE",
         "NuGetIcon.png",
-        "google.apis.youtube.v3.1.60.0.3064.nupkg.sha512",
+        "google.apis.youtube.v3.1.61.0.3113.nupkg.sha512",
         "google.apis.youtube.v3.nuspec",
         "lib/net45/Google.Apis.YouTube.v3.dll",
         "lib/net45/Google.Apis.YouTube.v3.pdb",
@@ -4407,10 +4407,10 @@
         "portable.bouncycastle.nuspec"
       ]
     },
-    "Quartz/3.6.2": {
-      "sha512": "wCNiVQKdwSz85fOFvEixOuxiIqsenixf34b8w21oGF0qw9oylFPDrV/ri02cX531WelFsN8K5w6E5/qop5mRYw==",
+    "Quartz/3.6.3": {
+      "sha512": "t7hBo4OLbKigRlWW/b3qRO4peWjVg9NFx6nPgMo/Waie67Rl9ODsfHdBkD+/4sPlAvB9mGWWO84B/ZpVSB81lQ==",
       "type": "package",
-      "path": "quartz/3.6.2",
+      "path": "quartz/3.6.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -4421,7 +4421,7 @@
         "lib/netstandard2.0/Quartz.dll",
         "lib/netstandard2.0/Quartz.xml",
         "quartz-logo-small.png",
-        "quartz.3.6.2.nupkg.sha512",
+        "quartz.3.6.3.nupkg.sha512",
         "quartz.nuspec"
       ]
     },
@@ -9064,11 +9064,11 @@
   "projectFileDependencyGroups": {
     ".NETCoreApp,Version=v3.1": [
       "F23.StringSimilarity >= 5.1.0",
-      "Google.Apis.YouTube.v3 >= 1.60.0.3064",
+      "Google.Apis.YouTube.v3 >= 1.61.0.3113",
       "MySql.Data >= 8.0.33",
       "Newtonsoft.Json >= 13.0.3",
       "OpenAI >= 1.7.2",
-      "Quartz >= 3.6.2",
+      "Quartz >= 3.6.3",
       "TwitchLib >= 3.5.3",
       "TwitchLib.Api >= 3.9.0",
       "TwitchLib.Api.Core >= 3.9.0",
@@ -9126,7 +9126,7 @@
           },
           "Google.Apis.YouTube.v3": {
             "target": "Package",
-            "version": "[1.60.0.3064, )"
+            "version": "[1.61.0.3113, )"
           },
           "MySql.Data": {
             "target": "Package",
@@ -9142,7 +9142,7 @@
           },
           "Quartz": {
             "target": "Package",
-            "version": "[3.6.2, )"
+            "version": "[3.6.3, )"
           },
           "TwitchLib": {
             "target": "Package",
@@ -9215,7 +9215,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.302\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.304\\RuntimeIdentifierGraph.json"
       }
     },
     "runtimes": {

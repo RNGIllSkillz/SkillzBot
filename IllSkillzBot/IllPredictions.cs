@@ -689,78 +689,78 @@ namespace SkillzBot.IllSkillzBot
                     continue;
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    singleton.inAmatch = false;
+                    singleton.numGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.inAmatch = false;
-                        singleton.numGames++;
-                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numWins++;
-                            await UpdateDailyStats(true).ConfigureAwait(false);
-                        }
-                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            singleton.numLoose++;
-                            await UpdateDailyStats(false).ConfigureAwait(false);
-                        }
-                        IllCommands.SaveGameStats();
-                        List<PlayersObject> Players = new List<PlayersObject>();
-                        var FinParticipants = onMatch.Info.Participants.ToArray();
-                        int TeamID = 0;
-                        string getPosition = "";
-                        foreach (var champGetData in FinParticipants)
-                        {
-                            if (champGetData.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
-                            {
-                                TeamID = champGetData.TeamId;
-                                getPosition = champGetData.IndividualPosition;
-                            }
-                        }
-                        foreach (var champ in FinParticipants)
-                        {
-                            if (champ.TeamPosition == getPosition)
-                            {
-                                Players.Add(new PlayersObject()
-                                {
-                                    Flag = func(champ),
-                                    teamID = champ.TeamId
-                                });
-                            }
-                        }
-                        if (Players[0].Flag == Players[1].Flag)
-                        {
-                            TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
-                        else if (Players.Count > 2)
-                        {
-                            TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
-                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            if (Players[0].Flag > Players[1].Flag)
-                            {
-                                if (Players[0].teamID == TeamID)
-                                    await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
-                                else
-                                    await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                if (Players[0].teamID == TeamID)
-                                    await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
-                                else
-                                    await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
-                            }
-                        }
+                        singleton.numWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
                     }
                     else
                     {
-                        singleton.inAmatch = false;
-                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                        singleton.numLoose++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    int TeamID = 0;
+                    string getPosition = "";
+                    foreach (var champGetData in FinParticipants)
+                    {
+                        if (champGetData.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TeamID = champGetData.TeamId;
+                            getPosition = champGetData.IndividualPosition;
+                        }
+                    }
+                    foreach (var champ in FinParticipants)
+                    {
+                        if (champ.TeamPosition == getPosition)
+                        {
+                            Players.Add(new PlayersObject()
+                            {
+                                Flag = func(champ),
+                                teamID = champ.TeamId
+                            });
+                        }
+                    }
+                    if (Players[0].Flag == Players[1].Flag)
+                    {
+                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
-                
+                    else if (Players.Count > 2)
+                    {
+                        TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        if (Players[0].Flag > Players[1].Flag)
+                        {
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                        }
+                    }
+                }
+                else
+                {
+                    singleton.inAmatch = false;
+                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
+
             }
         }
         private static async Task Prediction_MAX_FLAG(CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
@@ -885,70 +885,63 @@ namespace SkillzBot.IllSkillzBot
             int enemyWr = 0;
             int teamElo = 0;
             int enemyElo = 0;
+            int numberOfRankedPlayers = 0;
+            int numberOfRankedEnemyPlayers = 0;
             long teamid = 0;
             foreach (var champ in champs)
             {
-                if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(champ.SummonerName, singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
                 {
                     teamid = champ.TeamId;
+                    break;
                 }
             }
 
             foreach (var champ in champs)
             {
-                int[] data = await GettInfo(champ.SummonerName).ConfigureAwait(false);
+                var data = await GettInfo(champ.SummonerName).ConfigureAwait(false);
+                if (data == null) return;
                 if (champ.TeamId == teamid)
                 {
+                    if (data[0] != 0 || data[1] != 0)
+                        numberOfRankedPlayers++;
                     teamWr += data[0];
                     teamElo += data[1];
                 }
                 else
                 {
+                    if (data[0] != 0 || data[1] != 0)
+                        numberOfRankedEnemyPlayers++;
                     enemyWr += data[0];
                     enemyElo += data[1];
                 }
             }
-            teamWr = (int)Math.Ceiling((double)teamWr / 5);
-            enemyWr = (int)Math.Ceiling((double)enemyWr / 5);
-            teamElo = (int)Math.Ceiling((double)teamElo / 5);
-            enemyElo = (int)Math.Ceiling((double)enemyElo / 5);
-            string elo = StringUtil.ConvertRank(Convert.ToString(teamElo), false);
-            string elo2 = StringUtil.ConvertRank(Convert.ToString(enemyElo), false);
+            teamWr = numberOfRankedPlayers > 0 ? (int)Math.Ceiling((double)teamWr / numberOfRankedPlayers) : 0;
+            enemyWr = numberOfRankedEnemyPlayers > 0 ? (int)Math.Ceiling((double)enemyWr / numberOfRankedEnemyPlayers) : 0;
+            teamElo = numberOfRankedPlayers > 0 ? (int)Math.Ceiling((double)teamElo / numberOfRankedPlayers) : 0;
+            enemyElo = numberOfRankedEnemyPlayers > 0 ? (int)Math.Ceiling((double)enemyElo / numberOfRankedEnemyPlayers) : 0;
+            string elo = StringUtil.ConvertRank(teamElo.ToString(), false);
+            string elo2 = StringUtil.ConvertRank(enemyElo.ToString(), false);
             TtvIRCClient.SendMessage($"Среднее ило команды союзников: {elo}, средний WR {teamWr}%. Среднее ило команды противников {elo2}, средний WR {enemyWr}%");
         }
         private static async Task<int[]> GettInfo(string summonerName)
         {
             int[] data = new int[2];
-            try
+            data[0] = 0;
+            data[1] = 0;
+            var summoner = await RiotAPI.GetSummonerByNameAsync(summonerName).ConfigureAwait(false);
+            if (summoner == null) return data;
+            var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync(summoner.Id).ConfigureAwait(false);
+            if (rank == null) return data;
+            var rankedSoloQueue = rank.FirstOrDefault(Queues => Queues.QueueType == "RANKED_SOLO_5x5");
+            if (rankedSoloQueue != null)
             {
-                bool isRanked = false;
-                var summoner = await RiotAPI.GetSummonerByNameAsync(summonerName).ConfigureAwait(false);
-                var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync(summoner.Id).ConfigureAwait(false);
-                foreach (var mType in rank)
-                {
-                    if (mType.QueueType == "RANKED_SOLO_5x5")
-                    {
-                        data[0] = (int)Math.Round((double)mType.Wins * 100 / (mType.Wins + mType.Losses), MidpointRounding.AwayFromZero);
-                        var sRank = $"{mType.Tier} {mType.Rank}";
-                        data[1] = int.Parse(StringUtil.ConvertRank(sRank, true));
-                        isRanked = true;
-                    }
-                }
-                if (!isRanked)
-                {
-                    data[0] = 0;
-                    data[1] = 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLog(ex, "");
-                data[0] = 0;
-                data[1] = 0;
-                return data;
+                data[0] = (int)Math.Round((double)rankedSoloQueue.Wins * 100 / (rankedSoloQueue.Wins + rankedSoloQueue.Losses), MidpointRounding.AwayFromZero);
+                var sRank = $"{rankedSoloQueue.Tier} {rankedSoloQueue.Rank}";
+                data[1] = int.Parse(StringUtil.ConvertRank(sRank, true));
             }
             return data;
-        }        
+        }      
         
         private static async Task UpdateDailyStats(bool won)
         {

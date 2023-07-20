@@ -37,7 +37,7 @@ namespace IllSkillzBot
             ///docker
             dataPath = Path.Combine(currentDomain.BaseDirectory, "Channels_Data/general_hs_/DATA/");
             Directory.CreateDirectory(dataPath);
-            string channelName = "general_hs_";
+            //string channelName = "general_hs_";
             ConfigPath = Path.Combine(dataPath, "general_hs_.ini");
             singleton = IllSingleton.GetInstance();
 
@@ -231,7 +231,11 @@ namespace IllSkillzBot
                 if (PubSubReconnects < 15)
                     PubSubClientInst = new PubSubClient();
                 else
-                    Log.WriteLog(null, "PubSub reconnection ERROR");
+                {
+                    Log.WriteLog(null, "PubSub reconnection ERROR! Will try to reconnect in 10 min");
+                    Thread.Sleep(60000);
+                    PubSubReconnect();
+                }
             }
             else
             {
