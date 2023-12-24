@@ -21,6 +21,7 @@ using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
 using SkillzBot.API.OpenAI;
 using System.IO;
+using SkillzBot.SubUtils;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -994,7 +995,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void AddTowhiteList(UserObject user, string[] input)
         {
-            if (user.IsBroadcaster != 1 && user.Name != singleton.rootUser) return;
+            if (user.Name != singleton.rootUser) return;
             if (input.Length != 2)
             {
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -1004,6 +1005,20 @@ namespace SkillzBot.IllSkillzBot
             path = Path.Combine(path, singleton.DicWhiteListFileName);
             FileManipulator.AddLineToFile(path, input[1]);
             IllChatFilters.AddToWhiteList(input[1]);
+        }        
+        public static void AddSubscription(UserObject user)
+        {
+            if (user.Name != singleton.rootUser) return;
+            TtvIRCClient.SendMessage(AddSub.NewPurchase().ToString());
+            SubCheck.RunChecker();
+        }
+        public static void CheckSubscription(UserObject user)
+        {
+            if (user.Name != singleton.rootUser) return;
+            if (SubCheck.RunChecker())
+                TtvIRCClient.SendMessage("Valid!");
+            else
+                TtvIRCClient.SendMessage("Expired!");
         }        
     }
 }

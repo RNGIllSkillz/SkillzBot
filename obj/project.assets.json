@@ -2,6 +2,19 @@
   "version": 3,
   "targets": {
     ".NETCoreApp,Version=v3.1": {
+      "BouncyCastle.Cryptography/2.2.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "eladaus.urldetector/1.4.0": {
         "type": "package",
         "dependencies": {
@@ -315,7 +328,7 @@
           "buildTransitive/netcoreapp2.0/Microsoft.Extensions.Primitives.targets": {}
         }
       },
-      "Microsoft.NETCore.Platforms/2.0.0": {
+      "Microsoft.NETCore.Platforms/7.0.4": {
         "type": "package",
         "compile": {
           "lib/netstandard1.0/_._": {}
@@ -355,20 +368,22 @@
           }
         }
       },
-      "MySql.Data/8.0.33": {
+      "MySql.Data/8.2.0": {
         "type": "package",
         "dependencies": {
+          "BouncyCastle.Cryptography": "2.2.1",
           "Google.Protobuf": "3.21.9",
           "K4os.Compression.LZ4.Streams": "1.3.5",
-          "Portable.BouncyCastle": "1.9.0",
           "System.Buffers": "4.5.1",
           "System.Configuration.ConfigurationManager": "4.4.1",
+          "System.Diagnostics.DiagnosticSource": "7.0.2",
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
           "System.Runtime.Loader": "4.3.0",
           "System.Security.Permissions": "4.7.0",
           "System.Text.Encoding.CodePages": "4.4.0",
           "System.Text.Json": "7.0.1",
-          "System.Threading.Tasks.Extensions": "4.5.4"
+          "System.Threading.Tasks.Extensions": "4.5.4",
+          "ZstdSharp.Port": "0.7.1"
         },
         "compile": {
           "lib/netstandard2.1/MySql.Data.dll": {
@@ -430,19 +445,6 @@
         },
         "runtime": {
           "lib/netstandard2.0/OpenAI_API.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "Portable.BouncyCastle/1.9.0": {
-        "type": "package",
-        "compile": {
-          "lib/netstandard2.0/BouncyCastle.Crypto.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/BouncyCastle.Crypto.dll": {
             "related": ".xml"
           }
         }
@@ -724,7 +726,7 @@
           }
         }
       },
-      "System.Diagnostics.DiagnosticSource/7.0.0": {
+      "System.Diagnostics.DiagnosticSource/7.0.2": {
         "type": "package",
         "dependencies": {
           "System.Memory": "4.5.5",
@@ -1783,8 +1785,11 @@
           "lib/netstandard2.0/TwitchLib.Communication.dll": {}
         }
       },
-      "TwitchLib.EventSub.Core/2.4.3": {
+      "TwitchLib.EventSub.Core/2.5.1": {
         "type": "package",
+        "dependencies": {
+          "Microsoft.NETCore.Platforms": "7.0.4"
+        },
         "compile": {
           "lib/netstandard2.1/TwitchLib.EventSub.Core.dll": {
             "related": ".xml"
@@ -1832,9 +1837,31 @@
             "related": ".xml"
           }
         }
+      },
+      "ZstdSharp.Port/0.7.1": {
+        "type": "package",
+        "compile": {
+          "lib/netcoreapp3.1/ZstdSharp.dll": {}
+        },
+        "runtime": {
+          "lib/netcoreapp3.1/ZstdSharp.dll": {}
+        }
       }
     },
     ".NETCoreApp,Version=v3.1/linux-x64": {
+      "BouncyCastle.Cryptography/2.2.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "eladaus.urldetector/1.4.0": {
         "type": "package",
         "dependencies": {
@@ -2148,7 +2175,7 @@
           "buildTransitive/netcoreapp2.0/Microsoft.Extensions.Primitives.targets": {}
         }
       },
-      "Microsoft.NETCore.Platforms/2.0.0": {
+      "Microsoft.NETCore.Platforms/7.0.4": {
         "type": "package",
         "compile": {
           "lib/netstandard1.0/_._": {}
@@ -2196,20 +2223,22 @@
           "buildTransitive/netcoreapp3.1/_._": {}
         }
       },
-      "MySql.Data/8.0.33": {
+      "MySql.Data/8.2.0": {
         "type": "package",
         "dependencies": {
+          "BouncyCastle.Cryptography": "2.2.1",
           "Google.Protobuf": "3.21.9",
           "K4os.Compression.LZ4.Streams": "1.3.5",
-          "Portable.BouncyCastle": "1.9.0",
           "System.Buffers": "4.5.1",
           "System.Configuration.ConfigurationManager": "4.4.1",
+          "System.Diagnostics.DiagnosticSource": "7.0.2",
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
           "System.Runtime.Loader": "4.3.0",
           "System.Security.Permissions": "4.7.0",
           "System.Text.Encoding.CodePages": "4.4.0",
           "System.Text.Json": "7.0.1",
-          "System.Threading.Tasks.Extensions": "4.5.4"
+          "System.Threading.Tasks.Extensions": "4.5.4",
+          "ZstdSharp.Port": "0.7.1"
         },
         "compile": {
           "lib/netstandard2.1/MySql.Data.dll": {
@@ -2249,19 +2278,6 @@
         },
         "runtime": {
           "lib/netstandard2.0/OpenAI_API.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "Portable.BouncyCastle/1.9.0": {
-        "type": "package",
-        "compile": {
-          "lib/netstandard2.0/BouncyCastle.Crypto.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/BouncyCastle.Crypto.dll": {
             "related": ".xml"
           }
         }
@@ -2711,7 +2727,7 @@
           }
         }
       },
-      "System.Diagnostics.DiagnosticSource/7.0.0": {
+      "System.Diagnostics.DiagnosticSource/7.0.2": {
         "type": "package",
         "dependencies": {
           "System.Memory": "4.5.5",
@@ -3708,8 +3724,11 @@
           "lib/netstandard2.0/TwitchLib.Communication.dll": {}
         }
       },
-      "TwitchLib.EventSub.Core/2.4.3": {
+      "TwitchLib.EventSub.Core/2.5.1": {
         "type": "package",
+        "dependencies": {
+          "Microsoft.NETCore.Platforms": "7.0.4"
+        },
         "compile": {
           "lib/netstandard2.1/TwitchLib.EventSub.Core.dll": {
             "related": ".xml"
@@ -3757,10 +3776,39 @@
             "related": ".xml"
           }
         }
+      },
+      "ZstdSharp.Port/0.7.1": {
+        "type": "package",
+        "compile": {
+          "lib/netcoreapp3.1/ZstdSharp.dll": {}
+        },
+        "runtime": {
+          "lib/netcoreapp3.1/ZstdSharp.dll": {}
+        }
       }
     }
   },
   "libraries": {
+    "BouncyCastle.Cryptography/2.2.1": {
+      "sha512": "A6Zr52zVqJKt18ZBsTnX0qhG0kwIQftVAjLmszmkiR/trSp8H+xj1gUOzk7XHwaKgyREMSV1v9XaKrBUeIOdvQ==",
+      "type": "package",
+      "path": "bouncycastle.cryptography/2.2.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "bouncycastle.cryptography.2.2.1.nupkg.sha512",
+        "bouncycastle.cryptography.nuspec",
+        "lib/net461/BouncyCastle.Cryptography.dll",
+        "lib/net461/BouncyCastle.Cryptography.xml",
+        "lib/net6.0/BouncyCastle.Cryptography.dll",
+        "lib/net6.0/BouncyCastle.Cryptography.xml",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.dll",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.xml",
+        "packageIcon.png"
+      ]
+    },
     "eladaus.urldetector/1.4.0": {
       "sha512": "Hu9BhfcyDJbMRU/i9XA/W4XJsmMUenlvIyul0L8f22P4SJawxuabyhBJPX1fT0+y63Xyq3+sVEpNHY3QkGpLlw==",
       "type": "package",
@@ -4219,21 +4267,21 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.NETCore.Platforms/2.0.0": {
-      "sha512": "VdLJOCXhZaEMY7Hm2GKiULmn7IEPFE4XC5LPSfBVCUIA8YLZVh846gtfBJalsPQF2PlzdD7ecX7DZEulJ402ZQ==",
+    "Microsoft.NETCore.Platforms/7.0.4": {
+      "sha512": "yLEHlNN7O5WiND89r42sepgVwy5W/ZoTiFEdJDV7MHR1lW02LL7Nipz2TD5qM/Kx9W3/k3NP+PAP2qUdOm+leg==",
       "type": "package",
-      "path": "microsoft.netcore.platforms/2.0.0",
+      "path": "microsoft.netcore.platforms/7.0.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
+        "Icon.png",
         "LICENSE.TXT",
         "THIRD-PARTY-NOTICES.TXT",
         "lib/netstandard1.0/_._",
-        "microsoft.netcore.platforms.2.0.0.nupkg.sha512",
+        "microsoft.netcore.platforms.7.0.4.nupkg.sha512",
         "microsoft.netcore.platforms.nuspec",
         "runtime.json",
-        "useSharedDesignerContext.txt",
-        "version.txt"
+        "useSharedDesignerContext.txt"
       ]
     },
     "Microsoft.NETCore.Targets/1.1.0": {
@@ -4318,10 +4366,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "MySql.Data/8.0.33": {
-      "sha512": "mW+A9tc0s+3E3+XYe80aJmr/AvZoKBZG44w13AdVf4+1iRDwgdL6eLMPZgHyQFGwdLwNvQNPKegcOE4rRDuv8Q==",
+    "MySql.Data/8.2.0": {
+      "sha512": "p62lWlKvJJ5UnBNvtal3JM9SOyQaaIA4C6E5LO2TOlO8CF5BDX0I8HsihbzP8wOELZhD4I3vpferDRv7uBNkOg==",
       "type": "package",
-      "path": "mysql.data/8.0.33",
+      "path": "mysql.data/8.2.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -4333,12 +4381,14 @@
         "lib/net6.0/MySql.Data.xml",
         "lib/net7.0/MySql.Data.dll",
         "lib/net7.0/MySql.Data.xml",
+        "lib/net8.0/MySql.Data.dll",
+        "lib/net8.0/MySql.Data.xml",
         "lib/netstandard2.0/MySql.Data.dll",
         "lib/netstandard2.0/MySql.Data.xml",
         "lib/netstandard2.1/MySql.Data.dll",
         "lib/netstandard2.1/MySql.Data.xml",
         "logo-mysql-170x115.png",
-        "mysql.data.8.0.33.nupkg.sha512",
+        "mysql.data.8.2.0.nupkg.sha512",
         "mysql.data.nuspec",
         "runtimes/win-x64/native/comerr64.dll",
         "runtimes/win-x64/native/gssapi64.dll",
@@ -4390,21 +4440,6 @@
         "nuget_logo.png",
         "openai.1.7.2.nupkg.sha512",
         "openai.nuspec"
-      ]
-    },
-    "Portable.BouncyCastle/1.9.0": {
-      "sha512": "eZZBCABzVOek+id9Xy04HhmgykF0wZg9wpByzrWN7q8qEI0Qen9b7tfd7w8VA3dOeesumMG7C5ZPy0jk7PSRHw==",
-      "type": "package",
-      "path": "portable.bouncycastle/1.9.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "lib/net40/BouncyCastle.Crypto.dll",
-        "lib/net40/BouncyCastle.Crypto.xml",
-        "lib/netstandard2.0/BouncyCastle.Crypto.dll",
-        "lib/netstandard2.0/BouncyCastle.Crypto.xml",
-        "portable.bouncycastle.1.9.0.nupkg.sha512",
-        "portable.bouncycastle.nuspec"
       ]
     },
     "Quartz/3.6.3": {
@@ -5371,10 +5406,10 @@
         "system.diagnostics.debug.nuspec"
       ]
     },
-    "System.Diagnostics.DiagnosticSource/7.0.0": {
-      "sha512": "9W0ewWDuAyDqS2PigdTxk6jDKonfgscY/hP8hm7VpxYhNHZHKvZTdRckberlFk3VnCmr3xBUyMBut12Q+T2aOw==",
+    "System.Diagnostics.DiagnosticSource/7.0.2": {
+      "sha512": "hYr3I9N9811e0Bjf2WNwAGGyTuAFbbTgX1RPLt/3Wbm68x3IGcX5Cl75CMmgT6WlNwLQ2tCCWfqYPpypjaf2xA==",
       "type": "package",
-      "path": "system.diagnostics.diagnosticsource/7.0.0",
+      "path": "system.diagnostics.diagnosticsource/7.0.2",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -5393,7 +5428,7 @@
         "lib/net7.0/System.Diagnostics.DiagnosticSource.xml",
         "lib/netstandard2.0/System.Diagnostics.DiagnosticSource.dll",
         "lib/netstandard2.0/System.Diagnostics.DiagnosticSource.xml",
-        "system.diagnostics.diagnosticsource.7.0.0.nupkg.sha512",
+        "system.diagnostics.diagnosticsource.7.0.2.nupkg.sha512",
         "system.diagnostics.diagnosticsource.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -9005,10 +9040,10 @@
         "twitchlib.communication.nuspec"
       ]
     },
-    "TwitchLib.EventSub.Core/2.4.3": {
-      "sha512": "oRo1zusqZaGIc03B7JU0+JGhveXZa/vNhEHnWwxNw0hMd9yd++jXSYoxzebTf+od/DG3P3+oxSNoaBR7/7ggKg==",
+    "TwitchLib.EventSub.Core/2.5.1": {
+      "sha512": "sooKwA1dNhP9Nbgyz/yevHZBA2uDOS2qnKx2VNidby15teVD9tziqdxKt2pfto2b3jlChyqKZHahgC0mXwI0sw==",
       "type": "package",
-      "path": "twitchlib.eventsub.core/2.4.3",
+      "path": "twitchlib.eventsub.core/2.5.1",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -9019,11 +9054,13 @@
         "lib/net6.0/TwitchLib.EventSub.Core.xml",
         "lib/net7.0/TwitchLib.EventSub.Core.dll",
         "lib/net7.0/TwitchLib.EventSub.Core.xml",
+        "lib/net8.0/TwitchLib.EventSub.Core.dll",
+        "lib/net8.0/TwitchLib.EventSub.Core.xml",
         "lib/netstandard2.0/TwitchLib.EventSub.Core.dll",
         "lib/netstandard2.0/TwitchLib.EventSub.Core.xml",
         "lib/netstandard2.1/TwitchLib.EventSub.Core.dll",
         "lib/netstandard2.1/TwitchLib.EventSub.Core.xml",
-        "twitchlib.eventsub.core.2.4.3.nupkg.sha512",
+        "twitchlib.eventsub.core.2.5.1.nupkg.sha512",
         "twitchlib.eventsub.core.nuspec"
       ]
     },
@@ -9059,13 +9096,31 @@
         "twitchlib.pubsub.3.2.6.nupkg.sha512",
         "twitchlib.pubsub.nuspec"
       ]
+    },
+    "ZstdSharp.Port/0.7.1": {
+      "sha512": "Idgg+mJEyAujqDPzA3APy9dNoyw0YQcNA65GgYjktDRtJ+nvx/hv+J+m6Eax3JJMGEYGy04oc5YNP6ZvQ3Y1vQ==",
+      "type": "package",
+      "path": "zstdsharp.port/0.7.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net461/ZstdSharp.dll",
+        "lib/net5.0/ZstdSharp.dll",
+        "lib/net6.0/ZstdSharp.dll",
+        "lib/net7.0/ZstdSharp.dll",
+        "lib/netcoreapp3.1/ZstdSharp.dll",
+        "lib/netstandard2.0/ZstdSharp.dll",
+        "lib/netstandard2.1/ZstdSharp.dll",
+        "zstdsharp.port.0.7.1.nupkg.sha512",
+        "zstdsharp.port.nuspec"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     ".NETCoreApp,Version=v3.1": [
       "F23.StringSimilarity >= 5.1.0",
       "Google.Apis.YouTube.v3 >= 1.61.0.3113",
-      "MySql.Data >= 8.0.33",
+      "MySql.Data >= 8.2.0",
       "Newtonsoft.Json >= 13.0.3",
       "OpenAI >= 1.7.2",
       "Quartz >= 3.6.3",
@@ -9076,7 +9131,7 @@
       "TwitchLib.Api.Core.Interfaces >= 3.9.0",
       "TwitchLib.Api.Helix >= 3.9.0",
       "TwitchLib.Communication >= 1.0.6",
-      "TwitchLib.EventSub.Core >= 2.4.3",
+      "TwitchLib.EventSub.Core >= 2.5.1",
       "TwitchLib.EventSub.Websockets >= 0.4.0",
       "eladaus.urldetector >= 1.4.0"
     ]
@@ -9130,7 +9185,7 @@
           },
           "MySql.Data": {
             "target": "Package",
-            "version": "[8.0.33, )"
+            "version": "[8.2.0, )"
           },
           "Newtonsoft.Json": {
             "target": "Package",
@@ -9174,7 +9229,7 @@
           },
           "TwitchLib.EventSub.Core": {
             "target": "Package",
-            "version": "[2.4.3, )"
+            "version": "[2.5.1, )"
           },
           "TwitchLib.EventSub.Websockets": {
             "target": "Package",
@@ -9211,11 +9266,14 @@
           }
         ],
         "frameworkReferences": {
+          "Microsoft.AspNetCore.App": {
+            "privateAssets": "none"
+          },
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.304\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.400\\RuntimeIdentifierGraph.json"
       }
     },
     "runtimes": {

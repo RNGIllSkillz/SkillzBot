@@ -32,6 +32,7 @@ namespace SkillzBot.IRC
                     MessagesAllowedInPeriod = 750,
                     ThrottlingPeriod = TimeSpan.FromSeconds(35)
                 };
+                
                 WebSocketClient customClient = new WebSocketClient(clientOptions);
                 client = new TwitchClient(customClient);
                 ConnectionCredentials credentials = new ConnectionCredentials(singleton.BotTwitchName, singleton.BotTwitchAuth);

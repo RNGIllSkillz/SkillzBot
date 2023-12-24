@@ -8,9 +8,11 @@ using System.Threading.Tasks;
 using SkillzBot.MYSQL;
 using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
+using SkillzBot.SubUtils;
 
 namespace SkillzBot.Tasks
 {
+    
     internal class BackGroundTasks
     {        
         public static async Task RunDaily()
@@ -36,6 +38,9 @@ namespace SkillzBot.Tasks
         {
             //Save MessageBuffer
             await IllChatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
+
+            //Check Subscription
+            SubCheck.RunChecker();
 
             //Calcucate Points
             //ToDo: Add timestamp to online status

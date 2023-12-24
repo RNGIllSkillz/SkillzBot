@@ -23,6 +23,7 @@ namespace SkillzBot.IllSkillzBot
         private static string PlatformID;
         public static async Task GetCurrentMatchTask()
         {
+            if (!singleton.isActiveSub) return;
             if (singleton.inAmatch || !singleton.autoPred) return;
             PlatformID = singleton.SummonerRegion switch
             {
@@ -52,11 +53,11 @@ namespace SkillzBot.IllSkillzBot
             var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
             if (rank == null) return;
             singleton.inAmatch = true;
-            int wchance = 65;
+            int wchance = 100;
             foreach (var mType in rank)
             {
                 if (mType.QueueType == "RANKED_SOLO_5x5")
-                    wchance = 93;
+                    wchance = 100;
             }
             while (true)
             {
@@ -178,7 +179,7 @@ namespace SkillzBot.IllSkillzBot
                         singleton.numGames++;
                         if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                         {
-                            await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                            await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
                             if (singleton.debug)
                                 Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
                             singleton.numWins++;
@@ -186,7 +187,7 @@ namespace SkillzBot.IllSkillzBot
                         }
                         else
                         {
-                            await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                            await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
                             if (singleton.debug)
                                 Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
                             singleton.numLoose++;
@@ -387,16 +388,16 @@ namespace SkillzBot.IllSkillzBot
                         if (Players[0].Flag > Players[1].Flag)
                         {
                             if (Players[0].teamID == TeamID)
-                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
                             else
-                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
                         }
                         else
                         {
                             if (Players[0].teamID == TeamID)
-                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
                             else
-                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
                         }
                     }
                 }
@@ -741,16 +742,16 @@ namespace SkillzBot.IllSkillzBot
                         if (Players[0].Flag > Players[1].Flag)
                         {
                             if (Players[0].teamID == TeamID)
-                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
                             else
-                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
                         }
                         else
                         {
                             if (Players[0].teamID == TeamID)
-                                await TtvAPI.End_WinLoose_Prediction(false).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
                             else
-                                await TtvAPI.End_WinLoose_Prediction(true).ConfigureAwait(false);
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
                         }
                     }
                 }

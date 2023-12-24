@@ -14,6 +14,8 @@ using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using System.Threading;
 using SkillzBot.JSON.Settings;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore;
 
 namespace IllSkillzBot
 {
@@ -26,7 +28,7 @@ namespace IllSkillzBot
         private static IllSingleton singleton;
         private static ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
         static async Task Main()
-        {
+        {           
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
             CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("ru-RU");
 
@@ -91,6 +93,9 @@ namespace IllSkillzBot
             PubSubClientInst = new PubSubClient();
             QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
             await quartzBackgroundTaskManager.ScheduleTasks().ConfigureAwait(false);
+
+            CreateWebHostBuilder().Build().Run();
+
             _resetEvent.Wait();
             /*
             while (true)
@@ -221,6 +226,7 @@ namespace IllSkillzBot
         }
         public static void PubSubReconnect()
         {
+            if (!singleton.isActiveSub) return;
             if (PubSubClientInst != null)
             {
                 PubSubClientInst.Dispose();
@@ -242,5 +248,8 @@ namespace IllSkillzBot
                 PubSubClientInst = new PubSubClient();
             }
         }
+        public static IWebHostBuilder CreateWebHostBuilder() =>
+        WebHost.CreateDefaultBuilder()
+            .UseStartup<Startup>();
     }
 }

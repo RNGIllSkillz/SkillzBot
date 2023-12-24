@@ -17,6 +17,7 @@ namespace SkillzBot.PubSub
     class PubSubClient : IDisposable
     {
         private static TwitchPubSub client;
+        IllSingleton singleton = IllSingleton.GetInstance();
         readonly string accToken;
         readonly string zakazTreka = IllSingleton.GetInstance().ZakazTrekaId;
         readonly string pi4ka;
@@ -35,7 +36,6 @@ namespace SkillzBot.PubSub
         public PubSubClient()
         {
             Console.Write("Initializing PubSub Client... ");
-            var singleton = IllSingleton.GetInstance();
             BrodcasterId = singleton.BrodcasterId;
             pi4ka = singleton.Pi4KaId;
             uval = singleton.UvalId;
@@ -81,11 +81,13 @@ namespace SkillzBot.PubSub
 
         private void PubSub_OnStreamDown(object sender, OnStreamDownArgs e)
         {
+            if (!singleton.isActiveSub) return;
             TtvIRCClient.OnStreamDown();
         }
 
         private void PubSub_OnStreamUp(object sender, OnStreamUpArgs e)
         {
+            if (!singleton.isActiveSub) return;
             TtvIRCClient.OnStreamUp();
         }
 
@@ -144,6 +146,7 @@ namespace SkillzBot.PubSub
         private async void PubSub_OnChannelPointsRewardRedeemed(object sender, OnChannelPointsRewardRedeemedArgs e)
         {
             if (lockPubSub) return;
+            if (!singleton.isActiveSub) return;
             await RewardProcess
             (
                 e.RewardRedeemed.Redemption.Reward.Id,
@@ -165,6 +168,7 @@ namespace SkillzBot.PubSub
 
         private void PubSub_OnFollow(object sender, OnFollowArgs e)
         {
+            if (!singleton.isActiveSub) return;
             //_logger.Information($"{e.Username} is now following");
         }
 
@@ -180,6 +184,7 @@ namespace SkillzBot.PubSub
 
         private void PubSub_OnPrediction(object sender, OnPredictionArgs e)
         {
+            if (!singleton.isActiveSub) return;
             if (e.Type == PredictionType.EventCreated)
             {
                 TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Title));
@@ -283,6 +288,7 @@ namespace SkillzBot.PubSub
         }
         private void PubSub_OnUnban(object sender, OnUnbanArgs e)
         {
+            if (!singleton.isActiveSub) return;
             TtvIRCClient.OnUnban(e);
         }
         private void PubSub_OnMessageDeleted(object sender, OnMessageDeletedArgs e)
@@ -309,6 +315,7 @@ namespace SkillzBot.PubSub
         }
         private void PubSub_OnBitsReceived(object sender, OnBitsReceivedArgs e)
         {
+            if (!singleton.isActiveSub) return;
             TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Username, e.TotalBitsUsed));
         }
 
@@ -343,6 +350,7 @@ namespace SkillzBot.PubSub
         #endregion
         private async Task RewardProcess(string rewardID, string userName, string message, string redemID)
         {
+            if (!singleton.isActiveSub) return;
             try
             {
                 if (rewardID == zakazTreka)

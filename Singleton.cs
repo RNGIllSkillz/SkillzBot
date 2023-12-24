@@ -339,6 +339,7 @@ namespace SkillzBot.Singleton
         }
         public string ChatWithBot { get; private set; }
         public string ReleaseBot { get; private set; }
+        public bool isActiveSub {  get; set; } 
         public string GPTApiToken { get; private set; }
         private string _SummonerRegion;
         public string SummonerRegion
@@ -445,6 +446,7 @@ namespace SkillzBot.Singleton
             singleton.SummonerRegion = config.GetBotConfigs().SummonerRegion;
             singleton.MySQL_IP = config.GetBotConfigs().MySQL_IP;
             singleton.MySQL_Port = config.GetBotConfigs().MySQL_Port;
+            singleton.isActiveSub = true;
             await TempDataReader.ReadGameStats().ConfigureAwait(false);
         }
     }

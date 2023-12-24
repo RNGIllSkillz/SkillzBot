@@ -31,17 +31,19 @@ namespace SkillzBot.Writers
         }
         public static void AddLineToFile(string filePath, string lineToAdd)
         {
-            string[] existingLines = File.ReadAllLines(filePath);
             string tempFilePath = Path.GetTempFileName();
             using (StreamWriter writer = new StreamWriter(tempFilePath))
             {
                 writer.WriteLine(lineToAdd);
+                string[] existingLines = File.ReadAllLines(filePath);
                 foreach (string existingLine in existingLines)
                 {
                     writer.WriteLine(existingLine);
                 }
             }
-            File.Replace(tempFilePath, filePath, null);
+            // After writing the new content to the temporary file, replace the original file.
+            File.Delete(filePath); // Delete the original file.
+            File.Move(tempFilePath, filePath);
         }
     }
 }

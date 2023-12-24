@@ -32,6 +32,7 @@ namespace SkillzBot.API.Twitch
         private static string looseID;
         private static readonly bool ValidToken = false;
         private static readonly string BrodcasterID = IllSingleton.GetInstance().BrodcasterId;
+        private static readonly int NumRecurcieveTryes = 10;
 
         static TtvAPI()
         {
@@ -219,10 +220,11 @@ namespace SkillzBot.API.Twitch
                 return null;
             }
         }
-        public static async Task End_WinLoose_Prediction(bool win)
+        public static async Task End_WinLoose_Prediction(bool win, int tryes)
         {
             if (!ValidToken) return;
-            GetPredictionsResponse Predictions;
+            if (tryes > NumRecurcieveTryes) return;
+            GetPredictionsResponse Predictions = null;
             try
             {
                 Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
@@ -230,7 +232,8 @@ namespace SkillzBot.API.Twitch
             catch (Exception ex)
             {
                 Log.WriteLog(ex, "End_WinLoose_Prediction()");
-                return;
+                await Task.Delay(1000);
+                await End_WinLoose_Prediction(win, tryes++).ConfigureAwait(false);
             }
             if (Predictions == null) return;
             string currentPredID = Predictions.Data.First().Id;
@@ -246,6 +249,8 @@ namespace SkillzBot.API.Twitch
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "End_WinLoose_Prediction()");
+                    await Task.Delay(1000);
+                    await End_WinLoose_Prediction(win, tryes++).ConfigureAwait(false);
                 }
             }
             else

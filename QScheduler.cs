@@ -160,7 +160,7 @@ public class BGTasks : IJob
                 await BackGroundTasks.MediaQueueFlush().ConfigureAwait(false);
                 break;
             case "Quizz":
-                await IllGames.Quizz(false).ConfigureAwait(false);                
+                //await IllGames.Quizz(false).ConfigureAwait(false);                
                 break;
             case "CronTest":
                 await BackGroundTasks.CronTest().ConfigureAwait(false);
