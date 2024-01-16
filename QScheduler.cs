@@ -21,7 +21,7 @@ public class QuartzBackgroundTaskManager
 
     public async Task ScheduleTasks()
     {        
-        await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/2 * * * * ?").ConfigureAwait(false);
+        await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/4 * * * * ?").ConfigureAwait(false);
         await StackBackGroundTask("RunEvery5Min", "TaskGroup", "CalculatePointsTrigger", "TriggerGroup", "0 */5 * * * ?").ConfigureAwait(false);
         await StackBackGroundTask("RunDaily", "TaskGroup", "RunDailyTrigger", "TriggerGroup", "0 0 0 * * ?").ConfigureAwait(false);
         await StackBackGroundTask("TopRuleteTask", "TaskGroup", "TopRuleteTaskTrigger", "TriggerGroup", "0 0 */3 * * ?").ConfigureAwait(false);

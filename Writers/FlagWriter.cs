@@ -8,7 +8,7 @@ namespace SkillzBot.WRITERS
     internal class FlagWriter
     {
         readonly static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath();
+        readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
         readonly static string filePath = Path.Combine(dataPath, "Flags.txt");
 
         public static void FlagWriterTask(string Message)

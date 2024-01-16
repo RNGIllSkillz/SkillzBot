@@ -12,7 +12,7 @@ namespace SkillzBot.SubUtils
         private static readonly string _FilePath;
         static AddSub()
         {
-            string dataPath = IllSkillzBotMain.GetDataPath();
+            string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
             _FilePath = Path.Combine(dataPath, "Subscription.txt");
         }
         public static DateTime NewPurchase()
@@ -32,13 +32,15 @@ namespace SkillzBot.SubUtils
                 return originalTimestamp;
             }  
         }
-        public static DateTime NewPurchase(int amount)
+        public static DateTime NewPurchase(int amount, int rate)
         {            
             DateTime originalTimestamp = calcRemaining();
             DateTime newTimestamp;
-            if (amount != 10000)
+            int daysInMonth = 31;
+            if (amount != rate)
             {
-                int daysPayed = (int)(amount / 322.5806451612903);
+                double dailyRate = rate / daysInMonth;
+                int daysPayed = (int)(amount / dailyRate);
                 newTimestamp = originalTimestamp.AddDays(daysPayed);
             }
             else

@@ -9,7 +9,7 @@ namespace SkillzBot.WRITERS
     internal class ExtractMessage
     {
         static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath();
+        readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
         readonly static string filePath = Path.Combine(dataPath, "MessageExtracted.txt");
 
 

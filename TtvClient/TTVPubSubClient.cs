@@ -59,9 +59,16 @@ namespace SkillzBot.PubSub
             ListenToRaid(BrodcasterId);
             ListenToRewards(BrodcasterId);
             ListenToSubscriptions(BrodcasterId);
-            ListenToVideoPlayback(BrodcasterId);
-            Console.WriteLine("OK.");
-            client.Connect();
+            ListenToVideoPlayback(BrodcasterId);            
+            try
+            {
+                client.Connect();
+                Console.WriteLine("OK.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERR! {ex}");
+            }
         }        
 
         #region Video Playback Events
@@ -183,12 +190,10 @@ namespace SkillzBot.PubSub
         }
 
         private void PubSub_OnPrediction(object sender, OnPredictionArgs e)
-        {
+        {            
             if (!singleton.isActiveSub) return;
             if (e.Type == PredictionType.EventCreated)
-            {
-                TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Title));
-            }
+                TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Title));            
         }
 
         #endregion
@@ -316,7 +321,7 @@ namespace SkillzBot.PubSub
         private void PubSub_OnBitsReceived(object sender, OnBitsReceivedArgs e)
         {
             if (!singleton.isActiveSub) return;
-            TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Username, e.TotalBitsUsed));
+            TtvIRCClient.SendMessage(string.Format(STRINGS.BitsRecieved, e.Username, e.TotalBitsUsed));
         }
 
         #endregion

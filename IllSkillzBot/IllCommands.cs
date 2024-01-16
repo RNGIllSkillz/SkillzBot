@@ -110,23 +110,32 @@ namespace SkillzBot.IllSkillzBot
                                 TtvIRCClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
                                 return;
                         }
-                        singleton.SUMMONER_NAME = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count()-1).ToArray()));
-                        singleton.SummonerRegion = command.Last();
-                        RiotAPI.UpdateRegion(singleton.SummonerRegion);
-                        await RiotAPI.UpdateSummonerByNameAsync(singleton.SUMMONER_NAME).ConfigureAwait(false);
-                        var Rank = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
-                        if (Rank != null)
+                        var temp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));
+                        var result = await RiotAPI.UpdateSummonerByNameAsync(temp).ConfigureAwait(false);
+                        if (result == null)
                         {
-                            if (int.TryParse(Rank[1], out int buffStartLP))
-                                singleton.startLP = buffStartLP;
-                            else
-                                singleton.startLP = 0;
-                            singleton.elo = Rank[0];
-                            singleton.tier = Rank[2];
+                            singleton.SUMMONER_NAME = temp;
+                            singleton.SummonerRegion = command.Last();
+                            RiotAPI.UpdateRegion(singleton.SummonerRegion);
+
+                            var Rank = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+                            if (Rank != null)
+                            {
+                                if (int.TryParse(Rank[1], out int buffStartLP))
+                                    singleton.startLP = buffStartLP;
+                                else
+                                    singleton.startLP = 0;
+                                singleton.elo = Rank[0];
+                                singleton.tier = Rank[2];
+                            }
+                            SaveGameStats();
+                            SaveAppConfig();
+                            await ShowLPAsync(user.Name).ConfigureAwait(false);
                         }
-                        SaveGameStats();
-                        SaveAppConfig();
-                        await ShowLPAsync(user.Name).ConfigureAwait(false);
+                        else
+                        {
+                            TtvIRCClient.SendMessage($"ERROR: {result}");
+                        }
                     }
                     else
                     {
@@ -982,7 +991,7 @@ namespace SkillzBot.IllSkillzBot
                 TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
                 return;
             }
-            var path = IllSkillzBotMain.GetDataPath();
+            var path = IllSkillzBotMain.GetDataPath().uniquePath;
             path = Path.Combine(path, singleton.UserblacklistFileName);
             if (FileManipulator.DeleteLineFromFile(path, UserToUnban.TwitchID.ToString()))
             {
@@ -1001,7 +1010,7 @@ namespace SkillzBot.IllSkillzBot
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
                 return;
             }
-            var path = IllSkillzBotMain.GetDataPath();
+            var path = IllSkillzBotMain.GetDataPath().sharedPath;
             path = Path.Combine(path, singleton.DicWhiteListFileName);
             FileManipulator.AddLineToFile(path, input[1]);
             IllChatFilters.AddToWhiteList(input[1]);

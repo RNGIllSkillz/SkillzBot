@@ -150,7 +150,7 @@ namespace SkillzBot.IRC
                 string messagePart = messageToSend.Substring(startIndex, length);
                 try
                 {
-                    StreamElementsAPI.SendChatMessage(messagePart).GetAwaiter().GetResult();                    
+                    StreamElementsAPI.SendChatMessage(messagePart).GetAwaiter().GetResult();
                     //client.SendMessage(singleton.ChannelName, messagePart);
                 }
                 catch (Exception ex)

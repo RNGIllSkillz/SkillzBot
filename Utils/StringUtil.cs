@@ -30,13 +30,15 @@ namespace SkillzBot.Utils
         {
             rankValues = new Dictionary<string, double>
             {
-                { "challenger i", 27 }, { "grandmaster i", 26 }, { "master i", 25 }, { "diamond i", 24 },
-                { "diamond ii", 23 }, { "diamond iii", 22 }, { "diamond iv", 21 }, { "platinum i", 20 },
-                { "platinum ii", 19 }, { "platinum iii", 18 }, { "platinum iv", 17 }, { "gold i", 16 },
-                { "gold ii", 15 }, { "gold iii", 14 }, { "gold iv", 13 }, { "silver i", 12 },
-                { "silver ii", 11 }, { "silver iii", 10 }, { "silver iv", 9 }, { "bronze i", 8 },
-                { "bronze ii", 7 }, { "bronze iii", 6 }, { "bronze iv", 5 }, { "iron i", 4 },
-                { "iron ii", 3 }, { "iron iii", 2 }, { "iron iv", 1 }, { "unranked", 0 }
+                { "challenger i", 31 }, { "grandmaster i", 30 }, { "master i", 29 }, { "diamond i", 28 },
+                { "diamond ii", 27 }, { "diamond iii", 26 }, { "diamond iv", 25 },
+                { "emerald i", 24 }, { "emerald ii", 23 }, { "emerald iii", 22 }, { "emerald iv", 21 }, 
+                { "platinum i", 20 }, { "platinum ii", 19 }, { "platinum iii", 18 }, { "platinum iv", 17 },
+                { "gold i", 16 }, { "gold ii", 15 }, { "gold iii", 14 }, { "gold iv", 13 },
+                { "silver i", 12 }, { "silver ii", 11 }, { "silver iii", 10 }, { "silver iv", 9 },
+                { "bronze i", 8 }, { "bronze ii", 7 }, { "bronze iii", 6 }, { "bronze iv", 5 },
+                { "iron i", 4 }, { "iron ii", 3 }, { "iron iii", 2 }, { "iron iv", 1 },
+                { "unranked", 0 }
             };
             a = new char[] { 'a', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ', 'ã', 'æ', 'å', 'ā', 'ă', 'ǎ', 'ą', 'ȁ', 'ȃ', 'ǡ', 'ǟ', 'ǻ', 'ȧ', 'ȁ' };
             b = new char[] { 'в', 'B', '฿', 'ᛒ', 'Ɓ', 'Ḅ', 'Ƃ', 'Ḇ', 'Ḃ', 'Ꞗ', 'Ƀ', 'ᛔ', 'v', 'ദ', '൫', 'ℬ', 'Ḇ' };

@@ -16,6 +16,8 @@ using System.Threading;
 using SkillzBot.JSON.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore;
+using System.Collections.Generic;
+using SkillzBot.MODELS;
 
 namespace IllSkillzBot
 {
@@ -23,6 +25,7 @@ namespace IllSkillzBot
     {
         static private int PubSubReconnects = 0;
         static string dataPath;
+        static string sharedPath;
         static string ConfigPath;
         private static PubSubClient PubSubClientInst;
         private static IllSingleton singleton;
@@ -36,56 +39,21 @@ namespace IllSkillzBot
             currentDomain.UnhandledException += new UnhandledExceptionEventHandler(MainHandler);
             Console.OutputEncoding = Encoding.UTF8;
 
-            ///docker
-            dataPath = Path.Combine(currentDomain.BaseDirectory, "Channels_Data/general_hs_/DATA/");
+
+            string channelName = Environment.GetEnvironmentVariable("ENV_CHANNEL_NAME");
+
+            dataPath = Path.Combine(currentDomain.BaseDirectory, $"Channels_Data/{channelName}/DATA/");
+            sharedPath = Path.Combine(currentDomain.BaseDirectory, $"Channels_Data/_shared/");
             Directory.CreateDirectory(dataPath);
-            //string channelName = "general_hs_";
-            ConfigPath = Path.Combine(dataPath, "general_hs_.ini");
-            singleton = IllSingleton.GetInstance();
-
-            /*
-            Console.WriteLine("Введите название канала");
-            string channelName = Console.ReadLine().ToLower();
-
-            dataPath = AppDomain.CurrentDomain.BaseDirectory + $"Channels_Data/{channelName}/DATA/";
-            Directory.CreateDirectory(dataPath);
-
-            ConfigPath = dataPath + channelName + ".ini";
+            ConfigPath = Path.Combine(dataPath, $"{channelName}.ini");
 
             if (!File.Exists(ConfigPath))
             {
-                Console.WriteLine("Файл конфигурации не найдет. Первое подключение к каналу?");
-                Console.WriteLine($"Заполните папку {dataPath} и повторите попытку");
-                Console.WriteLine($"Нужна помощь? да/нет");
-                string com = Console.ReadLine().ToLower();                    
-                if (com == "да" || com == "д" || com == "yes" || com == "y")
-                {
-                    Console.WriteLine("Создаю дефолтные файлы");
-                    Console.WriteLine(CreadDefoults(dataPath));
-                    Console.WriteLine("Файл dic.txt содержит словарь запрещенных слов. Заполнять крайне аккуратно!");
-                    Console.WriteLine("Файл dicWhiteList.txt содержит словарь разрешенных слов. Заполнять крайне аккуратно!");
-                    Console.WriteLine("Оба этих файла работают в тандеме друг с другом для модерации запрещенных слов в чате.");
-                    Console.WriteLine("Для получания отлаженных файлов dic.txt и dicWhiteList.txt, обратитесь к RNG. Их также можно скопировать из папок другик каналов, если такие имеются");
-                    Console.WriteLine("Файл mediaqueue.txt содержит текущую очередь треков. Файл не нуждается в заполнении");
-                    Console.WriteLine("Файл userblacklist.txt содержит список людей (их ID), которым запрещен заказ треков");
-                    Console.WriteLine("Файл mediaList.txt содержит список запрещенных треков (ID треков)");
-                    Console.WriteLine("Файл channelList.txt содержит список запрещенных ютуб каналов (названий каналов)");
-                    Console.WriteLine("Файл pichkaList.txt содержит список 18+ пичек. Следует добавлять всего 1 строчку из пички, желательно самую выделяющуюся");
-                    Console.WriteLine("Файл dailyStats.txt содержит буфер статистики призывателя. Файл не нуждается в заполнении");
-                    Console.WriteLine("Все файлы должны заполняться построчно");
-                    Console.WriteLine("Создаю дефолтный файл конфигурации");
-                    Console.WriteLine(CreateDefoultConfig(ConfigPath, channelName));
-                    Console.WriteLine($"Откройте файл {ConfigPath} и заполните его. После чего можно будет повторить попытку запуска бота");
-                    Console.WriteLine("Окно сейчас закроется. Нажмите Enter");
-                    Console.ReadLine();
-                    Environment.Exit(1);
-                }
-                else
-                    Environment.Exit(1);
+                Console.WriteLine(CreateDefoults(dataPath, sharedPath));
+                Console.WriteLine(CreateDefoultConfig(ConfigPath, channelName));           
             }
 
-            singleton = IllSingleton.GetInstance();
-            */
+            singleton = IllSingleton.GetInstance();            
             MySQL MySQLClientInst = new MySQL();
 
             await StartUpConfigs().ConfigureAwait(false);
@@ -96,29 +64,7 @@ namespace IllSkillzBot
 
             CreateWebHostBuilder().Build().Run();
 
-            _resetEvent.Wait();
-            /*
-            while (true)
-            {
-                
-                string input = Console.ReadLine();
-                Console.Clear();
-                Console.WriteLine(channelName);
-                switch (input)
-                {
-                    case "connect":
-                        PubSubReconnects = 0;
-                        PubSubReconnect();
-                        break;
-                    case "reward":
-                        await TtvAPI.UpdateReward(singleton.CenceleUval, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
-                        break;
-                    case "addmod":
-                        await TtvAPI.AddChannelModerator("909916537").ConfigureAwait(false);
-                        break;
-                }
-        }
-        */
+            _resetEvent.Wait();           
         }
         private static async Task StartUpConfigs()
         {            
@@ -133,15 +79,15 @@ namespace IllSkillzBot
                 Console.WriteLine($"{singleton.ChannelName} is Offline!");
             }
         }        
-        static string CreadDefoults(string DataPath)
+        static string CreateDefoults(string DataPath, string SharedPath)
         {
-            string dicDir = DataPath + "dic.txt";
-            string dicDirWhite = DataPath + "dicWhiteList.txt";
+            string dicDir = SharedPath + "dic.txt";
+            string dicDirWhite = SharedPath + "dicWhiteList.txt";
             string mediaQueueDir = DataPath + "mediaqueue.txt";
             string userBlackListDir = DataPath + "userblacklist.txt";
             string mediaBlackList = DataPath + "mediaList.txt";
             string channelBlackList = DataPath + "channelList.txt";
-            string pichkaList = DataPath + "pichkaList.txt";
+            string pichkaList = SharedPath + "pichkaList.txt";
             string dailyStatsDir = DataPath + "dailyStats.txt";
 
             try
@@ -180,7 +126,7 @@ namespace IllSkillzBot
         static string CreateDefoultConfig(string ConfPath,string ChannelName)
         {
             try
-            {
+            {/*
                 SettingsJson Settings = new SettingsJson
                 {
                     SummonerName = "Имя Призывателя",
@@ -202,7 +148,8 @@ namespace IllSkillzBot
                     UvalVipId = "Reward ID",
                     MySQL_User = "MySQL username",
                     MySQL_password = "MySQL password"
-                };
+                };*/
+                SettingsJson Settings = new SettingsJson();
                 File.WriteAllText(ConfPath, JsonConvert.SerializeObject(Settings, Formatting.Indented));
             }
             catch (Exception ex)
@@ -216,9 +163,13 @@ namespace IllSkillzBot
             Exception e = (Exception)args.ExceptionObject;
             Log.WriteLog(e, "MainHandler caught : ");
         }
-        public static string GetDataPath()
+        public static ConfPathes GetDataPath()
         {
-            return dataPath;
+            return new ConfPathes
+            {
+                sharedPath = sharedPath,
+                uniquePath = dataPath
+            };
         }
         public static string GetConfigPath()
         {

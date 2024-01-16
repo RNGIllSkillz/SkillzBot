@@ -11,6 +11,7 @@ using SkillzBot.IRC;
 using System.Linq;
 using RiotSharp.Endpoints.SpectatorEndpoint;
 using RiotSharp.Endpoints.MatchEndpoint;
+using System.Threading;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -44,8 +45,9 @@ namespace SkillzBot.IllSkillzBot
             if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
             if (currentGame.GameType == RiotSharp.Misc.GameType.CustomGame)
             {
-                TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
-                return;
+                TtvIRCClient.SendMessage($"debug currentGame.GameType = {currentGame.GameType.ToString()}, CustomGame = {RiotSharp.Misc.GameType.CustomGame.ToString()}");
+                //TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
+                //return;
             }
             //await DisableRewardAsync().ConfigureAwait(false);
             await CalculateGameStats(currentGame).ConfigureAwait(false);
@@ -153,6 +155,7 @@ namespace SkillzBot.IllSkillzBot
                 Log.WriteLog(null, "Ставка запущена");
                 Log.WriteLog(null, $"currentGameID: {currentGameID}");
             }
+            int errorThreshHold = 0;
             while (singleton.inAmatch)
             {
                 try
@@ -162,14 +165,28 @@ namespace SkillzBot.IllSkillzBot
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "Prediction_WIN_LOOSE_1");
-                    singleton.inAmatch = false;
-                    break;
+                    errorThreshHold++;
+                    if (errorThreshHold > 5)
+                    {
+                        singleton.inAmatch = false;
+                        break;
+                    }
+                    else
+                    {
+                        await Task.Delay(2000).ConfigureAwait(false);
+                        continue;
+                    }
+                }
+                if (errorThreshHold != 0)
+                {
+                    Console.WriteLine($"Rcovered from {errorThreshHold} errorThreshHold");
+                    errorThreshHold = 0;
                 }
                 if (onMatch == null)
                 {
-                    await Task.Delay(2000).ConfigureAwait(false);
+                    await Task.Delay(4000).ConfigureAwait(false);
                     continue;
-                }
+                }   
                 singleton.inAmatch = false;
                 var Participant = RiotAPI.GetParticipantByMatch(onMatch);
                 if (Participant != null)
@@ -235,7 +252,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch == null)
                 {
-                    await Task.Delay(2000).ConfigureAwait(false);
+                    await Task.Delay(4000).ConfigureAwait(false);
                     continue;
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
@@ -327,7 +344,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch == null)
                 {
-                    await Task.Delay(2000).ConfigureAwait(false);
+                    await Task.Delay(4000).ConfigureAwait(false);
                     continue;
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
@@ -454,7 +471,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch == null)
                 {
-                    await Task.Delay(2000).ConfigureAwait(false);
+                    await Task.Delay(4000).ConfigureAwait(false);
                     continue;
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
@@ -585,7 +602,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch == null)
                 {
-                    await Task.Delay(2000).ConfigureAwait(false);
+                    await Task.Delay(4000).ConfigureAwait(false);
                     continue;
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
@@ -686,7 +703,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch == null)
                 {
-                    await Task.Delay(2000).ConfigureAwait(false);
+                    await Task.Delay(4000).ConfigureAwait(false);
                     continue;
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
@@ -791,7 +808,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch == null)
                 {
-                    await Task.Delay(2000).ConfigureAwait(false);
+                    await Task.Delay(4000).ConfigureAwait(false);
                     continue;
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
@@ -930,8 +947,16 @@ namespace SkillzBot.IllSkillzBot
             int[] data = new int[2];
             data[0] = 0;
             data[1] = 0;
+            int numtryes = 0;
             var summoner = await RiotAPI.GetSummonerByNameAsync(summonerName).ConfigureAwait(false);
-            if (summoner == null) return data;
+            while (summoner == null && numtryes < 5)
+            {
+                summoner = await RiotAPI.GetSummonerByNameAsync(summonerName).ConfigureAwait(false);
+                numtryes++;
+                Thread.Sleep(2000);
+            }
+            if (summoner == null)
+                return data;
             var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync(summoner.Id).ConfigureAwait(false);
             if (rank == null) return data;
             var rankedSoloQueue = rank.FirstOrDefault(Queues => Queues.QueueType == "RANKED_SOLO_5x5");

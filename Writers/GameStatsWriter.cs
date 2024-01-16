@@ -7,7 +7,7 @@ namespace SkillzBot.Writers
     internal sealed class GameStatsWriter
     {
         readonly static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath();
+        readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
         readonly static string filePath = Path.Combine(dataPath, "dailyStats.txt");
 
         public static void Write(string stats)

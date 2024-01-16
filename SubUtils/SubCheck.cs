@@ -14,7 +14,7 @@ namespace SkillzBot.SubUtils
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         static SubCheck()
         {
-            string dataPath = IllSkillzBotMain.GetDataPath();
+            string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
             _FilePath = Path.Combine(dataPath, "Subscription.txt");
         }
         public static bool RunChecker()

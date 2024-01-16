@@ -10,7 +10,7 @@ namespace SkillzBot.WRITERS
     internal class MediaqueueWriter
     {
         static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath();
+        readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
         readonly static string filePath = Path.Combine(dataPath, "mediaqueue.txt");
 
         public static void Write(int userID, string trackID)

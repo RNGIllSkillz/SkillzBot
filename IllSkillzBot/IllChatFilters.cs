@@ -18,7 +18,7 @@ namespace SkillzBot.IllSkillzBot
 {
     sealed class IllChatFilters
     {
-        private static readonly string dataPath = IllSkillzBotMain.GetDataPath();
+        private static readonly ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
         private static readonly HashSet<string> pichkaBlack;
         private static readonly HashSet<string> mediaBlack;
         private static readonly HashSet<string> channelBlack;
@@ -30,12 +30,12 @@ namespace SkillzBot.IllSkillzBot
 
         static IllChatFilters()
         {
-            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.PichkaListFileName)));
-            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.MediaListFileName)));
-            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.ChannelListFileName)));
-            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.DicFileName)));
-            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.DicWhiteListFileName)));
-            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath, singleton.UserblacklistFileName)));
+            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.PichkaListFileName)));
+            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.MediaListFileName)));
+            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.ChannelListFileName)));
+            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.DicFileName)));
+            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.DicWhiteListFileName)));
+            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.uniquePath, singleton.UserblacklistFileName)));
             Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
         }
         public static bool CheckBooB(string message)

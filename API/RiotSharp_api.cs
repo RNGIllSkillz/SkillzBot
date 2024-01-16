@@ -227,16 +227,18 @@ namespace SkillzBot.API.Riot
                 return null;
             }
         }  
-        public static async Task UpdateSummonerByNameAsync(string summonerName)
+        public static async Task<string> UpdateSummonerByNameAsync(string summonerName)
         {
-            if (!IsValidToken) return;
+            if (!IsValidToken) return null;
             try
             {
                 summoner = await riotApi.Summoner.GetSummonerByNameAsync(region, summonerName).ConfigureAwait(false);
+                return null;
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "UpdateSummonerByNameAsync");
+                Log.WriteLog(ex.InnerException, "UpdateSummonerByNameAsync");
+                return ex.Message;
             }
         }
         public static async Task<Summoner> GetSummonerByNameAsync(string summonerName)
