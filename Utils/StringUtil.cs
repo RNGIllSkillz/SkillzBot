@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -40,12 +41,12 @@ namespace SkillzBot.Utils
                 { "iron i", 4 }, { "iron ii", 3 }, { "iron iii", 2 }, { "iron iv", 1 },
                 { "unranked", 0 }
             };
-            a = new char[] { 'a', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ', 'ã', 'æ', 'å', 'ā', 'ă', 'ǎ', 'ą', 'ȁ', 'ȃ', 'ǡ', 'ǟ', 'ǻ', 'ȧ', 'ȁ' };
+            a = new char[] { 'a','а', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ', 'ã', 'æ', 'å', 'ā', 'ă', 'ǎ', 'ą', 'ȁ', 'ȃ', 'ǡ', 'ǟ', 'ǻ', 'ȧ', 'ȁ' };
             b = new char[] { 'в', 'B', '฿', 'ᛒ', 'Ɓ', 'Ḅ', 'Ƃ', 'Ḇ', 'Ḃ', 'Ꞗ', 'Ƀ', 'ᛔ', 'v', 'ദ', '൫', 'ℬ', 'Ḇ' };
-            o = new char[] { 'o', '0', 'ó', 'ô', 'õ', 'ò', 'ó', 'ø', 'ö', 'ō', 'ŏ', 'ő', 'ȯ', 'ȫ', 'ȭ', 'ơ', 'ờ', 'ớ', 'ở', 'ỡ', 'ợ', 'ọ', 'ø', 'ǫ', 'ǭ', 'ǿ', 'ȍ', 'ȏ', 'ⓞ', '⒪', '○', '◯', '◎', '◌', '◍', '◐', '◑', '⚪', 'ꝋ', 'Ꝍ' };
+            o = new char[] { 'о', 'o', '0', 'ó', 'ô', 'õ', 'ò', 'ó', 'ø', 'ö', 'ō', 'ŏ', 'ő', 'ȯ', 'ȫ', 'ȭ', 'ơ', 'ờ', 'ớ', 'ở', 'ỡ', 'ợ', 'ọ', 'ø', 'ǫ', 'ǭ', 'ǿ', 'ȍ', 'ȏ', 'ⓞ', '⒪', '○', '◯', '◎', '◌', '◍', '◐', '◑', '⚪', 'ꝋ', 'Ꝍ' };
             i = new char[] { 'и', 'i', 'u', 'ⓤ', '⒰', 'υ', 'ṳ', 'ṵ', 'ṷ', 'ὓ', 'ὔ', 'ὕ', 'ὖ', 'ὗ' };
-            r = new char[] { 'p', 'r', 'ρ', 'ℛ', 'ℙ', 'ℜ', 'ℝ', 'Ⓟ', 'Ⓡ', 'Ɽ', 'ᖇ', '℞', '℟', 'Ṙ', 'Ṗ', 'Ṕ', 'Ṛ', 'Ṝ', 'Ṟ', 'ᴘ' };
-            p = new char[] { 'п', 'π', 'n', 'ń', 'ǹ', 'ṅ', 'ň', 'ñ', 'ņ', 'ƞ', 'ṇ', 'ṋ' };
+            r = new char[] { 'р', 'p', 'r', 'ρ', 'ℛ', 'ℙ', 'ℜ', 'ℝ', 'Ⓟ', 'Ⓡ', 'Ɽ', 'ᖇ', '℞', '℟', 'Ṙ', 'Ṗ', 'Ṕ', 'Ṛ', 'Ṝ', 'Ṟ', 'ᴘ' };
+            p = new char[] { 'р', 'п', 'π', 'n', 'ń', 'ǹ', 'ṅ', 'ň', 'ñ', 'ņ', 'ƞ', 'ṇ', 'ṋ', 'p', 'r', 'ρ', 'ℙ', 'Ⓟ', 'Ṗ', 'Ṕ', 'ᴘ' };
             h = new char[] { 'н', 'H', 'ℋ', 'ℍ', 'Ḥ', 'Ḧ', 'Ḩ', 'Ἢ', 'Ἡ', 'Ἦ', 'Ἠ', 'Ḫ', 'Ἤ', 'Ἥ', 'Ἧ', 'ᾘ', 'ᾙ', 'ᾟ', 'ᾞ', 'ᾝ', 'H', 'ᾜ', 'ᾛ', 'ᾚ' };
             g = new char[] { 'д', 'g', 'D'};
             m = new char[] { 'м', 'm', 'ⓜ', '⒨', 'ṃ', 'ḿ', 'ṁ', 'm', '♏', 'Ḿ', 'Ṁ', 'Ṃ', 'ന' };
@@ -113,6 +114,7 @@ namespace SkillzBot.Utils
         {
             if (str.Length > 0)
             {
+                var set = new HashSet<char>(new char[] { ' ', '.', ',', '!', '_', '-' });
                 str = str.ToLower();
                 var chars = str.ToCharArray();
                 var res = new char[chars.Length];
@@ -120,7 +122,7 @@ namespace SkillzBot.Utils
                 res[0] = str[0];
                 for (var i = 1; i < chars.Length; i++)
                 {
-                    if ((chars[i] != ' ' && chars[i] != '.' && chars[i] != ',' && chars[i] != '!' && chars[i] != '_' && chars[i] != '-') && res[index] != chars[i])
+                    if (!set.Contains(chars[i]) && res[index] != chars[i])
                     {
                         res[++index] = chars[i];
                     }
@@ -266,5 +268,56 @@ namespace SkillzBot.Utils
             }
             return null;
         }
+        public static HashSet<string> GenerateDictionary(HashSet<string> dictionary)
+        {
+            Console.WriteLine("Generating Variations");
+            HashSet<string> dictionaryGen = new HashSet<string>();
+            foreach (string s in dictionary)
+            {
+                dictionaryGen.UnionWith(GenerateVariations(s));
+            }
+            Console.WriteLine($"{dictionaryGen.Count} variations has been generated!");
+            return dictionaryGen;
+        }
+
+
+        private static void GenerateVariationsRecursive(string input, int index, string current, HashSet<string> variations)
+        {
+            if (index == input.Length)
+            {
+                variations.Add(current);
+                return;
+            }
+
+            char currentChar = input[index];
+            string similarChars = GetSimilarCharacters(currentChar);
+            foreach (char similarChar in similarChars)
+            {
+                GenerateVariationsRecursive(input, index + 1, current + similarChar, variations);
+            }
+        }
+        private static HashSet<string> GenerateVariations(string input)
+        {
+            HashSet<string> variations = new HashSet<string>();
+            GenerateVariationsRecursive(input, 0, "", variations);
+            return variations;
+        }
+        private static string GetSimilarCharacters(char c)
+        {
+            return c switch
+            {
+                'о' => new string(o),
+                'п' => new string(p),
+                'а' => new string(a),
+                'р' => new string(r),
+                'д' => new string(g),
+                'н' => new string(h),
+                'и' => new string(i),
+                'к' => new string(k),
+                'е' => new string(e),
+                'г' => "гg",
+                _ => c.ToString(),
+            };
+        }        
     }
 }

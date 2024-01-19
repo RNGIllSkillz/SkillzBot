@@ -13,6 +13,7 @@ using SkillzBot.Singleton;
 using System.Linq;
 using System.Text.RegularExpressions;
 using urldetector.detection;
+using System.Text;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -23,11 +24,11 @@ namespace SkillzBot.IllSkillzBot
         private static readonly HashSet<string> mediaBlack;
         private static readonly HashSet<string> channelBlack;
         private static readonly HashSet<string> dictionary;
+        private static readonly HashSet<string> dictionaryGen;
         private static HashSet<string> whiteList;
         private static HashSet<string> userBlackList;
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
-        private static readonly int[] Arabic2;        
-
+        private static readonly int[] Arabic2;
         static IllChatFilters()
         {
             pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.PichkaListFileName)));
@@ -37,7 +38,10 @@ namespace SkillzBot.IllSkillzBot
             whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.DicWhiteListFileName)));
             userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.uniquePath, singleton.UserblacklistFileName)));
             Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
+            dictionaryGen = StringUtil.GenerateDictionary(dictionary);   
         }
+       
+
         public static bool CheckBooB(string message)
         {            
             foreach (var pickString in pichkaBlack)
@@ -56,9 +60,9 @@ namespace SkillzBot.IllSkillzBot
         {      
             if (channelBlack.Contains(channelName)) return true;
             return false;
-        }                                                            
+        }
         public static bool ZapCheck(string message, string name)
-        {            
+        {
             var exact = message.Split(' ');
             var CleanMessage = StringUtil.Clean(message);
             foreach (var white in whiteList)
@@ -66,21 +70,20 @@ namespace SkillzBot.IllSkillzBot
                 CleanMessage = CleanMessage.Replace(white, "");
             }
             CleanMessage = StringUtil.Clean(CleanMessage);
-            foreach (var word in dictionary)            
+            foreach (var word in dictionaryGen)
                 if (CleanMessage.Contains(word))
                 {
-                    FlagWriter.FlagWriterTask($"{name} : {message} : {word}");                    
+                    FlagWriter.FlagWriterTask($"{name} : {message} : {word}");
                     return true;
                 }
-            
             foreach (var exactWord in exact)
-                if (dictionary.Contains(StringUtil.Clean(exactWord)))
+                if (dictionaryGen.Contains(StringUtil.Clean(exactWord)))
                 {
                     FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {exactWord}");
                     return true;
                 }
             return false;
-        }
+        }        
         public static async Task<List<string>> YouTubeFilter(string ID)
         {
             List<string> output = new List<string>();
@@ -157,5 +160,37 @@ namespace SkillzBot.IllSkillzBot
         {
             whiteList.Add(WordToAdd);
         }
+
+
+        /////
+        /*
+        public static bool ZapCheck_DEPRICATED(string message, string name)
+        {
+            var exact = message.Split(' ');
+            var CleanMessage = StringUtil.Clean(message);
+            foreach (var white in whiteList)
+            {
+                CleanMessage = CleanMessage.Replace(white, "");
+            }
+            CleanMessage = StringUtil.Clean(CleanMessage);
+            foreach (var word in dictionary)
+                if (CleanMessage.Contains(word))
+                {
+                    FlagWriter.FlagWriterTask($"{name} : {message} : {word}");
+                    return true;
+                }
+
+            foreach (var exactWord in exact)
+                if (dictionary.Contains(StringUtil.Clean(exactWord)))
+                {
+                    FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {exactWord}");
+                    return true;
+                }
+            return false;
+        }
+
+
+        */
+        /////
     }
 }
