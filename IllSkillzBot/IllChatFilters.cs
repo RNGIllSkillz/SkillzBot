@@ -71,7 +71,7 @@ namespace SkillzBot.IllSkillzBot
             }
             CleanMessage = StringUtil.Clean(CleanMessage);
             foreach (var word in dictionaryGen)
-                if (CleanMessage.Contains(word))
+                if (CleanMessage.Contains(word, StringComparison.OrdinalIgnoreCase))
                 {
                     FlagWriter.FlagWriterTask($"{name} : {message} : {word}");
                     return true;
