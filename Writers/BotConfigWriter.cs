@@ -60,7 +60,11 @@ namespace SkillzBot.Writers
                     GPTApiToken = singleton.GPTApiToken,
                     SummonerRegion = singleton.SummonerRegion,
                     MySQL_IP = singleton.MySQL_IP,
-                    MySQL_Port = singleton.MySQL_Port
+                    MySQL_Port = singleton.MySQL_Port,
+                    ChatFilterLvl = singleton.ChatFilterLvl,
+                    DiscordBotToken = singleton.DiscordBotToken,
+                    DiscordNoteID = singleton.DiscordNoteID,
+                    DiscordSpamID = singleton.DiscordSpamID
                 };
                 File.WriteAllText(filePath, JsonConvert.SerializeObject(Settings, Formatting.Indented));               
             }

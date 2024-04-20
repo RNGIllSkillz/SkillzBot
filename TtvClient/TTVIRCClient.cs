@@ -15,6 +15,11 @@ using SkillzBot.Singleton;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
+using SkillzBot.Discord;
+using MySqlX.XDevAPI;
+using TwitchLib.Communication.Enums;
+using TwitchLib.Communication.Interfaces;
+using SkillzBot.API.Twitch;
 
 namespace SkillzBot.IRC
 {
@@ -30,9 +35,8 @@ namespace SkillzBot.IRC
                 var clientOptions = new ClientOptions
                 {
                     MessagesAllowedInPeriod = 750,
-                    ThrottlingPeriod = TimeSpan.FromSeconds(35)
+                    ThrottlingPeriod = TimeSpan.FromSeconds(30)
                 };
-                
                 WebSocketClient customClient = new WebSocketClient(clientOptions);
                 client = new TwitchClient(customClient);
                 ConnectionCredentials credentials = new ConnectionCredentials(singleton.BotTwitchName, singleton.BotTwitchAuth);
@@ -84,20 +88,43 @@ namespace SkillzBot.IRC
                 Log.WriteLog(ex, "");
             }
         }  
-        public static void OnStreamDown()
+        public static async Task OnStreamDown()
         {
             singleton.BroadcasterIsOnline = false;
             IllGames.ClearQuizzActiveUsers();
-            singleton.FirstQuizzOfTheDay = true;             
-            if (singleton.earnedLP <= 0)
+            var lastStats = IllCommands.GetLpAsync().GetAwaiter().GetResult();
+            string msg = $"Cыграно {singleton.numGames} игр, из них побед {singleton.numWins} / поражений {singleton.numLoose}. Заработано {singleton.earnedLP} LP";
+            singleton.FirstQuizzOfTheDay = true;
+            if (singleton.earnedLP < 0)
+            {
                 SendMessage(STRINGS.OnStreadDownLowLP);
-            else
+                await DiscordClient.SendEmbedMsg("С позором!", "", singleton.SUMMONER_NAME, lastStats.RANK, lastStats.LPoints, null, false, msg).ConfigureAwait(false);
+            }
+            else if (singleton.earnedLP > 0)
+            {
                 SendMessage(STRINGS.OnStreadDownHighLP);
+                await DiscordClient.SendEmbedMsg("Героем!", "", singleton.SUMMONER_NAME, lastStats.RANK, lastStats.LPoints, null, false, msg).ConfigureAwait(false);
+            }
+            else
+            {
+                SendMessage("Стример офнул PoroSad");             
+                await DiscordClient.SendEmbedMsg("", "", singleton.SUMMONER_NAME, lastStats.RANK, lastStats.LPoints, null, false, msg).ConfigureAwait(false);
+            }
         }
-        public static void OnStreamUp()
+        public static async Task OnStreamUp()
         {
             singleton.BroadcasterIsOnline = true;
             SendMessage(string.Format(STRINGS.OnStreamUP, singleton.ChannelName));
+            var info = await TtvAPI.GetStreamInfo().ConfigureAwait(false);
+            var lp = await IllCommands.GetLpAsync().ConfigureAwait(false);
+            if (info != null)
+                DiscordClient.SendEmbedMsg(info.Title, info.ThumbnailUrl, singleton.SUMMONER_NAME,lp.RANK,lp.LPoints).GetAwaiter().GetResult();
+            else
+            {
+                var cInfo = await TtvAPI.GetChannelInformationAsync().ConfigureAwait(false);
+                if (cInfo != null)
+                    DiscordClient.SendEmbedMsg(cInfo.Title, null, singleton.SUMMONER_NAME, lp.RANK, lp.LPoints).GetAwaiter().GetResult();
+            }
         }                        
         public static void OnUnban(OnUnbanArgs e)
         {
@@ -138,6 +165,7 @@ namespace SkillzBot.IRC
                         {
                             StreamElementsAPI.SendChatMessage(STRINGS.SendMessageERROR).GetAwaiter().GetResult();
                             //client.SendMessage(singleton.ChannelName, STRINGS.SendMessageERROR);
+                            
                         }
                         catch (Exception ex)
                         {

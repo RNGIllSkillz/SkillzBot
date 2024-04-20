@@ -14,6 +14,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using urldetector.detection;
 using System.Text;
+using SkillzBot.Discord;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -38,7 +39,7 @@ namespace SkillzBot.IllSkillzBot
             whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.DicWhiteListFileName)));
             userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.uniquePath, singleton.UserblacklistFileName)));
             Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
-            dictionaryGen = StringUtil.GenerateDictionary(dictionary);   
+            dictionaryGen = StringUtil.GenerateDictionary(dictionary);
         }
        
 

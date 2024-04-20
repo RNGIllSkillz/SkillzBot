@@ -11,7 +11,6 @@ Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\ru\SkillzBot.resources
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\urldetector.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\F23.StringSimilarity.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Google.Apis.dll
-Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Google.Apis.Auth.PlatformServices.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Google.Apis.Auth.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Google.Apis.Core.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Google.Apis.YouTube.v3.dll
@@ -379,3 +378,16 @@ Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Security.Crypto
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Security.Cryptography.Xml.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\BouncyCastle.Cryptography.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\ZstdSharp.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.CodeDom.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Management.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Discord.Net.Commands.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Discord.Net.Core.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Discord.Net.Interactions.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Discord.Net.Rest.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Discord.Net.Webhook.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Discord.Net.WebSocket.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Interactive.Async.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Linq.Async.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Reactive.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Reactive.xml
+Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.sourcelink.json

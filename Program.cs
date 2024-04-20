@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore;
 using System.Collections.Generic;
 using SkillzBot.MODELS;
+using SkillzBot.Discord;
 
 namespace IllSkillzBot
 {
@@ -29,7 +30,7 @@ namespace IllSkillzBot
         static string ConfigPath;
         private static PubSubClient PubSubClientInst;
         private static IllSingleton singleton;
-        private static ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
+        private readonly static ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
         static async Task Main()
         {           
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
@@ -55,6 +56,7 @@ namespace IllSkillzBot
 
             singleton = IllSingleton.GetInstance();            
             MySQL MySQLClientInst = new MySQL();
+            DiscordClient discordClient = new DiscordClient();
 
             await StartUpConfigs().ConfigureAwait(false);
             TtvIRCClient TtvIRCClientInst = new TtvIRCClient();
@@ -62,7 +64,9 @@ namespace IllSkillzBot
             QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
             await quartzBackgroundTaskManager.ScheduleTasks().ConfigureAwait(false);
 
-            CreateWebHostBuilder().Build().Run();
+            CreateWebHostBuilder()
+                .Build()
+                .Run();
 
             _resetEvent.Wait();           
         }

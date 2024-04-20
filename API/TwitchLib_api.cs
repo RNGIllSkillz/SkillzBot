@@ -21,6 +21,9 @@ using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomRewardRedemption;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using SkillzBot.Utils;
+using Google.Protobuf.WellKnownTypes;
+using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
+using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
 
 namespace SkillzBot.API.Twitch
 {
@@ -716,6 +719,64 @@ namespace SkillzBot.API.Twitch
                 Log.WriteLog(ex, "TimeOutUser");
             }
         }
+        public static async Task SendWhisper(string toUserID, string message, bool newRec = true)
+        {
+            if (!ValidToken) return;
+            try
+            {
+                await API.Helix.Whispers.SendWhisperAsync(BrodcasterID, toUserID, message, newRec).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "SendWhisper");
+            }
+        }
+        public static async Task<Moderator[]> GetAllMods()
+        {
+            if (!ValidToken) return null;
+            GetModeratorsResponse Responce;
+            try
+            {
+                Responce = await API.Helix.Moderation.GetModeratorsAsync(BrodcasterID,null,100).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetAllModsIds");
+                return null;
+            }
+            return Responce.Data;
+        }
+        public static async Task<Stream> GetStreamInfo()
+        {
+            if (!ValidToken) return null;
+            try
+            {
+                var responce = await API.Helix.Streams.GetStreamsAsync(null,1,null,null,new List<string> { BrodcasterID }).ConfigureAwait(false);
+                if (responce.Streams == null) return null;
+                return responce.Streams[0];
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetStreamInfo");
+                return null;
+            }
+        }
+        public static async Task<ChannelInformation> GetChannelInformationAsync()
+        {
+            if (!ValidToken) return null;
+            try
+            {
+                var responce = await API.Helix.Channels.GetChannelInformationAsync(BrodcasterID).ConfigureAwait(false);
+                if (responce.Data == null) return null;
+                return responce.Data[0];
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetStreamInfo");
+                return null;
+            }
+        }
+
         /*
         public static async Task<SChatters> GetChattersAsyncDepricated()
         {
@@ -771,6 +832,22 @@ namespace SkillzBot.API.Twitch
             {
                 Log.WriteLog(ex, "GetClipByID");
                 return false;
+            }
+        }
+        public static async Task<string> GetUsetIDByName(string UserLogin)
+        {
+            if (!ValidToken) return null;
+            try
+            {
+                List<string> list = new List<string> { UserLogin };
+                var Responce = await API.Helix.Users.GetUsersAsync(null, list).ConfigureAwait(false);
+                if (Responce.Users == null) return null;
+                return Responce.Users[0].Id;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "GetUsetIDByName");
+                return null;
             }
         }
     }

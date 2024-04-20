@@ -14,6 +14,7 @@ using RiotSharp.Endpoints.StaticDataEndpoint.Champion;
 using SkillzBot.Utils;
 using System.Globalization;
 using SkillzBot.MODELS;
+using SkillzBot.IRC;
 
 namespace SkillzBot.API.Riot
 {
@@ -169,12 +170,25 @@ namespace SkillzBot.API.Riot
                 }
             }
         }
-        public static async Task<List<LeagueEntry>> GetLeagueEntriesBySummonerAsync()
+        public static async Task<List<LeagueEntry>> GetLeagueEntriesBySummonerAsync(string SummonerName = null, string sRegion = null)
         {
             if (!IsValidToken) return null;
             try
             {
-                return await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+                if (SummonerName == null || sRegion == null)
+                    return await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+                else
+                {
+                    var tRegion = sRegion switch
+                    {
+                        "ru" => Region.Ru,
+                        "euw" => Region.Euw,
+                        "na" => Region.Na,
+                        _ => Region.Euw,
+                    };
+                    var tSummoner = await riotApi.Summoner.GetSummonerByNameAsync(tRegion, SummonerName).ConfigureAwait(false);
+                    return await riotApi.League.GetLeagueEntriesBySummonerAsync(summoner.Region, summoner.Id).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
@@ -227,12 +241,20 @@ namespace SkillzBot.API.Riot
                 return null;
             }
         }  
-        public static async Task<string> UpdateSummonerByNameAsync(string summonerName)
+        public static async Task<string> UpdateSummonerByNameAsync(string summonerName, string inRegion)
         {
             if (!IsValidToken) return null;
             try
             {
-                summoner = await riotApi.Summoner.GetSummonerByNameAsync(region, summonerName).ConfigureAwait(false);
+                var newRegion = inRegion switch
+                {
+                    "ru" => Region.Ru,
+                    "euw" => Region.Euw,
+                    "na" => Region.Na,
+                    _ => Region.Euw,
+                };
+
+                summoner = await riotApi.Summoner.GetSummonerByNameAsync(newRegion, summonerName).ConfigureAwait(false);
                 return null;
             }
             catch (Exception ex)

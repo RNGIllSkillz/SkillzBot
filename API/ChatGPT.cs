@@ -10,6 +10,7 @@ using TwitchLib.Api.Helix;
 using SkillzBot.Singleton;
 using SkillzBot.Utils;
 using SkillzBot.WRITERS;
+using SkillzBot.Discord;
 
 namespace SkillzBot.API.OpenAI
 {
@@ -54,13 +55,19 @@ namespace SkillzBot.API.OpenAI
             if (!ValidToken) return "";
             chat.AppendUserInput(input);
             try
-            {                
+            {
                 return await chat.GetResponseFromChatbotAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 return ex.Message;                
             }
+        }
+        public static async Task<string> GetGptResponceBasic(string input)
+        {
+            var api = new OpenAIAPI(IllSingleton.GetInstance().GPTApiToken);
+            var result = await api.Chat.CreateChatCompletionAsync(input);
+            return result.Object;
         }
         public static void CreateNewChat()
         {

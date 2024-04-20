@@ -12,8 +12,8 @@ using SkillzBot.Singleton;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
-using SkillzBot.Tasks;
 using SkillzBot.MODELS;
+using SkillzBot.QuartZ;
 
 namespace SkillzBot.TtvClient.TTVRewards
 {
@@ -357,7 +357,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         MediaBlackListWriter.Write(yID);
                         var user2 = await MySQL.GetUser(UserName).ConfigureAwait(false);
                         if (user2.dbID == -404) return false;
-                        await IllCommands.IllBanUser(user2).ConfigureAwait(false);                        
+                        await IllCommands.IllFilterTrigger(user2).ConfigureAwait(false);                        
                         FlagWriter.FlagWriterTask($"{UserName} : {Link}");
                         return false;
 
@@ -490,7 +490,7 @@ namespace SkillzBot.TtvClient.TTVRewards
         }
         public static async Task ChatWithBot(string UserName, string message, string redemID, string rewardID)
         {
-            var responce = await IllCommands.GetGPTResponce(UserName, message).ConfigureAwait(false);
+            var responce = await IllCommands.GetGPTResponce(message, UserName).ConfigureAwait(false);
             if (responce == "900")
             {
                 TtvIRCClient.SendMessage($"@{UserName} Возможно в сгенерированном тексте присутствуют запретные слова. Текст не будет отображен. Баллы не вернутся.");

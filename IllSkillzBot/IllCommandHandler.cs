@@ -143,7 +143,7 @@ namespace SkillzBot.IllSkillzBot
                         break;
 
                     case "!deletemod":
-                        await IllCommands.DeleteModerator(user, Command).ConfigureAwait(false);
+                        await IllModeratorsInteractions.IllDeleteModerator(user, Command).ConfigureAwait(false);
                         break;
 
                     case "!deletevip":
@@ -155,7 +155,7 @@ namespace SkillzBot.IllSkillzBot
                         break;
 
                     case "!addmod":
-                        await IllCommands.AddModerator(user, Command).ConfigureAwait(false);
+                        await IllModeratorsInteractions.IllAddModerator(user, Command).ConfigureAwait(false);
                         break;
 
                     case "!cron":
@@ -191,6 +191,15 @@ namespace SkillzBot.IllSkillzBot
                         break;
                     case "!subcheck":
                         IllCommands.CheckSubscription(user);
+                        break;
+                    case "!chatfilter":
+                        IllCommands.SetChatfilterLvl(user, Command);
+                        break;
+                    case "!getmods":
+                        await IllCommands.GetMods(user).ConfigureAwait(false);
+                        break;
+                    case "!шептун":
+                        await IllCommands.Sheptun(user).ConfigureAwait(false);
                         break;
                     default:
                         break;

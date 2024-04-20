@@ -10,11 +10,10 @@ using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
 using SkillzBot.SubUtils;
 
-namespace SkillzBot.Tasks
+namespace SkillzBot.QuartZ
 {
-    
     internal class BackGroundTasks
-    {        
+    {
         public static async Task RunDaily()
         {
             var t = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
@@ -83,7 +82,7 @@ namespace SkillzBot.Tasks
         }
         public static async Task MediaQueueFlush()
         {
-           await MediaqueueWriter.MediaQueueFlush().ConfigureAwait(false);
+            await MediaqueueWriter.MediaQueueFlush().ConfigureAwait(false);
         }
         public static async Task CronTest()
         {
@@ -94,12 +93,12 @@ namespace SkillzBot.Tasks
         {
             await Task.Delay(2000).ConfigureAwait(false); // wait for PubSub time out event
             while (true)
-            {                
+            {
                 var user = await MySQL.GetUser(UserName).ConfigureAwait(false);
                 if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
                 {
-                    while (!await TtvAPI.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))                    
-                        await Task.Delay(1000).ConfigureAwait(false);                    
+                    while (!await TtvAPI.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))
+                        await Task.Delay(1000).ConfigureAwait(false);
                     return;
                 }
                 await Task.Delay(1000).ConfigureAwait(false);

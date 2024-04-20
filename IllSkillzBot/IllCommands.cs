@@ -22,11 +22,13 @@ using IllSkillzBot;
 using SkillzBot.API.OpenAI;
 using System.IO;
 using SkillzBot.SubUtils;
+using RiotSharp.Endpoints.StaticDataEndpoint.Version;
+using TwitchLib.Client;
 
 namespace SkillzBot.IllSkillzBot
 {
     internal class IllCommands
-    {
+    {        
         private static double helpCD = 0;
         private static double rtoppCD = 0;
         private static double getmmrCD = 0;
@@ -65,40 +67,37 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void Prediction(UserObject user, string[] command)
         {
-            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
+            if (!IllAccess.Low(user)) return;
+            if (command.Length > 1)
             {
-                if (command.Length > 1)
+                switch (command[1])
                 {
-                    switch (command[1])
-                    {
-                        case "off":
-                            singleton.autoPred = false;
-                            TtvIRCClient.SendMessage($"@{user.Name} Автоставки Выключены!");
-                            Log.WriteLog(null, $"{user.Name} Выключил ставки!");
-                            break;
+                    case "off":
+                        singleton.autoPred = false;
+                        TtvIRCClient.SendMessage($"@{user.Name} Автоставки Выключены!");
+                        Log.WriteLog(null, $"{user.Name} Выключил ставки!");
+                        break;
 
-                        case "on":
-                            singleton.autoPred = true;
-                            TtvIRCClient.SendMessage($"@{user.Name} Автоставки Включены!");
-                            Log.WriteLog(null, $"{user.Name} Включил ставки!");
-                            break;
+                    case "on":
+                        singleton.autoPred = true;
+                        TtvIRCClient.SendMessage($"@{user.Name} Автоставки Включены!");
+                        Log.WriteLog(null, $"{user.Name} Включил ставки!");
+                        break;
 
-                        default:
-                            TtvIRCClient.SendMessage($"@{user.Name} Не правильный параметр! (on/off)");
-                            break;
-                    }
+                    default:
+                        TtvIRCClient.SendMessage($"@{user.Name} Не правильный параметр! (on/off)");
+                        break;
                 }
-                else
-                    TtvIRCClient.SendMessage($"{user.Name} Не правильная команда! (!prediction on/off)");
             }
+            else
+                TtvIRCClient.SendMessage($"{user.Name} Не правильная команда! (!prediction on/off)");
         }
         public static async Task LpCommand(UserObject user, string[] command)
         {
             if (command.Length > 1)
             {
-                if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
-                {
-                    if (!singleton.inAmatch)
+                if (!IllAccess.Low(user)) return;
+                if (!singleton.inAmatch)
                     {
                         switch (command.Last())
                         {
@@ -111,7 +110,7 @@ namespace SkillzBot.IllSkillzBot
                                 return;
                         }
                         var temp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));
-                        var result = await RiotAPI.UpdateSummonerByNameAsync(temp).ConfigureAwait(false);
+                        var result = await RiotAPI.UpdateSummonerByNameAsync(temp, command.Last()).ConfigureAwait(false);
                         if (result == null)
                         {
                             singleton.SUMMONER_NAME = temp;
@@ -140,12 +139,11 @@ namespace SkillzBot.IllSkillzBot
                     else
                     {
                         TtvIRCClient.SendMessage(string.Format(STRINGS.LPInaMatch, user.Name));
-                    }
-                }
+                    }                
             }
             else
             {
-                if (user.isVip == 1 || user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
+                if (user.isVip == 1 || IllAccess.Low(user))
                     lpCD = 0;
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() - lpCD >= 30)
                 {
@@ -159,33 +157,17 @@ namespace SkillzBot.IllSkillzBot
             int secCD = 600;
             if (user.isSub == 1) secCD = 300;
             if (user.isVip == 1) secCD = 100;
-            if (user.isMod == 1 || user.Name == singleton.rootUser) secCD = 0;
+            if (IllAccess.Low(user)) secCD = 0;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - rtoppCD >= secCD)
             {
                 rtoppCD = DateTimeOffset.Now.ToUnixTimeSeconds();
                 await TopRulete().ConfigureAwait(false);
             }
         }
-        public static async Task AddModerator(UserObject user, string[] UserInput)
-        {
-            if (user.Name != singleton.rootUser) return;
-            if (UserInput.Length == 2)
-            {
-                var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
-                if (aUser.dbID != -404)
-                {
-                    await TtvAPI.AddChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false);
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.AddModSuccess, aUser.Name));
-                }
-                else
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
-            }
-            else
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
-        }
+        
         public static async Task AddVIP(UserObject user, string[] UserInput)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             if (UserInput.Length == 2)
             {
                 var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
@@ -202,7 +184,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task DeleteVIP(UserObject user, string[] UserInput)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             if (UserInput.Length == 2)
             {
                 var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
@@ -217,23 +199,7 @@ namespace SkillzBot.IllSkillzBot
             else
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
         }
-        public static async Task DeleteModerator(UserObject user, string[] UserInput)
-        {
-            if (user.Name != singleton.rootUser) return;
-            if (UserInput.Length == 2)
-            {
-                var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
-                if (aUser.dbID != -404)
-                {
-                    await TtvAPI.DeleteChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false);
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
-                }
-                else
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
-            }
-            else
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
-        }
+        
         public static async Task<TrackUser> TrackUser(UserObject user, string[] UserInput)
         {
             if (user.Name == singleton.rootUser)
@@ -264,7 +230,7 @@ namespace SkillzBot.IllSkillzBot
             }
             return null;
         }
-        public static async Task<UserObject> IllBanUser(UserObject user)
+        public static async Task<UserObject> IllFilterTrigger(UserObject user, string messageID = null)
         {
             if (user.banCount == 35)
             {
@@ -273,10 +239,101 @@ namespace SkillzBot.IllSkillzBot
             }
             else
             {
-                await TtvAPI.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason).ConfigureAwait(false);
-                user.banCount++;
+                switch (singleton.ChatFilterLvl)
+                {
+                    case 0:
+                        break;
+                    case 1:
+                        if (messageID != null)
+                            await TtvAPI.DeleteMessage(messageID).ConfigureAwait(false);
+                        break;
+                    case 2:
+                        if (messageID != null)
+                            await TtvAPI.DeleteMessage(messageID).ConfigureAwait(false);
+                        string ModsZapMsg = $"Найдена запретка на канале {singleton.ChannelName} от пользователя @{user.Name}. Модерам на проверку";
+                        await IllModeratorsInteractions.IllAllModsNotification(ModsZapMsg).ConfigureAwait(false);
+                        break;
+                    case 3:
+                        await TtvAPI.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+                        user.banCount++;
+                        break;
+                    case 4:
+                        await TtvAPI.TimeOutUser(user, 604800, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+                        user.banCount++;
+                        break;
+                    case 5:
+                        await TtvAPI.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
+                        user.banCount = 0;
+                        break;
+                    default:
+                        break;
+                }
             }
             return user;
+        }
+        public static async Task<LP> GetLpAsync(string summoner = null, string region = null)
+        {
+            bool ranked = false;
+            var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync(summoner,region).ConfigureAwait(false);
+            if (rank != null)
+                foreach (var mType in rank)
+                {
+                    if (mType.QueueType == "RANKED_SOLO_5x5")
+                    {
+                        ranked = true;
+                        if (mType.MiniSeries != null)
+                        {
+                            var promo = new List<string>();
+                            foreach (var prog in mType.MiniSeries.Progress)
+                            {
+                                if (prog == 'L')
+                                    promo.Add("❌");
+                                if (prog == 'W')
+                                    promo.Add("✅");
+                                if (prog == 'N')
+                                    promo.Add("➖");
+                            }
+                            string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
+                            string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            var promoString = string.Join(" ", promo);
+                            return new LP
+                            {
+                                RANK = "ПРОМО В " + subs[0],
+                                LPoints = promoString
+                            };
+                        }
+                        else
+                        {
+                            int WR = (int)Math.Ceiling((double)(mType.Wins * 100) / (double)((mType.Wins + mType.Losses)));
+                            return new LP
+                            {
+                                RANK = mType.Tier + " " + mType.Rank,
+                                LPoints = mType.LeaguePoints.ToString()
+                            };
+                        }
+                    }
+                }
+            else
+            {
+                return new LP
+                {
+                    RANK = "Riot API error",
+                    LPoints = null
+                };
+            }
+            if (!ranked)
+            {
+                return new LP
+                {
+                    RANK = "Калибровка",
+                    LPoints = null
+                };
+            }
+            return new LP
+            {
+                RANK = "ERROR",
+                LPoints = null
+            };
         }
         public static async Task ShowLPAsync(string sender)
         {
@@ -410,7 +467,7 @@ namespace SkillzBot.IllSkillzBot
                 $"{singleton.tier}"
                 );
         }
-        static void SaveAppConfig()
+        public static void SaveAppConfig()
         {
             BotConfigWriter.Write();
         }
@@ -819,9 +876,56 @@ namespace SkillzBot.IllSkillzBot
                     TtvIRCClient.SendMessage(STRINGS.InputERROR);
             }
         }
+        public static void SetChatfilterLvl(UserObject user, string[] input)
+        {
+            if (user.isMod == 1 || user.IsBroadcaster == 1 || user.Name == singleton.rootUser)
+            {
+                if (input.Length == 2)
+                {
+                    switch (input[1])
+                    {
+                        case "0":
+                            singleton.ChatFilterLvl = 0;
+                            SaveAppConfig();
+                            TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!"); 
+                            break;
+                        case "1":
+                            singleton.ChatFilterLvl = 1;
+                            SaveAppConfig();
+                            TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                            break;
+                        case "2":
+                            singleton.ChatFilterLvl = 2;
+                            SaveAppConfig();
+                            TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                            break;
+                        case "3":
+                            singleton.ChatFilterLvl = 3;
+                            SaveAppConfig();
+                            TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                            break;
+                        case "4":
+                            singleton.ChatFilterLvl = 4;
+                            SaveAppConfig();
+                            TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                            break;
+                        case "5":
+                            singleton.ChatFilterLvl = 5;
+                            SaveAppConfig();
+                            TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                            break;
+                        default:
+                            TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                            break;
+                    }
+                }
+                else
+                    TtvIRCClient.SendMessage("Допустимые значения: 0, 1, 2, 3, 4. 0 - бездействие. 1 - удаление сообщения. 2 - удаления и оповещение модераторов. 3 - таймаут на сутки. 4 - таймаут на неделю. 5 - бан. <<!chatfilter 3>>");
+            }
+        }
         public static async Task GetAllRewards(UserObject user)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             var rewards = await TtvAPI.GetAllRewards().ConfigureAwait(false);
             if (rewards == null) return;
             int rewardsCount = rewards.Data.Length;
@@ -903,16 +1007,17 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task TestingMethod(UserObject user)
         {
-            if (user.Name != singleton.rootUser) return;
-            await Task.Delay(10);
+            if (!IllAccess.Root(user)) return;
+            Console.WriteLine("test");
+            //await TtvIRCClient.OnStreamUp();
             //test stuff here           
         }
         public static void ReconnectToPubSub (UserObject user)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             IllSkillzBotMain.PubSubReconnect();
         }
-        public static async Task<string> GetGPTResponce(string userName, string message)
+        public static async Task<string> GetGPTResponce(string message, string userName = null)
         {
             string responce = await ChatGPT.GetGptResponce(userName + " " + message).ConfigureAwait(false);
             if (!responce.Contains("maximum context length"))
@@ -923,12 +1028,12 @@ namespace SkillzBot.IllSkillzBot
             else
             {
                 ChatGPT.CreateNewChat();
-                return await GetGPTResponce(userName, message).ConfigureAwait(false);
+                return await GetGPTResponce(message, userName).ConfigureAwait(false);
             }
         }
         public static void ToggleDebug(UserObject user)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             if (singleton.debug)
                 singleton.debug = false;
             else
@@ -979,7 +1084,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task RemoveUserFromBlacklist(UserObject user, string[] input)
         {
-            if (user.isMod != 1 && user.IsBroadcaster != 1 && user.Name != singleton.rootUser) return;
+            if (!IllAccess.Low(user)) return;
             if (input.Length != 2)
             {
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -1004,7 +1109,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void AddTowhiteList(UserObject user, string[] input)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             if (input.Length != 2)
             {
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -1017,17 +1122,37 @@ namespace SkillzBot.IllSkillzBot
         }        
         public static void AddSubscription(UserObject user)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             TtvIRCClient.SendMessage(AddSub.NewPurchase().ToString());
             SubCheck.RunChecker();
         }
         public static void CheckSubscription(UserObject user)
         {
-            if (user.Name != singleton.rootUser) return;
+            if (!IllAccess.Root(user)) return;
             if (SubCheck.RunChecker())
                 TtvIRCClient.SendMessage("Valid!");
             else
                 TtvIRCClient.SendMessage("Expired!");
         }        
+        public static async Task GetMods(UserObject user)
+        {
+            if (!IllAccess.Root(user)) return;
+            var mods = await TtvAPI.GetAllMods().ConfigureAwait(false);
+            string Moderators = "";
+            foreach ( var mod in mods)            
+                Moderators += mod.UserLogin + ": " + mod.UserId + ". ";            
+            TtvIRCClient.SendMessage(Moderators);
+        }
+        public static async Task Sheptun(UserObject user)
+        {
+            if (!IllAccess.Root(user)) return;
+            Console.WriteLine("шептуны");
+            var mods = await TtvAPI.GetAllMods().ConfigureAwait(false);
+            foreach ( var mod in mods)
+            {
+                await TtvAPI.SendWhisper(mod.UserId, "Тестовый шептун").ConfigureAwait(false);
+                await Task.Delay(10).ConfigureAwait(false);
+            }         
+        }
     }
 }

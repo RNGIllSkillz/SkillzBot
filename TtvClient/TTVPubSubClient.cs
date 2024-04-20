@@ -10,7 +10,9 @@ using IllPubSub.Enums;
 using SkillzBot.MYSQL;
 using SkillzBot.Singleton;
 using SkillzBot.IllSTRINGS;
+using TwitchLib.Communication.Clients;
 using IllSkillzBot;
+using TwitchLib.Communication.Models;
 
 namespace SkillzBot.PubSub
 {
@@ -46,6 +48,7 @@ namespace SkillzBot.PubSub
             uvalMod = singleton.uvalMod;
             ChatWithBot = singleton.ChatWithBot;
             accToken = singleton.TApiAccessToken;
+                       
 
             client = new TwitchPubSub();
             client.OnPubSubServiceClosed += OnPubSubServiceClosed;
@@ -89,13 +92,13 @@ namespace SkillzBot.PubSub
         private void PubSub_OnStreamDown(object sender, OnStreamDownArgs e)
         {
             if (!singleton.isActiveSub) return;
-            TtvIRCClient.OnStreamDown();
+            TtvIRCClient.OnStreamDown().GetAwaiter().GetResult();
         }
 
         private void PubSub_OnStreamUp(object sender, OnStreamUpArgs e)
         {
             if (!singleton.isActiveSub) return;
-            TtvIRCClient.OnStreamUp();
+            TtvIRCClient.OnStreamUp().GetAwaiter().GetResult();
         }
 
         #endregion
@@ -332,7 +335,7 @@ namespace SkillzBot.PubSub
         {
             if (lockPubSub) return;
             lockPubSub = true;
-            Log.WriteLog(e.Exception, "PubSub server Error!"); 
+            Log.WriteLog(e.Exception, "PubSub server Error!");
             IllSkillzBotMain.PubSubReconnect();
         }
         private void OnPubSubServiceClosed(object sender, EventArgs e)

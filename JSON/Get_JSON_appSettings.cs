@@ -87,6 +87,14 @@ namespace SkillzBot.JSON.Settings
 
         [JsonProperty("MySQL_Port")]
         public int MySQL_Port { get; set; }
+        [JsonProperty("ChatFilterLvl")]
+        public int ChatFilterLvl { get; set; }
+        [JsonProperty("DiscordBotToken")]
+        public string DiscordBotToken { get; set; }
+        [JsonProperty("DiscordNoteID")]
+        public ulong DiscordNoteID { get; set; }
+        [JsonProperty("DiscordSpamID")]
+        public ulong DiscordSpamID { get; set; }
     }
 
     public partial class SettingsJson

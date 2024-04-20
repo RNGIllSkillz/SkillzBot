@@ -44,8 +44,7 @@ namespace SkillzBot.IllSkillzBot
             if (predictions == null) return;
             if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
             if (currentGame.GameType == RiotSharp.Misc.GameType.CustomGame)
-            {
-                TtvIRCClient.SendMessage($"debug currentGame.GameType = {currentGame.GameType.ToString()}, CustomGame = {RiotSharp.Misc.GameType.CustomGame.ToString()}");
+            {  
                 //TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
                 //return;
             }
@@ -65,7 +64,7 @@ namespace SkillzBot.IllSkillzBot
             {
                 if (IntUtil.GetChance(wchance))
                 {
-                    await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 120).ConfigureAwait(false);
+                    await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180).ConfigureAwait(false);
                     break;
                 }
                 if (IntUtil.GetChance(15))

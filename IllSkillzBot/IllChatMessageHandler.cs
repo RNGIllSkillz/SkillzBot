@@ -61,19 +61,18 @@ namespace SkillzBot.IllSkillzBot
             var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
             AddMessage(e.ChatMessage.Username, e.ChatMessage.Message);
             user.messageCon++;
-            await SaveBuffer(false).ConfigureAwait(false);
+            await SaveBuffer(false).ConfigureAwait(false);            
 
             if (singleton.isActiveSub)
-            {                
-                if (user.isMod == 0)
-                    if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
-                        return await IllCommands.IllBanUser(user).ConfigureAwait(false);
-                await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);
+            {
                 if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
                 {
                     await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutBadPic).ConfigureAwait(false);
                     return user;
                 }
+                if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
+                    return await IllCommands.IllFilterTrigger(user, e.ChatMessage.Id).ConfigureAwait(false);
+                await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);                
                 if (IllChatFilters.FilterASCII(e))
                 {
                     await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutPic).ConfigureAwait(false);

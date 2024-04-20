@@ -10,5 +10,8 @@
     <Import Project="$(NuGetPackageRoot)microsoft.extensions.options\7.0.0\buildTransitive\netcoreapp2.0\Microsoft.Extensions.Options.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.options\7.0.0\buildTransitive\netcoreapp2.0\Microsoft.Extensions.Options.targets')" />
     <Import Project="$(NuGetPackageRoot)microsoft.extensions.dependencyinjection\7.0.0\buildTransitive\netcoreapp2.0\Microsoft.Extensions.DependencyInjection.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.dependencyinjection\7.0.0\buildTransitive\netcoreapp2.0\Microsoft.Extensions.DependencyInjection.targets')" />
     <Import Project="$(NuGetPackageRoot)microsoft.extensions.logging\7.0.0\buildTransitive\netcoreapp2.0\Microsoft.Extensions.Logging.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.logging\7.0.0\buildTransitive\netcoreapp2.0\Microsoft.Extensions.Logging.targets')" />
+    <Import Project="$(NuGetPackageRoot)system.reactive\5.0.0\buildTransitive\netcoreapp3.1\System.Reactive.targets" Condition="Exists('$(NuGetPackageRoot)system.reactive\5.0.0\buildTransitive\netcoreapp3.1\System.Reactive.targets')" />
+    <Import Project="$(NuGetPackageRoot)system.codedom\7.0.0\buildTransitive\netcoreapp2.0\System.CodeDom.targets" Condition="Exists('$(NuGetPackageRoot)system.codedom\7.0.0\buildTransitive\netcoreapp2.0\System.CodeDom.targets')" />
+    <Import Project="$(NuGetPackageRoot)system.management\7.0.2\buildTransitive\netcoreapp2.0\System.Management.targets" Condition="Exists('$(NuGetPackageRoot)system.management\7.0.2\buildTransitive\netcoreapp2.0\System.Management.targets')" />
   </ImportGroup>
 </Project>

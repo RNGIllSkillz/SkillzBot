@@ -30,6 +30,9 @@ namespace SkillzBot.Singleton
         public string UvalVipId { get; private set; }
         public string MySQL_User { get; private set; }
         public string MySQL_password { get; private set; }
+        public string DiscordBotToken { get; private set; }
+        public ulong DiscordNoteID { get; private set; }
+        public ulong DiscordSpamID { get; private set; }
         public string rootUser { get; private set; }
         private bool _wisEnabled;
         public bool wisEnabled
@@ -339,7 +342,42 @@ namespace SkillzBot.Singleton
         }
         public string ChatWithBot { get; private set; }
         public string ReleaseBot { get; private set; }
-        public bool isActiveSub {  get; set; } 
+        private int _ChatFilterLvl;
+        public int ChatFilterLvl
+        {
+            get
+            {
+                lock (lockObject)
+                {
+                    return _ChatFilterLvl;
+                }
+            }
+            set
+            {
+                lock (lockObject)
+                {
+                    _ChatFilterLvl = value;
+                }
+            }
+        }
+        private bool _isActiveSub;
+        public bool isActiveSub
+        {
+            get
+            {
+                lock (lockObject)
+                {
+                    return _isActiveSub;
+                }
+            }
+            set
+            {
+                lock (lockObject)
+                {
+                    _isActiveSub = value;
+                }
+            }
+        }
         public string GPTApiToken { get; private set; }
         private string _SummonerRegion;
         public string SummonerRegion
@@ -445,8 +483,12 @@ namespace SkillzBot.Singleton
             singleton.GPTApiToken = config.GetBotConfigs().GPTApiToken;
             singleton.SummonerRegion = config.GetBotConfigs().SummonerRegion;
             singleton.MySQL_IP = config.GetBotConfigs().MySQL_IP;
-            singleton.MySQL_Port = config.GetBotConfigs().MySQL_Port;
+            singleton.MySQL_Port = (int)config.GetBotConfigs().MySQL_Port;
             singleton.isActiveSub = true;
+            singleton.ChatFilterLvl = (int)config.GetBotConfigs().ChatFilterLvl;
+            singleton.DiscordBotToken = config.GetBotConfigs().DiscordBotToken;
+            singleton.DiscordNoteID = config.GetBotConfigs().DiscordNoteID;
+            singleton.DiscordSpamID = config.GetBotConfigs().DiscordSpamID;
             await TempDataReader.ReadGameStats().ConfigureAwait(false);
         }
     }
