@@ -22,8 +22,8 @@ using IllSkillzBot;
 using SkillzBot.API.OpenAI;
 using System.IO;
 using SkillzBot.SubUtils;
-using RiotSharp.Endpoints.StaticDataEndpoint.Version;
 using TwitchLib.Client;
+using Camille.Enums;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -94,7 +94,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task LpCommand(UserObject user, string[] command)
         {
-            if (command.Length > 1)
+            if (command.Length > 2)
             {
                 if (!IllAccess.Low(user)) return;
                 if (!singleton.inAmatch)
@@ -109,13 +109,13 @@ namespace SkillzBot.IllSkillzBot
                                 TtvIRCClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
                                 return;
                         }
-                        var temp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));
-                        var result = await RiotAPI.UpdateSummonerByNameAsync(temp, command.Last()).ConfigureAwait(false);
+                        //var temp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));                        
+                        var result = await RiotAPI.UpdateSummonerByNameAsync(command[1], command[2], command.Last()).ConfigureAwait(false);
                         if (result == null)
                         {
-                            singleton.SUMMONER_NAME = temp;
+                            singleton.SUMMONER_NAME = command[1]+"#"+command[2];
                             singleton.SummonerRegion = command.Last();
-                            RiotAPI.UpdateRegion(singleton.SummonerRegion);
+                            RiotAPI.UpdateConfig();
 
                             var Rank = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
                             if (Rank != null)
@@ -278,7 +278,7 @@ namespace SkillzBot.IllSkillzBot
             if (rank != null)
                 foreach (var mType in rank)
                 {
-                    if (mType.QueueType == "RANKED_SOLO_5x5")
+                    if (mType.QueueType == QueueType.RANKED_SOLO_5x5)
                     {
                         ranked = true;
                         if (mType.MiniSeries != null)
@@ -342,7 +342,7 @@ namespace SkillzBot.IllSkillzBot
             if (rank != null)
                 foreach (var mType in rank)
                 {
-                    if (mType.QueueType == "RANKED_SOLO_5x5")
+                    if (mType.QueueType == QueueType.RANKED_SOLO_5x5)
                     {
                         ranked = true;
                         if (mType.MiniSeries != null)
@@ -360,12 +360,12 @@ namespace SkillzBot.IllSkillzBot
                             string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
                             string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                             var promoString = string.Join(" ", promo);
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, mType.SummonerName, subs[0], promoString));
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, singleton.SUMMONER_NAME, subs[0], promoString));
                         }
                         else
                         {
                             int WR = (int)Math.Ceiling((double)(mType.Wins * 100) / (double)((mType.Wins + mType.Losses)));
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, mType.SummonerName, mType.Tier, mType.Rank, mType.LeaguePoints, WR, singleton.numGames, singleton.numWins, singleton.numLoose, singleton.earnedLP));
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, singleton.SUMMONER_NAME, mType.Tier, mType.Rank, mType.LeaguePoints, WR, singleton.numGames, singleton.numWins, singleton.numLoose, singleton.earnedLP));
                         }
                     }
                 }
@@ -376,6 +376,7 @@ namespace SkillzBot.IllSkillzBot
                 TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, singleton.SUMMONER_NAME, singleton.numGames, singleton.numWins, singleton.numLoose, singleton.earnedLP));
             }
         }
+        /*
         public static async Task GetMatchHistory(UserObject user)
         {
             int secCD = 120;
@@ -415,6 +416,7 @@ namespace SkillzBot.IllSkillzBot
                 }
             }
         }
+       */
         public static async Task TopRulete()
         {
             var result = await MySQL.TOP("rtop").ConfigureAwait(false);

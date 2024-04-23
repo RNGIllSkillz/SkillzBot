@@ -55,7 +55,7 @@ namespace SkillzBot.IllSkillzBot
                         break;
 
                     case "!история":
-                        await IllCommands.GetMatchHistory(user).ConfigureAwait(false);
+                        //await IllCommands.GetMatchHistory(user).ConfigureAwait(false);
                         break;
 
                     case "!очередь":
