@@ -129,7 +129,6 @@ namespace SkillzBot.API.Riot
             LeagueEntry[] rank;
             try
             {
-                Console.WriteLine($"esID = {summoner.Id}");
                 rank = await riotApi.LeagueV4().GetLeagueEntriesForSummonerAsync(platformRout, summoner.Id).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -242,7 +241,8 @@ namespace SkillzBot.API.Riot
         {
             foreach (var Participant in match.Info.Participants)
             {
-                if (string.Equals(StringUtil.RemoveWhitespace(Participant.SummonerName), IllSingleton.GetInstance().SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                Console.WriteLine($"Participant.RiotIdGameName = {Participant.RiotIdGameName} Participant.RiotIdTagline = {Participant.RiotIdTagline}");
+                if (string.Equals(StringUtil.RemoveWhitespace(Participant.RiotIdGameName+"#"+Participant.RiotIdTagline), IllSingleton.GetInstance().SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
                     return Participant;
             }
             return null;
