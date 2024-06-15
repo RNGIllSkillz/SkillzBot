@@ -23,7 +23,7 @@
 /SkillzBotHost/System.Diagnostics.Tools.dll|ca23c974
 /SkillzBotHost/SkillzBot.deps.json|33a950f4
 /SkillzBotHost/Microsoft.AspNetCore.Hosting.dll|7ff70631
-/SkillzBotHost/SkillzBot.pdb|5197ea20
+/SkillzBotHost/SkillzBot.pdb|cc71633d
 /SkillzBotHost/libclrjit.so|64b46278
 /SkillzBotHost/Discord.Net.Core.dll|1b3b4843
 /SkillzBotHost/System.Net.Primitives.dll|3561f8a0
@@ -96,7 +96,7 @@
 /SkillzBotHost/Microsoft.AspNetCore.Authorization.dll|4effbe2b
 /SkillzBotHost/System.Threading.Tasks.Dataflow.dll|807ce201
 /SkillzBotHost/Discord.Net.Rest.dll|b1fb2e09
-/SkillzBotHost/hashes.txt|4e73e5dc
+/SkillzBotHost/hashes.txt|42286655
 /SkillzBotHost/System.Data.DataSetExtensions.dll|da4b46a9
 /SkillzBotHost/Microsoft.AspNetCore.ResponseCaching.Abstractions.dll|c4749699
 /SkillzBotHost/Microsoft.Extensions.Configuration.Json.dll|c77b7b28
@@ -136,7 +136,7 @@
 /SkillzBotHost/System.Resources.Writer.dll|36e8b99a
 /SkillzBotHost/Microsoft.Extensions.FileProviders.Embedded.dll|a85258e2
 /SkillzBotHost/System.IO.Compression.Native.so|0ec3e353
-/SkillzBotHost/SkillzBot.dll|f1f3f7bc
+/SkillzBotHost/SkillzBot.dll|8cbee98c
 /SkillzBotHost/Microsoft.Extensions.Logging.Configuration.dll|11a624c5
 /SkillzBotHost/Microsoft.Extensions.Configuration.KeyPerFile.dll|1050449e
 /SkillzBotHost/Microsoft.AspNetCore.Mvc.Abstractions.dll|6385fbd0
@@ -372,7 +372,7 @@
 /SkillzBotHost/System.Diagnostics.DiagnosticSource.dll|03a0772f
 /SkillzBotHost/Microsoft.Extensions.ObjectPool.dll|92432fcc
 /SkillzBotHost/TwitchLib.Client.Models.dll|403c7961
-/SkillzBotHost/ko/SkillzBot.resources.dll|200eb08d
-/SkillzBotHost/ru/SkillzBot.resources.dll|8a6b6770
-/SkillzBotHost/ja/SkillzBot.resources.dll|2df2c091
-/SkillzBotHost/fr/SkillzBot.resources.dll|ebb4861d
+/SkillzBotHost/ko/SkillzBot.resources.dll|d26b436a
+/SkillzBotHost/ru/SkillzBot.resources.dll|9c5922cf
+/SkillzBotHost/ja/SkillzBot.resources.dll|6de2ad49
+/SkillzBotHost/fr/SkillzBot.resources.dll|f5d6082e
