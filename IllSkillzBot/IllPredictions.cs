@@ -9,9 +9,10 @@ using SkillzBot.WRITERS;
 using SkillzBot.Singleton;
 using SkillzBot.IRC;
 using System.Linq;
-using RiotSharp.Endpoints.SpectatorEndpoint;
-using RiotSharp.Endpoints.MatchEndpoint;
 using System.Threading;
+using Camille.Enums;
+using Camille.RiotGames.MatchV5;
+using Camille.RiotGames.SpectatorV5;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -36,20 +37,20 @@ namespace SkillzBot.IllSkillzBot
             //await EnableRewardAsync().ConfigureAwait(false);
             var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
             if (currentGame == null) return;
-            if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength.TotalMilliseconds > 30) return;
+            if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength > 30) return;
             if (singleton.debug)
                 Log.WriteLog(null, "Матч начался!");
             CurrentMatchID = PlatformID + Convert.ToString(currentGame.GameId);
             var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
             if (predictions == null) return;
             if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
-            if (currentGame.GameType == RiotSharp.Misc.GameType.CustomGame)
+            if (currentGame.GameType == GameType.CUSTOM)
             {  
                 //TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
                 //return;
             }
             //await DisableRewardAsync().ConfigureAwait(false);
-            await CalculateGameStats(currentGame).ConfigureAwait(false);
+            //await CalculateGameStats(currentGame).ConfigureAwait(false);
             string currentGameID = PlatformID + Convert.ToString(currentGame.GameId);
             var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
             if (rank == null) return;
@@ -57,7 +58,7 @@ namespace SkillzBot.IllSkillzBot
             int wchance = 100;
             foreach (var mType in rank)
             {
-                if (mType.QueueType == "RANKED_SOLO_5x5")
+                if (mType.QueueType == QueueType.RANKED_SOLO_5x5)
                     wchance = 100;
             }
             while (true)
@@ -67,7 +68,7 @@ namespace SkillzBot.IllSkillzBot
                     await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180).ConfigureAwait(false);
                     break;
                 }
-                if (IntUtil.GetChance(15))
+                /*if (IntUtil.GetChance(15))
                 {
                     await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
                     break;
@@ -141,7 +142,7 @@ namespace SkillzBot.IllSkillzBot
                 {
                     await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
                     break;
-                }
+                }*/
             }
             singleton.inAmatch = false;
         }
@@ -190,14 +191,14 @@ namespace SkillzBot.IllSkillzBot
                 var Participant = RiotAPI.GetParticipantByMatch(onMatch);
                 if (Participant != null)
                 {
-                    if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                    if (onMatch.Info.GameDuration > 300)
                     {                        
                         singleton.numGames++;
-                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                        if (RiotAPI.GetParticipantByMatch(onMatch).Win)
                         {
                             await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
                             if (singleton.debug)
-                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
+                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Win}");
                             singleton.numWins++;
                             await UpdateDailyStats(true).ConfigureAwait(false);
                         }
@@ -205,7 +206,7 @@ namespace SkillzBot.IllSkillzBot
                         {
                             await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
                             if (singleton.debug)
-                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Winner}");
+                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Win}");
                             singleton.numLoose++;
                             await UpdateDailyStats(false).ConfigureAwait(false);
                         }
@@ -225,7 +226,8 @@ namespace SkillzBot.IllSkillzBot
                 }                
             }
         }
-        private static async Task Prediction_MAX_KDA(CurrentGame CurrentGame, string currentGameID, string Title, int windowSec)
+        /*
+        private static async Task Prediction_MAX_KDA(CurrentGameInfo CurrentGame, string currentGameID, string Title, int windowSec)
         {
             Match onMatch;
             List<string> SelectedChamps = new List<string>();
@@ -895,6 +897,7 @@ namespace SkillzBot.IllSkillzBot
                 }
             }
         }
+        
         private static async Task CalculateGameStats(CurrentGame CurrentGame)
         {
             var champs = CurrentGame.Participants;
@@ -941,6 +944,7 @@ namespace SkillzBot.IllSkillzBot
             string elo2 = StringUtil.ConvertRank(enemyElo.ToString(), false);
             TtvIRCClient.SendMessage($"Среднее ило команды союзников: {elo}, средний WR {teamWr}%. Среднее ило команды противников {elo2}, средний WR {enemyWr}%");
         }
+        
         private static async Task<int[]> GettInfo(string summonerName)
         {
             int[] data = new int[2];
@@ -966,7 +970,7 @@ namespace SkillzBot.IllSkillzBot
                 data[1] = int.Parse(StringUtil.ConvertRank(sRank, true));
             }
             return data;
-        }      
+        }    */  
         
         private static async Task UpdateDailyStats(bool won)
         {

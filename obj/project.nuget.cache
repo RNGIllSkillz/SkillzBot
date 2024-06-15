@@ -1,10 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "DpohhqB0IiA/kI88ggJWYpdrDdfAPKzLGJl3HoTXfayt8LGvXI4e9SxpayDcLHQztCqnkaAlNIRFv9J5ZuMaAA==",
+  "dgSpecHash": "mQn/SWoTLUDUkRTUmSERcWRC7MzU4bqOeTvusyLc+4f6o774wgSfzYvfpTf43ha2HMp/HpJuGJi8Vc20CO8w7Q==",
   "success": true,
   "projectFilePath": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\atras\\.nuget\\packages\\bouncycastle.cryptography\\2.2.1\\bouncycastle.cryptography.2.2.1.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\camille.core\\3.0.0-nightly-2024-04-20-4d8da4ce47\\camille.core.3.0.0-nightly-2024-04-20-4d8da4ce47.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\camille.enums\\3.0.0-nightly-2024-04-20-4d8da4ce47\\camille.enums.3.0.0-nightly-2024-04-20-4d8da4ce47.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\camille.riotgames\\3.0.0-nightly-2024-04-20-4d8da4ce47\\camille.riotgames.3.0.0-nightly-2024-04-20-4d8da4ce47.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\discord.net\\3.13.0\\discord.net.3.13.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\discord.net.commands\\3.13.0\\discord.net.commands.3.13.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\discord.net.core\\3.13.0\\discord.net.core.3.13.0.nupkg.sha512",
@@ -34,6 +37,7 @@
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.targets\\1.1.0\\microsoft.netcore.targets.1.1.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.win32.primitives\\4.3.0\\microsoft.win32.primitives.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\mingweisamuel.tokenbucket\\1.0.2\\mingweisamuel.tokenbucket.1.0.2.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\mysql.data\\8.3.0\\mysql.data.8.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\openai\\1.10.0\\openai.1.10.0.nupkg.sha512",
@@ -78,6 +82,7 @@
     "C:\\Users\\atras\\.nuget\\packages\\system.collections\\4.3.0\\system.collections.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.collections.concurrent\\4.3.0\\system.collections.concurrent.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.collections.immutable\\5.0.0\\system.collections.immutable.5.0.0.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\system.componentmodel.annotations\\4.6.0\\system.componentmodel.annotations.4.6.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.configuration.configurationmanager\\6.0.1\\system.configuration.configurationmanager.6.0.1.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.diagnostics.debug\\4.3.0\\system.diagnostics.debug.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.diagnostics.diagnosticsource\\7.0.2\\system.diagnostics.diagnosticsource.7.0.2.nupkg.sha512",
@@ -147,9 +152,9 @@
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.websockets\\0.4.0\\twitchlib.eventsub.websockets.0.4.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.pubsub\\3.2.6\\twitchlib.pubsub.3.2.6.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\zstdsharp.port\\0.7.1\\zstdsharp.port.0.7.1.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.runtime.linux-x64\\3.1.32\\microsoft.netcore.app.runtime.linux-x64.3.1.32.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.linux-x64\\3.1.32\\microsoft.aspnetcore.app.runtime.linux-x64.3.1.32.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.host.linux-x64\\3.1.32\\microsoft.netcore.app.host.linux-x64.3.1.32.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.linux-x64\\3.1.32\\microsoft.aspnetcore.app.runtime.linux-x64.3.1.32.nupkg.sha512"
+    "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.runtime.linux-x64\\3.1.32\\microsoft.netcore.app.runtime.linux-x64.3.1.32.nupkg.sha512"
   ],
   "logs": []
 }

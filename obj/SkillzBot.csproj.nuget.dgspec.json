@@ -40,6 +40,10 @@
         "netcoreapp3.1": {
           "targetAlias": "netcoreapp3.1",
           "dependencies": {
+            "Camille.RiotGames": {
+              "target": "Package",
+              "version": "[3.0.0-nightly-2024-04-20-4d8da4ce47, )"
+            },
             "Discord.Net": {
               "target": "Package",
               "version": "[3.13.0, )"
