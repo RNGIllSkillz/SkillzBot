@@ -440,7 +440,7 @@ namespace SkillzBot.Singleton
                         FirstQuizzOfTheDay = true,
                         AntiBotProtectionLvL = 0,
                         wisEnabled = true,
-                        rootUser = "bot_illskillz",
+                        rootUser = "rng_backtrack",
                         IsSilent = false,
                         PichkaListFileName = "pichkaList.txt",
                         MediaListFileName = "mediaList.txt",
