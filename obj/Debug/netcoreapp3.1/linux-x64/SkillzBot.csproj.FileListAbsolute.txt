@@ -391,12 +391,18 @@ Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Reactive.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Reactive.xml
 <<<<<<< Updated upstream
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.sourcelink.json
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Camille.Core.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Camille.Enums.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Camille.RiotGames.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\MingweiSamuel.TokenBucket.dll
+<<<<<<< HEAD
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.csproj.Up2Date
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Microsoft.Extensions.Diagnostics.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Microsoft.Extensions.Diagnostics.Abstractions.dll
 >>>>>>> Stashed changes
+=======
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1

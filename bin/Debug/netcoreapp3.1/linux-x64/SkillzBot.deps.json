@@ -9,6 +9,7 @@
     ".NETCoreApp,Version=v3.1/linux-x64": {
       "SkillzBot/1.0.0": {
         "dependencies": {
+          "Camille.RiotGames": "3.0.0-nightly-2024-04-20-4d8da4ce47",
           "Discord.Net": "3.13.0",
           "F23.StringSimilarity": "6.0.0",
           "Google.Apis.YouTube.v3": "1.66.0.3205",
@@ -1157,12 +1158,19 @@
           }
         }
       },
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
       "Camille.Core/3.0.0-nightly-2024-04-20-4d8da4ce47": {
         "dependencies": {
           "System.ComponentModel.Annotations": "5.0.0",
           "System.Text.Json": "9.0.4"
+=======
+      "Camille.Core/3.0.0-nightly-2024-04-20-4d8da4ce47": {
+        "dependencies": {
+          "System.ComponentModel.Annotations": "4.6.0",
+          "System.Text.Json": "7.0.1"
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
         },
         "runtime": {
           "lib/netstandard2.1/Camille.Core.dll": {
@@ -1173,8 +1181,13 @@
       },
       "Camille.Enums/3.0.0-nightly-2024-04-20-4d8da4ce47": {
         "dependencies": {
+<<<<<<< HEAD
           "System.ComponentModel.Annotations": "5.0.0",
           "System.Text.Json": "9.0.4"
+=======
+          "System.ComponentModel.Annotations": "4.6.0",
+          "System.Text.Json": "7.0.1"
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
         },
         "runtime": {
           "lib/netstandard2.1/Camille.Enums.dll": {
@@ -1188,8 +1201,13 @@
           "Camille.Core": "3.0.0-nightly-2024-04-20-4d8da4ce47",
           "Camille.Enums": "3.0.0-nightly-2024-04-20-4d8da4ce47",
           "MingweiSamuel.TokenBucket": "1.0.2",
+<<<<<<< HEAD
           "System.ComponentModel.Annotations": "5.0.0",
           "System.Text.Json": "9.0.4"
+=======
+          "System.ComponentModel.Annotations": "4.6.0",
+          "System.Text.Json": "7.0.1"
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
         },
         "runtime": {
           "lib/netstandard2.1/Camille.RiotGames.dll": {
@@ -1198,7 +1216,10 @@
           }
         }
       },
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
       "Discord.Net/3.13.0": {
         "dependencies": {
           "Discord.Net.Commands": "3.13.0",
@@ -1814,6 +1835,14 @@
           }
         }
       },
+      "MingweiSamuel.TokenBucket/1.0.2": {
+        "runtime": {
+          "lib/netstandard2.0/MingweiSamuel.TokenBucket.dll": {
+            "assemblyVersion": "1.0.2.0",
+            "fileVersion": "1.0.2.0"
+          }
+        }
+      },
       "MySql.Data/8.3.0": {
         "dependencies": {
           "BouncyCastle.Cryptography": "2.2.1",
@@ -2032,6 +2061,7 @@
           }
         }
       },
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
       "System.ComponentModel.Annotations/5.0.0": {
@@ -2043,6 +2073,9 @@
         }
       },
 >>>>>>> Stashed changes
+=======
+      "System.ComponentModel.Annotations/4.6.0": {},
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
       "System.Configuration.ConfigurationManager/6.0.1": {
         "dependencies": {
           "System.Security.Cryptography.ProtectedData": "6.0.0",
@@ -2823,6 +2856,27 @@
       "path": "bouncycastle.cryptography/2.2.1",
       "hashPath": "bouncycastle.cryptography.2.2.1.nupkg.sha512"
     },
+    "Camille.Core/3.0.0-nightly-2024-04-20-4d8da4ce47": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-511awZICHYOes3ZcsHVtm4U+N6axZ9yu2NmNUpqsfMzAtzpd1XvhK9rIuqlf0S4B/m8eKZbsD//ZSzFA0XFr/A==",
+      "path": "camille.core/3.0.0-nightly-2024-04-20-4d8da4ce47",
+      "hashPath": "camille.core.3.0.0-nightly-2024-04-20-4d8da4ce47.nupkg.sha512"
+    },
+    "Camille.Enums/3.0.0-nightly-2024-04-20-4d8da4ce47": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-aKBXteRduX4U4J8AEqe6pGsRaiq4I7p7tBtL/HqdwfxOqPVksXC/1TZRU/+JrpsDosV/Ywm2z7GvmSS+tTqm5g==",
+      "path": "camille.enums/3.0.0-nightly-2024-04-20-4d8da4ce47",
+      "hashPath": "camille.enums.3.0.0-nightly-2024-04-20-4d8da4ce47.nupkg.sha512"
+    },
+    "Camille.RiotGames/3.0.0-nightly-2024-04-20-4d8da4ce47": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-go8mHxhTpuDsFZ9Jhkg4GcQcDCrUccSqLltyePN9IzPw3DXnHcGnJpkTwVipnqvkfiS8daxlgc8v35PF1Rz3LQ==",
+      "path": "camille.riotgames/3.0.0-nightly-2024-04-20-4d8da4ce47",
+      "hashPath": "camille.riotgames.3.0.0-nightly-2024-04-20-4d8da4ce47.nupkg.sha512"
+    },
     "Discord.Net/3.13.0": {
       "type": "package",
       "serviceable": true,
@@ -3173,6 +3227,13 @@
       "path": "microsoft.win32.systemevents/6.0.0",
       "hashPath": "microsoft.win32.systemevents.6.0.0.nupkg.sha512"
     },
+    "MingweiSamuel.TokenBucket/1.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-gD+DrZw+HdKQ5D4NTYSaU6Er58nvClYJIoCOn/+gpKzlA2YBaaDI1xyQC4u1kaQ5b3/Onitif1sBgRfqpbWHTQ==",
+      "path": "mingweisamuel.tokenbucket/1.0.2",
+      "hashPath": "mingweisamuel.tokenbucket.1.0.2.nupkg.sha512"
+    },
     "MySql.Data/8.3.0": {
       "type": "package",
       "serviceable": true,
@@ -3481,6 +3542,7 @@
       "path": "system.collections.immutable/5.0.0",
       "hashPath": "system.collections.immutable.5.0.0.nupkg.sha512"
     },
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
     "System.ComponentModel.Annotations/5.0.0": {
@@ -3491,6 +3553,15 @@
       "hashPath": "system.componentmodel.annotations.5.0.0.nupkg.sha512"
     },
 >>>>>>> Stashed changes
+=======
+    "System.ComponentModel.Annotations/4.6.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pOd+UhZ3X8xfwKDlgAzowUJNjp8VYVmOHZm++vCd0kq1HZ0zK3mNo2yRXjYgv7Ik/Xi43fmJfND2PLEsQSALCg==",
+      "path": "system.componentmodel.annotations/4.6.0",
+      "hashPath": "system.componentmodel.annotations.4.6.0.nupkg.sha512"
+    },
+>>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
     "System.Configuration.ConfigurationManager/6.0.1": {
       "type": "package",
       "serviceable": true,
