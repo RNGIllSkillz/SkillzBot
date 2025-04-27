@@ -1,14 +1,6 @@
 {
   "version": 2,
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-  "dgSpecHash": "DpohhqB0IiA/kI88ggJWYpdrDdfAPKzLGJl3HoTXfayt8LGvXI4e9SxpayDcLHQztCqnkaAlNIRFv9J5ZuMaAA==",
-=======
   "dgSpecHash": "ItMNh+Ehu34=",
->>>>>>> Stashed changes
-=======
-  "dgSpecHash": "mQn/SWoTLUDUkRTUmSERcWRC7MzU4bqOeTvusyLc+4f6o774wgSfzYvfpTf43ha2HMp/HpJuGJi8Vc20CO8w7Q==",
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
   "success": true,
   "projectFilePath": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
   "expectedPackageFiles": [
@@ -111,14 +103,7 @@
     "C:\\Users\\atras\\.nuget\\packages\\system.collections\\4.3.0\\system.collections.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.collections.concurrent\\4.3.0\\system.collections.concurrent.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.collections.immutable\\5.0.0\\system.collections.immutable.5.0.0.nupkg.sha512",
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
     "C:\\Users\\atras\\.nuget\\packages\\system.componentmodel.annotations\\5.0.0\\system.componentmodel.annotations.5.0.0.nupkg.sha512",
->>>>>>> Stashed changes
-=======
-    "C:\\Users\\atras\\.nuget\\packages\\system.componentmodel.annotations\\4.6.0\\system.componentmodel.annotations.4.6.0.nupkg.sha512",
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
     "C:\\Users\\atras\\.nuget\\packages\\system.configuration.configurationmanager\\6.0.1\\system.configuration.configurationmanager.6.0.1.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.diagnostics.debug\\4.3.0\\system.diagnostics.debug.4.3.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\system.diagnostics.diagnosticsource\\9.0.4\\system.diagnostics.diagnosticsource.9.0.4.nupkg.sha512",
@@ -188,9 +173,16 @@
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.websockets\\0.5.0\\twitchlib.eventsub.websockets.0.5.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.pubsub\\3.2.6\\twitchlib.pubsub.3.2.6.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\zstdsharp.port\\0.7.1\\zstdsharp.port.0.7.1.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.linux-x64\\3.1.32\\microsoft.aspnetcore.app.runtime.linux-x64.3.1.32.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.runtime.linux-x64\\3.1.32\\microsoft.netcore.app.runtime.linux-x64.3.1.32.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.host.linux-x64\\3.1.32\\microsoft.netcore.app.host.linux-x64.3.1.32.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\microsoft.netcore.app.runtime.linux-x64\\3.1.32\\microsoft.netcore.app.runtime.linux-x64.3.1.32.nupkg.sha512"
+    "C:\\Users\\atras\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.linux-x64\\3.1.32\\microsoft.aspnetcore.app.runtime.linux-x64.3.1.32.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "Undefined",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Problem reading the cache file Z:\\prj\\GitHub\\SkillzBot\\obj\\project.nuget.cache : Invalid property identifier character: <. Path 'version', line 3, position 0."
+    }
+  ]
 }

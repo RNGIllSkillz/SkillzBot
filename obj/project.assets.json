@@ -1346,13 +1346,7 @@
           }
         }
       },
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
       "System.ComponentModel.Annotations/5.0.0": {
-=======
-      "System.ComponentModel.Annotations/4.6.0": {
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
         "type": "package",
         "compile": {
           "ref/netstandard2.1/System.ComponentModel.Annotations.dll": {
@@ -1365,10 +1359,6 @@
           }
         }
       },
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
       "System.Configuration.ConfigurationManager/6.0.1": {
         "type": "package",
         "dependencies": {
@@ -4106,13 +4096,7 @@
           }
         }
       },
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
       "System.ComponentModel.Annotations/5.0.0": {
-=======
-      "System.ComponentModel.Annotations/4.6.0": {
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
         "type": "package",
         "compile": {
           "ref/netstandard2.1/System.ComponentModel.Annotations.dll": {
@@ -4125,10 +4109,6 @@
           }
         }
       },
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
       "System.Configuration.ConfigurationManager/6.0.1": {
         "type": "package",
         "dependencies": {
@@ -7707,9 +7687,6 @@
         "version.txt"
       ]
     },
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
     "System.ComponentModel.Annotations/5.0.0": {
       "sha512": "dMkqfy2el8A8/I76n2Hi1oBFEbG1SfxD2l5nhwXV3XjlnOmwxJlQbYpJH4W51odnU9sARCSAgv7S3CyAFMkpYg==",
       "type": "package",
@@ -7718,15 +7695,6 @@
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
-=======
-    "System.ComponentModel.Annotations/4.6.0": {
-      "sha512": "pOd+UhZ3X8xfwKDlgAzowUJNjp8VYVmOHZm++vCd0kq1HZ0zK3mNo2yRXjYgv7Ik/Xi43fmJfND2PLEsQSALCg==",
-      "type": "package",
-      "path": "system.componentmodel.annotations/4.6.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
         "LICENSE.TXT",
         "THIRD-PARTY-NOTICES.TXT",
         "lib/MonoAndroid10/_._",
@@ -7803,20 +7771,12 @@
         "ref/xamarinmac20/_._",
         "ref/xamarintvos10/_._",
         "ref/xamarinwatchos10/_._",
-<<<<<<< HEAD
         "system.componentmodel.annotations.5.0.0.nupkg.sha512",
-=======
-        "system.componentmodel.annotations.4.6.0.nupkg.sha512",
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
         "system.componentmodel.annotations.nuspec",
         "useSharedDesignerContext.txt",
         "version.txt"
       ]
     },
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
     "System.Configuration.ConfigurationManager/6.0.1": {
       "sha512": "jXw9MlUu/kRfEU0WyTptAVueupqIeE3/rl0EZDMlf8pcvJnitQ8HeVEp69rZdaStXwTV72boi/Bhw8lOeO+U2w==",
       "type": "package",
@@ -11956,5 +11916,13 @@
         "#import": []
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "Undefined",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Problem reading the cache file Z:\\prj\\GitHub\\SkillzBot\\obj\\project.nuget.cache : Invalid property identifier character: <. Path 'version', line 3, position 0."
+    }
+  ]
 }

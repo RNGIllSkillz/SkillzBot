@@ -14,15 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SkillzBot")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+843627065292301063cf1d1ecba770ea7e2c9894")]
-=======
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
->>>>>>> Stashed changes
-=======
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+66a2719e9ad79567808ec2d6e5b7c3a8bbaad1b7")]
->>>>>>> 56449684cd9f052cccf0564e8d7f5331b3f85fe1
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0486ce933a1184a993c0665530631d72867db9be")]
 [assembly: System.Reflection.AssemblyProductAttribute("SkillzBot")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SkillzBot")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
