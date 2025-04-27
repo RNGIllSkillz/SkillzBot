@@ -5,7 +5,6 @@ using SkillzBot.WRITERS;
 using SkillzBot.IRC;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
-using SkillzBot.PubSub;
 using SkillzBot.Singleton;
 using SkillzBot.MYSQL;
 using SkillzBot.Readers;
@@ -19,6 +18,16 @@ using Microsoft.AspNetCore;
 using System.Collections.Generic;
 using SkillzBot.MODELS;
 using SkillzBot.Discord;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using TwitchLib.EventSub.Websockets;
+using Microsoft.Extensions.Logging;
+using TwitchLib.Api;
+using TwitchLib.EventSub.Websockets.Extensions;
+using SkillzBot.TtvClient;
+using Microsoft.Extensions.Configuration;
+using SkillzBot.EventSub;
+
 
 namespace IllSkillzBot
 {
@@ -28,7 +37,6 @@ namespace IllSkillzBot
         static string dataPath;
         static string sharedPath;
         static string ConfigPath;
-        private static PubSubClient PubSubClientInst;
         private static IllSingleton singleton;
         private readonly static ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
         static async Task Main()
@@ -54,19 +62,23 @@ namespace IllSkillzBot
                 Console.WriteLine(CreateDefoultConfig(ConfigPath, channelName));           
             }
 
+
+
             singleton = IllSingleton.GetInstance();            
             MySQL MySQLClientInst = new MySQL();
             DiscordClient discordClient = new DiscordClient();
 
             await StartUpConfigs().ConfigureAwait(false);
             TtvIRCClient TtvIRCClientInst = new TtvIRCClient();
-            PubSubClientInst = new PubSubClient();
+            //PubSubClientInst = new PubSubClient();
+            CreateHostBuilder().Build().Run();
+
             QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
             await quartzBackgroundTaskManager.ScheduleTasks().ConfigureAwait(false);
 
-            CreateWebHostBuilder()
-                .Build()
-                .Run();
+            //CreateWebHostBuilder()
+            //    .Build()
+            //    .Run();
 
             _resetEvent.Wait();           
         }
@@ -179,32 +191,33 @@ namespace IllSkillzBot
         {
             return ConfigPath;
         }
-        public static void PubSubReconnect()
-        {
-            if (!singleton.isActiveSub) return;
-            if (PubSubClientInst != null)
-            {
-                PubSubClientInst.Dispose();
-                PubSubClientInst = null;
-                GC.Collect();
-                Thread.Sleep(2000);
-                PubSubReconnects++;
-                if (PubSubReconnects < 15)
-                    PubSubClientInst = new PubSubClient();
-                else
-                {
-                    Log.WriteLog(null, "PubSub reconnection ERROR! Will try to reconnect in 10 min");
-                    Thread.Sleep(60000);
-                    PubSubReconnect();
-                }
-            }
-            else
-            {
-                PubSubClientInst = new PubSubClient();
-            }
-        }
+        
         public static IWebHostBuilder CreateWebHostBuilder() =>
         WebHost.CreateDefaultBuilder()
             .UseStartup<Startup>();
+
+        private static IHostBuilder CreateHostBuilder() =>
+           Host.CreateDefaultBuilder()               
+               .ConfigureServices((hostContext, services) =>
+               {
+                   services.AddTwitchLibEventSubWebsockets();
+                   services.AddHostedService<TTVEventSub>();
+               });
+
+        private static async Task RunEvenSub()
+        {
+            var host = Host.CreateDefaultBuilder()
+                .ConfigureServices((context, services) =>
+                {
+
+                    services.AddLogging(builder => builder.AddConsole());
+                    services.AddTwitchLibEventSubWebsockets();
+                    services.AddSingleton<TwitchAPI>();
+                    services.AddHostedService<TTVEventSub>();
+
+                })
+                .Build();
+            await host.RunAsync();
+        }
     }
 }

@@ -1012,11 +1012,6 @@ namespace SkillzBot.IllSkillzBot
             //await TtvIRCClient.OnStreamUp();
             //test stuff here           
         }
-        public static void ReconnectToPubSub (UserObject user)
-        {
-            if (!IllAccess.Root(user)) return;
-            IllSkillzBotMain.PubSubReconnect();
-        }
         public static async Task<string> GetGPTResponce(string message, string userName = null)
         {
             string responce = await ChatGPT.GetGptResponce(userName + " " + message).ConfigureAwait(false);

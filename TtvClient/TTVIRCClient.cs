@@ -6,7 +6,6 @@ using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
-using IllPubSub.Events;
 using TwitchLib.Communication.Events;
 
 using SkillzBot.WRITERS;
@@ -16,10 +15,8 @@ using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
 using SkillzBot.Discord;
-using MySqlX.XDevAPI;
-using TwitchLib.Communication.Enums;
-using TwitchLib.Communication.Interfaces;
 using SkillzBot.API.Twitch;
+using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 
 namespace SkillzBot.IRC
 {
@@ -126,9 +123,9 @@ namespace SkillzBot.IRC
                     DiscordClient.SendEmbedMsg(cInfo.Title, null, singleton.SUMMONER_NAME, lp.RANK, lp.LPoints).GetAwaiter().GetResult();
             }
         }                        
-        public static void OnUnban(OnUnbanArgs e)
-        {
-            SendMessage(string.Format(STRINGS.OnUnban, e.UnbannedBy, e.UnbannedUser));
+        public static void OnUnban(ChannelUnbanArgs e)
+        {            
+            SendMessage(string.Format(STRINGS.OnUnban, e.Notification.Payload.Event.ModeratorUserLogin, e.Notification.Payload.Event.UserName));
         }  
         public static void SendMessage(string messageToSend)
         {

@@ -5,7 +5,6 @@ using SkillzBot.WRITERS;
 using SkillzBot.IRC;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
-using SkillzBot.PubSub;
 using SkillzBot.Singleton;
 using SkillzBot.MYSQL;
 using SkillzBot.Readers;
@@ -23,11 +22,9 @@ namespace SkillzBot
 {
     internal class CreateRootInstance
     {
-        static private int PubSubReconnects = 0;
         static string dataPath;
         static string sharedPath;
         static string ConfigPath;
-        private static PubSubClient PubSubClientInst;
         private static IllSingleton singleton;
         public static async Task CreateRootInsrance(string channelName, AppDomain currentDomain)
         {
@@ -48,34 +45,10 @@ namespace SkillzBot
 
             await StartUpConfigs().ConfigureAwait(false);
             TtvIRCClient TtvIRCClientInst = new TtvIRCClient();
-            PubSubClientInst = new PubSubClient();
             QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
             await quartzBackgroundTaskManager.ScheduleTasks().ConfigureAwait(false);
         }
-        public static void PubSubReconnect()
-        {
-            if (!singleton.isActiveSub) return;
-            if (PubSubClientInst != null)
-            {
-                PubSubClientInst.Dispose();
-                PubSubClientInst = null;
-                GC.Collect();
-                Thread.Sleep(2000);
-                PubSubReconnects++;
-                if (PubSubReconnects < 15)
-                    PubSubClientInst = new PubSubClient();
-                else
-                {
-                    Log.WriteLog(null, "PubSub reconnection ERROR! Will try to reconnect in 10 min");
-                    Thread.Sleep(60000);
-                    PubSubReconnect();
-                }
-            }
-            else
-            {
-                PubSubClientInst = new PubSubClient();
-            }
-        }
+       
         public static ConfPathes GetDataPath()
         {
             return new ConfPathes

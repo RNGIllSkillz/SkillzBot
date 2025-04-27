@@ -172,7 +172,7 @@ namespace SkillzBot.IllSkillzBot
                         await IllCommands.TestingMethod(user).ConfigureAwait(false);
                         break;
                     case "!connect":
-                        IllCommands.ReconnectToPubSub(user);
+                        //IllCommands.ReconnectToPubSub(user);
                         break;
                     case "!debug":
                         IllCommands.ToggleDebug(user);

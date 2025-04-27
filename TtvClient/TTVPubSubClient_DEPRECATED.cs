@@ -297,7 +297,7 @@ namespace SkillzBot.PubSub
         private void PubSub_OnUnban(object sender, OnUnbanArgs e)
         {
             if (!singleton.isActiveSub) return;
-            TtvIRCClient.OnUnban(e);
+            //TtvIRCClient.OnUnban(e);
         }
         private void PubSub_OnMessageDeleted(object sender, OnMessageDeletedArgs e)
         {
@@ -336,7 +336,7 @@ namespace SkillzBot.PubSub
             if (lockPubSub) return;
             lockPubSub = true;
             Log.WriteLog(e.Exception, "PubSub server Error!");
-            IllSkillzBotMain.PubSubReconnect();
+            //IllSkillzBotMain.PubSubReconnect();
         }
         private void OnPubSubServiceClosed(object sender, EventArgs e)
         {

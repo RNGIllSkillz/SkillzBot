@@ -254,7 +254,6 @@ Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\fr\SkillzBot.resources
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\ja\SkillzBot.resources.dll
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\ko\SkillzBot.resources.dll
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\ru\SkillzBot.resources.dll
-Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.csproj.CopyComplete
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.dll
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.pdb
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.genruntimeconfig.cache
@@ -390,4 +389,14 @@ Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Interactive.Asy
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Linq.Async.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Reactive.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\System.Reactive.xml
+<<<<<<< Updated upstream
 Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.sourcelink.json
+=======
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Camille.Core.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Camille.Enums.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Camille.RiotGames.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\MingweiSamuel.TokenBucket.dll
+Z:\prj\GitHub\SkillzBot\obj\Debug\netcoreapp3.1\linux-x64\SkillzBot.csproj.Up2Date
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Microsoft.Extensions.Diagnostics.dll
+Z:\prj\GitHub\SkillzBot\bin\Debug\netcoreapp3.1\linux-x64\Microsoft.Extensions.Diagnostics.Abstractions.dll
+>>>>>>> Stashed changes
