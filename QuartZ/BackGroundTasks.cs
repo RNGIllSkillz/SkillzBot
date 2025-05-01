@@ -40,31 +40,6 @@ namespace SkillzBot.QuartZ
 
             //Check Subscription
             SubCheck.RunChecker();
-
-            //Calcucate Points
-            //ToDo: Add timestamp to online status
-            /*
-            try
-            {
-                //var Chatters = await TtvAPI.GetChatters().ConfigureAwait(false);
-                var chatters = await TtvAPI.GetChattersAsync().ConfigureAwait(false);
-                if (chatters == null) return;
-                List<string> lChatters = new List<string>();
-                foreach (var chatter in chatters.Data)
-                {
-                    lChatters.Add(chatter.UserLogin);
-                }
-                await MySQL.UpdateOnlineStatus(lChatters).ConfigureAwait(false);
-                if (IllSingleton.GetInstance().BroadcasterIsOnline)
-                {
-                    await MySQL.AddPoints(10).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLog(ex, "RunEvery5Min()");
-            }
-            */
         }
         public static async Task TopRuleteTask()
         {

@@ -38,8 +38,7 @@ namespace SkillzBot.IllSkillzBot
             var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
             if (currentGame == null) return;
             if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength > 30) return;
-            if (singleton.debug)
-                Log.WriteLog(null, "Матч начался!");
+            Log.WriteLog(null, "Матч начался!");
             CurrentMatchID = PlatformID + Convert.ToString(currentGame.GameId);
             var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
             if (predictions == null) return;

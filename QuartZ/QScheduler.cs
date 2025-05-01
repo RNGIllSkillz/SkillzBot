@@ -102,6 +102,7 @@ public class QuartzBackgroundTaskManager
     }
     public async Task<string> GetAllJobsNames()
     {
+        Log.WriteLog(null, "GetAllJobsNames start");
         var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup()).ConfigureAwait(false);
         if (jobKeys == null || jobKeys.Count == 0)
         {

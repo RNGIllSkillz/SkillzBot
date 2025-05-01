@@ -33,7 +33,7 @@ namespace SkillzBot.IllSkillzBot
         private static double rtoppCD = 0;
         private static double getmmrCD = 0;
         private static double lpCD = 0;
-        private static double matchCD = 0;
+        //private static double matchCD = 0;
         private static double opggCD = 0;
         private static double treckCD = 0;
         private static double banCD = 0;
@@ -807,7 +807,7 @@ namespace SkillzBot.IllSkillzBot
             if (user.Name == singleton.rootUser)
             {
                 //try
-                //{
+                //{tv
                 //    string s = message;
                 //    char[] separators = new char[] { '|' };
                 //    string[] subs = s.Split(separators, StringSplitOptions.RemoveEmptyEntries);
@@ -1012,7 +1012,8 @@ namespace SkillzBot.IllSkillzBot
             if (!IllAccess.Root(user)) return;
             Console.WriteLine("test");
             //await TtvIRCClient.OnStreamUp();
-            //test stuff here           
+            //test stuff here
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task<string> GetGPTResponce(string message, string userName = null)
         {
@@ -1150,6 +1151,10 @@ namespace SkillzBot.IllSkillzBot
                 await TtvAPI.SendWhisper(mod.UserId, "Тестовый шептун").ConfigureAwait(false);
                 await Task.Delay(10).ConfigureAwait(false);
             }         
+        }
+        public void getJobs(UserObject user)
+        {
+            //TtvIRCClient.SendMessage(QuartzBackgroundTaskManager.GetRunningJobs());
         }
     }
 }

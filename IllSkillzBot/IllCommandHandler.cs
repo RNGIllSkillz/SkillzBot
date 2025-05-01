@@ -201,6 +201,9 @@ namespace SkillzBot.IllSkillzBot
                     case "!шептун":
                         await IllCommands.Sheptun(user).ConfigureAwait(false);
                         break;
+                    case "!jobs":
+                            //await IllCommands.getJobs(user).ConfigureAwait(false);                        
+                        break;
                     default:
                         break;
                 }                

@@ -7,40 +7,29 @@ using Newtonsoft.Json;
 using System.Threading.Tasks;
 using SkillzBot.Singleton;
 using SkillzBot.MYSQL;
-using SkillzBot.Readers;
 using SkillzBot.API.Twitch;
 using System.Globalization;
-using SkillzBot.IllSTRINGS;
 using System.Threading;
 using SkillzBot.JSON.Settings;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore;
-using System.Collections.Generic;
 using SkillzBot.MODELS;
 using SkillzBot.Discord;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using TwitchLib.EventSub.Websockets;
-using Microsoft.Extensions.Logging;
-using TwitchLib.Api;
-using TwitchLib.EventSub.Websockets.Extensions;
-using SkillzBot.TtvClient;
-using Microsoft.Extensions.Configuration;
-using SkillzBot.EventSub;
+using SkillzBot.Hosts;
 
 
 namespace IllSkillzBot
 {
     class IllSkillzBotMain
     {
-        static private int PubSubReconnects = 0;
+        //static private int PubSubReconnects = 0;
         static string dataPath;
         static string sharedPath;
         static string ConfigPath;
         private static IllSingleton singleton;
+        private readonly static IHostBuilders HostBuilders = new IHostBuilders();
+        //private readonly static IWebHostBuilders WebhostBuilders;
         private readonly static ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
         static async Task Main()
-        {           
+        {            
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
             CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("ru-RU");
 
@@ -62,8 +51,6 @@ namespace IllSkillzBot
                 Console.WriteLine(CreateDefoultConfig(ConfigPath, channelName));           
             }
 
-
-
             singleton = IllSingleton.GetInstance();            
             MySQL MySQLClientInst = new MySQL();
             DiscordClient discordClient = new DiscordClient();
@@ -71,16 +58,18 @@ namespace IllSkillzBot
             await StartUpConfigs().ConfigureAwait(false);
             TtvIRCClient TtvIRCClientInst = new TtvIRCClient();
             //PubSubClientInst = new PubSubClient();
-            CreateHostBuilder().Build().Run();
+            
 
             QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
             await quartzBackgroundTaskManager.ScheduleTasks().ConfigureAwait(false);
 
-            //CreateWebHostBuilder()
-            //    .Build()
-            //    .Run();
-
-            _resetEvent.Wait();           
+            var EventSubhost = HostBuilders.EventSubHos();
+            //var eAPIhost = WebhostBuilders.ILLAPIHost();
+            await EventSubhost.StartAsync().ConfigureAwait(false);
+            //await eAPIhost.StartAsync().ConfigureAwait(false);
+            _resetEvent.Wait();
+            await EventSubhost.StopAsync().ConfigureAwait(false);
+            //await eAPIhost.StopAsync().ConfigureAwait(false);
         }
         private static async Task StartUpConfigs()
         {            
@@ -190,34 +179,6 @@ namespace IllSkillzBot
         public static string GetConfigPath()
         {
             return ConfigPath;
-        }
-        
-        public static IWebHostBuilder CreateWebHostBuilder() =>
-        WebHost.CreateDefaultBuilder()
-            .UseStartup<Startup>();
-
-        private static IHostBuilder CreateHostBuilder() =>
-           Host.CreateDefaultBuilder()               
-               .ConfigureServices((hostContext, services) =>
-               {
-                   services.AddTwitchLibEventSubWebsockets();
-                   services.AddHostedService<TTVEventSub>();
-               });
-
-        private static async Task RunEvenSub()
-        {
-            var host = Host.CreateDefaultBuilder()
-                .ConfigureServices((context, services) =>
-                {
-
-                    services.AddLogging(builder => builder.AddConsole());
-                    services.AddTwitchLibEventSubWebsockets();
-                    services.AddSingleton<TwitchAPI>();
-                    services.AddHostedService<TTVEventSub>();
-
-                })
-                .Build();
-            await host.RunAsync();
         }
     }
 }

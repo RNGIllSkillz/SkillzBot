@@ -26,31 +26,32 @@ namespace SkillzBot.WRITERS
             {
                 using var fileStream = File.Open(_logFilePath, FileMode.Append, FileAccess.Write, FileShare.Read);
                 using var writer = new StreamWriter(fileStream);
-                writer.WriteLine(DateTime.Now);
-                writer.WriteLine(message);
                 if (_singleton.debug)
-                {
-                    Console.WriteLine(DateTime.Now);
-                    Console.WriteLine(message);
+                {                    
+                    writer.WriteLine(DateTime.Now);
+                    writer.WriteLine(message);
                 }
+                Console.WriteLine(DateTime.Now);
+                Console.WriteLine(message);
+                
                 if (ex != null)
-                {
+                {                    
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine(ex.StackTrace);
                     if (_singleton.debug)
                     {
-                        Console.WriteLine(ex.Message);
-                        Console.WriteLine(ex.StackTrace);
+                        writer.WriteLine(ex.Message);
+                        writer.WriteLine(ex.StackTrace);
                     }
-                    writer.WriteLine(ex.Message);
-                    writer.WriteLine(ex.StackTrace);
                     if (ex.InnerException != null)
                     {
+                        Console.WriteLine($"Inner: {ex.InnerException.Message}");
+                        Console.WriteLine($"Inner: {ex.InnerException.StackTrace}");
                         if (_singleton.debug)
                         {
-                            Console.WriteLine($"Inner: {ex.InnerException.Message}");
-                            Console.WriteLine($"Inner: {ex.InnerException.StackTrace}");
+                            writer.WriteLine($"Inner: {ex.InnerException.Message}");
+                            writer.WriteLine($"Inner: {ex.InnerException.StackTrace}");
                         }
-                        writer.WriteLine($"Inner: {ex.InnerException.Message}");
-                        writer.WriteLine($"Inner: {ex.InnerException.StackTrace}");
                     }
                 }
                 if (_singleton.debug)

@@ -14,7 +14,7 @@ using RiotSharp.Endpoints.StaticDataEndpoint.Champion;
 using SkillzBot.Utils;
 using System.Globalization;
 
-namespace SkillzBot.API.RiotDeprecated
+namespace SkillzBot.API.Riot_Deprecated
 {
     internal class RiotAPIOld
     {

@@ -68,7 +68,8 @@ namespace SkillzBot.EventSub
             { 
                 { "channel.bits.use", "1" }, 
                 { "channel.channel_points_custom_reward_redemption.add", "1" },
-                { "channel.moderate", "1"},
+                { "channel.unban", "1"},
+                { "channel.ban", "1"},
                 { "channel.prediction.begin", "1"}
             };
         }        
@@ -165,6 +166,7 @@ namespace SkillzBot.EventSub
                     method: EventSubTransportMethod.Websocket,
                     websocketSessionId: _eventSubWebsocketClient.SessionId).ConfigureAwait(false);
                 Log.WriteLog(null, $"Subscribed to {_type}. Subscription ID: {subscription.Subscriptions[0].Id}");
+                TtvIRCClient.SendMessage($"Subscribed to {_type}. Subscription ID: {subscription.Subscriptions[0].Id}");
             }
             catch (Exception ex)
             {
@@ -186,12 +188,13 @@ namespace SkillzBot.EventSub
         {
             if (e.Notification.Payload.Event.IsPermanent)
             {
-                //BAN                
-                TtvIRCClient.SendMessage($"{e.Notification.Payload.Event.UserName} o7");
+                //BAN
+                TtvIRCClient.SendMessage($"o7");
             }
             else
             {
                 //TIMEOUT
+                //Implemented via IRC Client_OnUserTimedout
             }
             await Task.CompletedTask.ConfigureAwait(false);
         }        
@@ -204,8 +207,24 @@ namespace SkillzBot.EventSub
         private async Task OnUnban(object sender, ChannelUnbanArgs e)
         {
             if (!singleton.isActiveSub) return;
-            TtvIRCClient.OnUnban(e);
-            await Task.CompletedTask.ConfigureAwait(false);
+            //TtvIRCClient.OnUnban(e);
+            try
+            {
+                var user = await MySQL.GetUser(e.Notification.Payload.Event.UserLogin.ToLower()).ConfigureAwait(false);
+                if (user.dbID == -404)
+                {
+                    Log.WriteLog(null, $"UserTimedoutEventTask id = -1 username:{e.Notification.Payload.Event.UserLogin.ToLower()}");
+                }
+                else
+                {
+                    user.UvalTimer = 0;
+                    await MySQL.UpdateUser(user).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "null");
+            }
         }
         private async Task OnChannelPointsCustomRewardRedemptionAdd(object sender, ChannelPointsCustomRewardRedemptionArgs e)
         {
