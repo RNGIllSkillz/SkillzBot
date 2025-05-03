@@ -92,7 +92,7 @@ namespace SkillzBot.MYSQL
         {
 
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
-            string commandText = $"INSERT INTO dbUserTable (TwitchID, Name, isSub, isVip, isMod, IsBroadcaster, UvalCon, messageCon, roulettCon, roulettCD, UvalTimer, banCount, Points, IsOnline, QuizPoints, QuizTotal, IsPartner) " +
+            string commandText = "INSERT INTO dbUserTable (TwitchID, Name, isSub, isVip, isMod, IsBroadcaster, UvalCon, messageCon, roulettCon, roulettCD, UvalTimer, banCount, Points, IsOnline, QuizPoints, QuizTotal, IsPartner) " +
                                  "VALUES(@TwitchID, @Name, @isSub, @isVip, @UvalCon, @isMod, @IsBroadcaster, @messageCon, @roulettCon, @roulettCD, @UvalTimer, @banCount, @Points, @IsOnline, @QuizPoints, @QuizTotal, @IsPartner)";
             using MySqlCommand Command = new MySqlCommand(commandText, Connect);
             Command.Parameters.AddWithValue("@TwitchID", User.TwitchID);
@@ -166,7 +166,7 @@ namespace SkillzBot.MYSQL
         }
         public static async Task UpdateUser(UserObject User)
         {
-            string SQL = $"UPDATE dbUserTable SET Name = @Name, isSub = @isSub, isVip = @isVip, isMod = @isMod, IsBroadcaster = @IsBroadcaster, UvalCon = @UvalCon, messageCon = @messageCon, roulettCon = @roulettCon, roulettCD = @roulettCD, UvalTimer = @UvalTimer, banCount = @banCount, QuizPoints = @QuizPoints, QuizTotal = @QuizTotal, IsPartner = @IsPartner  WHERE TwitchID = @TwitchID";
+            string SQL = "UPDATE dbUserTable SET Name = @Name, isSub = @isSub, isVip = @isVip, isMod = @isMod, IsBroadcaster = @IsBroadcaster, UvalCon = @UvalCon, messageCon = @messageCon, roulettCon = @roulettCon, roulettCD = @roulettCD, UvalTimer = @UvalTimer, banCount = @banCount, QuizPoints = @QuizPoints, QuizTotal = @QuizTotal, IsPartner = @IsPartner  WHERE TwitchID = @TwitchID";
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);            
             using MySqlCommand Command = new MySqlCommand(SQL, Connect);
             Command.Parameters.AddWithValue("@Name", User.Name);
@@ -196,7 +196,7 @@ namespace SkillzBot.MYSQL
         }
         public static async Task<UserObject> GetUser(int ttvUserID)
         {
-            string SQL = $"SELECT * FROM dbUserTable WHERE TwitchID = @ID";
+            string SQL = "SELECT * FROM dbUserTable WHERE TwitchID = @ID";
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
             try
             {
@@ -247,53 +247,47 @@ namespace SkillzBot.MYSQL
         }
         public static async Task<UserObject> GetUser(string name)
         {
-            using MySqlConnection connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
-            string sql = $"SELECT * FROM dbUserTable WHERE Name = @Name";
-            using MySqlCommand command = new MySqlCommand(sql, connect);
+            if (string.IsNullOrEmpty(name))
+                return new UserObject { dbID = -404 }; // Early exit
+
+            await using MySqlConnection connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
+            string sql = "SELECT * FROM dbUserTable WHERE Name = @Name COLLATE utf8mb4_unicode_ci";
+            await using MySqlCommand command = new MySqlCommand(sql, connect);
             command.Parameters.AddWithValue("@Name", name);
             try
             {
                 await connect.OpenAsync().ConfigureAwait(false);
-                using var sqlReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                if (await sqlReader.ReadAsync().ConfigureAwait(false))
+                await using var sqlReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+
+                if (!await sqlReader.ReadAsync().ConfigureAwait(false))
+                    return new UserObject { dbID = -404 };
+
+                return new UserObject()
                 {
-                    return new UserObject()
-                    {
-                        dbID = await sqlReader.GetFieldValueAsync<int>(0).ConfigureAwait(false),
-                        TwitchID = await sqlReader.GetFieldValueAsync<int>(1).ConfigureAwait(false),
-                        Name = await sqlReader.GetFieldValueAsync<string>(2).ConfigureAwait(false),
-                        isSub = await sqlReader.GetFieldValueAsync<int>(3).ConfigureAwait(false),
-                        isVip = await sqlReader.GetFieldValueAsync<int>(4).ConfigureAwait(false),
-                        isMod = await sqlReader.GetFieldValueAsync<int>(5).ConfigureAwait(false),
-                        IsBroadcaster = await sqlReader.GetFieldValueAsync<int>(6).ConfigureAwait(false),
-                        UvalCon = await sqlReader.GetFieldValueAsync<int>(7).ConfigureAwait(false),
-                        messageCon = await sqlReader.GetFieldValueAsync<int>(8).ConfigureAwait(false),
-                        roulettCon = await sqlReader.GetFieldValueAsync<int>(9).ConfigureAwait(false),
-                        roulettCD = await sqlReader.GetFieldValueAsync<double>(10).ConfigureAwait(false),
-                        UvalTimer = await sqlReader.GetFieldValueAsync<double>(11).ConfigureAwait(false),
-                        banCount = await sqlReader.GetFieldValueAsync<int>(12).ConfigureAwait(false),
-                        Points = await sqlReader.GetFieldValueAsync<int>(13).ConfigureAwait(false),
-                        IsOnline = await sqlReader.GetFieldValueAsync<int>(14).ConfigureAwait(false),
-                        QuizPoints = await sqlReader.GetFieldValueAsync<int>(15).ConfigureAwait(false),
-                        QuizTotal = await sqlReader.GetFieldValueAsync<int>(16).ConfigureAwait(false),
-                        isPartner = await sqlReader.GetFieldValueAsync<int>(17).ConfigureAwait(false)
-                    };
-                }
-                else
-                {
-                    return new UserObject()
-                    {
-                        dbID = -404
-                    };
-                }
+                    dbID = await sqlReader.GetFieldValueAsync<int>(0).ConfigureAwait(false),
+                    TwitchID = await sqlReader.GetFieldValueAsync<int>(1).ConfigureAwait(false),
+                    Name = await sqlReader.GetFieldValueAsync<string>(2).ConfigureAwait(false),
+                    isSub = await sqlReader.GetFieldValueAsync<int>(3).ConfigureAwait(false),
+                    isVip = await sqlReader.GetFieldValueAsync<int>(4).ConfigureAwait(false),
+                    isMod = await sqlReader.GetFieldValueAsync<int>(5).ConfigureAwait(false),
+                    IsBroadcaster = await sqlReader.GetFieldValueAsync<int>(6).ConfigureAwait(false),
+                    UvalCon = await sqlReader.GetFieldValueAsync<int>(7).ConfigureAwait(false),
+                    messageCon = await sqlReader.GetFieldValueAsync<int>(8).ConfigureAwait(false),
+                    roulettCon = await sqlReader.GetFieldValueAsync<int>(9).ConfigureAwait(false),
+                    roulettCD = await sqlReader.GetFieldValueAsync<double>(10).ConfigureAwait(false),
+                    UvalTimer = await sqlReader.GetFieldValueAsync<double>(11).ConfigureAwait(false),
+                    banCount = await sqlReader.GetFieldValueAsync<int>(12).ConfigureAwait(false),
+                    Points = await sqlReader.GetFieldValueAsync<int>(13).ConfigureAwait(false),
+                    IsOnline = await sqlReader.GetFieldValueAsync<int>(14).ConfigureAwait(false),
+                    QuizPoints = await sqlReader.GetFieldValueAsync<int>(15).ConfigureAwait(false),
+                    QuizTotal = await sqlReader.GetFieldValueAsync<int>(16).ConfigureAwait(false),
+                    isPartner = await sqlReader.GetFieldValueAsync<int>(17).ConfigureAwait(false)
+                };                
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, $"GetUser(name)");
-                return new UserObject()
-                {
-                    dbID = -404
-                };
+                Log.WriteLog(e, $"GetUser failed for name: '{name}'");
+                return new UserObject() {dbID = -404};
             }
         }        
         public static async Task<List<UserObject>> TOP(string Flag)

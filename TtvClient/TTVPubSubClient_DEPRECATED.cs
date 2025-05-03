@@ -278,7 +278,7 @@ namespace SkillzBot.PubSub
         {
             try
             {
-                var user = await MySQL.GetUser(e.UntimeoutedUser.ToLower()).ConfigureAwait(false);
+                var user = await MySQL.GetUser(e.UntimeoutedUser).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
                     Log.WriteLog(null, $"UserTimedoutEventTask id = -1 username:{e.UntimeoutedUser}");

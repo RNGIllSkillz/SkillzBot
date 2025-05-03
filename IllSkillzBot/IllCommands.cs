@@ -1152,9 +1152,10 @@ namespace SkillzBot.IllSkillzBot
                 await Task.Delay(10).ConfigureAwait(false);
             }         
         }
-        public void getJobs(UserObject user)
+        public static async void getJobs(UserObject user)
         {
-            //TtvIRCClient.SendMessage(QuartzBackgroundTaskManager.GetRunningJobs());
+            if (!IllAccess.Root(user)) return;
+            TtvIRCClient.SendMessage(await QuartzBackgroundTaskManager.GetRunningJobs().ConfigureAwait(false));
         }
     }
 }

@@ -125,7 +125,6 @@ namespace SkillzBot.EventSub
                     if (await _eventSubWebsocketClient.ReconnectAsync().ConfigureAwait(false))
                     {
                         Log.WriteLog(null, "Websocket reconnected successfully.");
-                        await Subscribe().ConfigureAwait(false);
                         return;
                     }
                 }
@@ -166,7 +165,7 @@ namespace SkillzBot.EventSub
                     method: EventSubTransportMethod.Websocket,
                     websocketSessionId: _eventSubWebsocketClient.SessionId).ConfigureAwait(false);
                 Log.WriteLog(null, $"Subscribed to {_type}. Subscription ID: {subscription.Subscriptions[0].Id}");
-                TtvIRCClient.SendMessage($"Subscribed to {_type}. Subscription ID: {subscription.Subscriptions[0].Id}");
+                //TtvIRCClient.SendMessage($"Subscribed to {_type}. Subscription ID: {subscription.Subscriptions[0].Id}");
             }
             catch (Exception ex)
             {
@@ -210,10 +209,10 @@ namespace SkillzBot.EventSub
             //TtvIRCClient.OnUnban(e);
             try
             {
-                var user = await MySQL.GetUser(e.Notification.Payload.Event.UserLogin.ToLower()).ConfigureAwait(false);
+                var user = await MySQL.GetUser(e.Notification.Payload.Event.UserLogin).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
-                    Log.WriteLog(null, $"UserTimedoutEventTask id = -1 username:{e.Notification.Payload.Event.UserLogin.ToLower()}");
+                    Log.WriteLog(null, $"UserTimedoutEventTask id = -1 username:{e.Notification.Payload.Event.UserLogin}");
                 }
                 else
                 {

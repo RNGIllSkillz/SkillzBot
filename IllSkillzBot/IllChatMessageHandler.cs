@@ -65,19 +65,23 @@ namespace SkillzBot.IllSkillzBot
 
             if (singleton.isActiveSub)
             {
+                bool fl2 = false;
                 if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
                 {
                     await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutBadPic).ConfigureAwait(false);
                     return user;
                 }
-                if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
-                    return await IllCommands.IllFilterTrigger(user, e.ChatMessage.Id).ConfigureAwait(false);
-                await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);                
                 if (IllChatFilters.FilterASCII(e))
                 {
                     await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutPic).ConfigureAwait(false);
-                    return user;
+                    fl2 = true;
                 }
+                if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
+                    return await IllCommands.IllFilterTrigger(user, e.ChatMessage.Id).ConfigureAwait(false);
+                if (fl2)
+                    return user;
+                await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);                
+                
                 //if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
                 //return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
                 if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))

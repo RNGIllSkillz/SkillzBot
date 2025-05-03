@@ -427,7 +427,7 @@ namespace SkillzBot.TtvClient.TTVRewards
             {
                 //отменить увал
                 CencelUvalIsWating = false;
-                var user = await MySQL.GetUser(CencelUvalUserName.ToLower()).ConfigureAwait(false);
+                var user = await MySQL.GetUser(CencelUvalUserName).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
                     TtvIRCClient.SendMessage(STRINGS.CencelUval404);

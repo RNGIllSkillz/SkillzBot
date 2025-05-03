@@ -202,7 +202,7 @@ namespace SkillzBot.IllSkillzBot
                         await IllCommands.Sheptun(user).ConfigureAwait(false);
                         break;
                     case "!jobs":
-                            //await IllCommands.getJobs(user).ConfigureAwait(false);                        
+                        IllCommands.getJobs(user);                        
                         break;
                     default:
                         break;

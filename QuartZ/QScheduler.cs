@@ -10,7 +10,7 @@ using SkillzBot.QuartZ;
 
 public class QuartzBackgroundTaskManager
 {
-    private readonly IScheduler _scheduler;
+    private static IScheduler _scheduler;
 
     public QuartzBackgroundTaskManager()
     {
@@ -66,7 +66,7 @@ public class QuartzBackgroundTaskManager
             Log.WriteLog(ex, "UpdateJobSchedule");
         }
     }
-    public async Task<string> GetRunningJobs()
+    public static async Task<string> GetRunningJobs()
     {
         var executingJobs = await _scheduler.GetCurrentlyExecutingJobs().ConfigureAwait(false);
         if (executingJobs == null || executingJobs.Count == 0)

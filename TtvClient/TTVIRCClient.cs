@@ -59,6 +59,8 @@ namespace SkillzBot.IRC
         private static async void Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
             await UserTimedoutEventTask(e).ConfigureAwait(false);
+            if (e.UserTimeout.TimeoutDuration > 50000)            
+                SendMessage($"o7");            
         }
         private static void Client_OnDisconnected(object sender, OnDisconnectedEventArgs e)
         {
