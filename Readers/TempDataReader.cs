@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using SkillzBot.API.Riot;
 using SkillzBot.Singleton;
+using SkillzBot.API.RiotGames;
 
 namespace SkillzBot.Readers
 {

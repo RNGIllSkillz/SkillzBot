@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SkillzBot.API.Twitch;
-using SkillzBot.API.Riot;
 using SkillzBot.MODELS;
 using SkillzBot.Utils;
 using SkillzBot.WRITERS;
@@ -13,6 +12,8 @@ using System.Threading;
 using Camille.Enums;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.SpectatorV5;
+using Google.Protobuf.WellKnownTypes;
+using SkillzBot.API.RiotGames;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -23,6 +24,7 @@ namespace SkillzBot.IllSkillzBot
         //private readonly static string englishWis = singleton.EnglishWis;        
         private static string CurrentMatchID;
         private static string PlatformID;
+        private static readonly int _maxGameLengthsec = 5400;
         public static async Task GetCurrentMatchTask()
         {
             if (!singleton.isActiveSub) return;
@@ -39,6 +41,7 @@ namespace SkillzBot.IllSkillzBot
             if (currentGame == null) return;
             if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength > 30) return;
             Log.WriteLog(null, "Матч начался!");
+            
             CurrentMatchID = PlatformID + Convert.ToString(currentGame.GameId);
             var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
             if (predictions == null) return;
@@ -155,8 +158,16 @@ namespace SkillzBot.IllSkillzBot
                 Log.WriteLog(null, $"currentGameID: {currentGameID}");
             }
             int errorThreshHold = 0;
+            var maxGameTime = DateTimeOffset.Now.ToUnixTimeSeconds() + _maxGameLengthsec;
             while (singleton.inAmatch)
             {
+                if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
+                {
+                    singleton.inAmatch = false;
+                    TtvIRCClient.SendMessage($"Качется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
+                    Log.WriteLog(null, $"Качется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
+                    break;
+                }
                 try
                 {
                     onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
@@ -193,11 +204,11 @@ namespace SkillzBot.IllSkillzBot
                     if (onMatch.Info.GameDuration > 300)
                     {                        
                         singleton.numGames++;
-                        if (RiotAPI.GetParticipantByMatch(onMatch).Win)
+                        if (Participant.Win)
                         {
                             await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
                             if (singleton.debug)
-                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Win}");
+                                Log.WriteLog(null, $"Матч завершен {Participant.Win}");
                             singleton.numWins++;
                             await UpdateDailyStats(true).ConfigureAwait(false);
                         }
@@ -205,7 +216,7 @@ namespace SkillzBot.IllSkillzBot
                         {
                             await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
                             if (singleton.debug)
-                                Log.WriteLog(null, $"Матч завершен {RiotAPI.GetParticipantByMatch(onMatch).Win}");
+                                Log.WriteLog(null, $"Матч завершен {Participant.Win}");
                             singleton.numLoose++;
                             await UpdateDailyStats(false).ConfigureAwait(false);
                         }

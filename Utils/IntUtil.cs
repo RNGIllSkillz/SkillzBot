@@ -71,5 +71,13 @@ namespace SkillzBot.Utils
             int precision = (topPercent == decimal.Truncate(topPercent)) ? 0 : 4;
             return "(top " + topPercent.ToString($"F{precision}").TrimEnd('0').TrimEnd('.') + "%)";
         }
+
+        public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
+        {
+            // Unix timestamp is seconds past epoch
+            DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            dateTime = dateTime.AddSeconds(unixTimeStamp).ToLocalTime();
+            return dateTime;
+        }
     }
 }

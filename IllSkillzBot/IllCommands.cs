@@ -7,7 +7,6 @@ using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using SkillzBot.API.Riot;
 using System.Linq;
 using SkillzBot.MYSQL;
 using SkillzBot.Writers;
@@ -24,6 +23,7 @@ using System.IO;
 using SkillzBot.SubUtils;
 using TwitchLib.Client;
 using Camille.Enums;
+using SkillzBot.API.RiotGames;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -1017,7 +1017,9 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task<string> GetGPTResponce(string message, string userName = null)
         {
-            string responce = await ChatGPT.GetGptResponce(userName + " " + message).ConfigureAwait(false);
+            await Task.CompletedTask.ConfigureAwait(false);
+            return null;
+           /* string responce = await ChatGPT.GetGptResponce(userName + " " + message).ConfigureAwait(false);
             if (!responce.Contains("maximum context length"))
                     if (IllChatFilters.ZapCheck(responce, "ChatGPT"))
                         return "900";
@@ -1027,7 +1029,7 @@ namespace SkillzBot.IllSkillzBot
             {
                 ChatGPT.CreateNewChat();
                 return await GetGPTResponce(message, userName).ConfigureAwait(false);
-            }
+            }*/
         }
         public static void ToggleDebug(UserObject user)
         {

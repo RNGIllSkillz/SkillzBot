@@ -1,7 +1,6 @@
 ﻿using SkillzBot.IllSkillzBot;
 using SkillzBot.Singleton;
 using SkillzBot.WRITERS;
-using SkillzBot.API.Riot;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,6 +8,7 @@ using SkillzBot.MYSQL;
 using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
 using SkillzBot.SubUtils;
+using SkillzBot.API.RiotGames;
 
 namespace SkillzBot.QuartZ
 {

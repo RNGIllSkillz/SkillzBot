@@ -17,6 +17,7 @@ using SkillzBot.API.StreamElements;
 using SkillzBot.Discord;
 using SkillzBot.API.Twitch;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using MySqlX.XDevAPI;
 
 namespace SkillzBot.IRC
 {
@@ -28,19 +29,14 @@ namespace SkillzBot.IRC
         {
             Console.Write("Initializing Ttv IRC Client... ");
             try
-            {
-                var clientOptions = new ClientOptions
-                {
-                    MessagesAllowedInPeriod = 750,
-                    ThrottlingPeriod = TimeSpan.FromSeconds(30)
-                };
-                WebSocketClient customClient = new WebSocketClient(clientOptions);
-                client = new TwitchClient(customClient);
+            {              
                 ConnectionCredentials credentials = new ConnectionCredentials(singleton.BotTwitchName, singleton.BotTwitchAuth);
-                client.Initialize(credentials, singleton.ChannelName);
+                client = new TwitchClient(); 
                 client.OnMessageReceived += Client_OnMessageReceived;
                 client.OnUserTimedout += Client_OnUserTimedout;
                 client.OnDisconnected += Client_OnDisconnected;
+                client.OnConnected += client_Onconnected;
+                client.Initialize(credentials, singleton.ChannelName);                
                 client.Connect();
                 Console.WriteLine("OK.");
             }
@@ -49,7 +45,11 @@ namespace SkillzBot.IRC
                 Console.WriteLine("ERROR.");
                 Log.WriteLog(e, "TtvIRCClient()");
             }
-        }        
+        }
+        private static async void client_Onconnected(object sender, OnConnectedArgs e)
+        {
+            await Task.CompletedTask.ConfigureAwait(false);
+        }
         private static async void Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
         {
             var user = await IllChatMessageHandler.MessageHandler(e).ConfigureAwait(false);

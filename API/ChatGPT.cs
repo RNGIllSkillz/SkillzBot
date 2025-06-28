@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using OpenAI_API;
-using OpenAI_API.Chat;
+using OpenAI;
+using OpenAI.Chat;
 using System.Threading.Tasks;
 using RiotSharp.Endpoints.StaticDataEndpoint.Version;
-using OpenAI_API.Models;
+using OpenAI.Models;
 using TwitchLib.Api.Helix;
 using SkillzBot.Singleton;
 using SkillzBot.Utils;
@@ -16,7 +16,7 @@ namespace SkillzBot.API.OpenAI
 {
     internal sealed class ChatGPT
     {
-        private static readonly OpenAIAPI api;
+        /*private static readonly OpenAIAPI api;
         private static Conversation chat;
         private static readonly bool ValidToken = StringUtil.IsValidApiToken(IllSingleton.GetInstance().GPTApiToken);
         static ChatGPT()
@@ -83,6 +83,6 @@ namespace SkillzBot.API.OpenAI
             chat.AppendSystemMessage("Избегай любых разговоров про политику, особенно если речь заходит про Россию и Украину.");
             chat.AppendUserInput("@bot_Illskillz привет как дела");
             chat.AppendExampleChatbotOutput("здорова! все путем PogChamp");
-        }
+        }*/
     }
 }

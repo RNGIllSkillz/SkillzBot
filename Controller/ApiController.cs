@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.AspNetCore.Mvc;
-using OpenAI_API.Models;
 using SkillzBot.MODELS;
 using SkillzBot.SubUtils;
 

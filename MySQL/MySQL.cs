@@ -90,10 +90,29 @@ namespace SkillzBot.MYSQL
 
         public static async Task AddUser(UserObject User)
         {
-
             using MySqlConnection Connect = DBUtils.GetDBConnection(_DbName, _DbUserName, _DbPassword);
-            string commandText = "INSERT INTO dbUserTable (TwitchID, Name, isSub, isVip, isMod, IsBroadcaster, UvalCon, messageCon, roulettCon, roulettCD, UvalTimer, banCount, Points, IsOnline, QuizPoints, QuizTotal, IsPartner) " +
-                                 "VALUES(@TwitchID, @Name, @isSub, @isVip, @UvalCon, @isMod, @IsBroadcaster, @messageCon, @roulettCon, @roulettCD, @UvalTimer, @banCount, @Points, @IsOnline, @QuizPoints, @QuizTotal, @IsPartner)";
+            string commandText = @"
+            INSERT INTO dbUserTable 
+                (TwitchID, Name, isSub, isVip, isMod, IsBroadcaster, UvalCon, messageCon, roulettCon, roulettCD, UvalTimer, banCount, Points, IsOnline, QuizPoints, QuizTotal, IsPartner)
+            VALUES
+                (@TwitchID, @Name, @isSub, @isVip, @isMod, @IsBroadcaster, @UvalCon, @messageCon, @roulettCon, @roulettCD, @UvalTimer, @banCount, @Points, @IsOnline, @QuizPoints, @QuizTotal, @IsPartner)
+            ON DUPLICATE KEY UPDATE
+                TwitchID = VALUES(TwitchID),
+                isSub = VALUES(isSub),
+                isVip = VALUES(isVip),
+                isMod = VALUES(isMod),
+                IsBroadcaster = VALUES(IsBroadcaster),
+                UvalCon = VALUES(UvalCon),
+                messageCon = VALUES(messageCon),
+                roulettCon = VALUES(roulettCon),
+                roulettCD = VALUES(roulettCD),
+                UvalTimer = VALUES(UvalTimer),
+                banCount = VALUES(banCount),
+                Points = VALUES(Points),
+                IsOnline = VALUES(IsOnline),
+                QuizPoints = VALUES(QuizPoints),
+                QuizTotal = VALUES(QuizTotal),
+                IsPartner = VALUES(IsPartner);";
             using MySqlCommand Command = new MySqlCommand(commandText, Connect);
             Command.Parameters.AddWithValue("@TwitchID", User.TwitchID);
             Command.Parameters.AddWithValue("@Name", User.Name);
@@ -714,7 +733,7 @@ namespace SkillzBot.MYSQL
 
                 foreach (var message in Messages.OrderBy(m => m.TimeStamp))
                 {
-                    extractMessage.ExtractMessageTask(UnixTimeStampToDateTime(message.TimeStamp) + ", Channel: " + message.ChannelName + ", Message: " + message.Message);
+                    extractMessage.ExtractMessageTask(IntUtil.UnixTimeStampToDateTime(message.TimeStamp) + ", Channel: " + message.ChannelName + ", Message: " + message.Message);
                 }
 
                 info.Count = AllSchemas.Count;
@@ -802,7 +821,7 @@ namespace SkillzBot.MYSQL
                 Messages = qs.SortArray(Messages, 0, Messages.Count-1);
                 foreach (var message in Messages)
                 {
-                    extractMessage.ExtractMessageTask(UnixTimeStampToDateTime(message.TimeStamp) + ", Channel: " + message.ChannelName + ", Message: " + message.Message);
+                    extractMessage.ExtractMessageTask(IntUtil.UnixTimeStampToDateTime(message.TimeStamp) + ", Channel: " + message.ChannelName + ", Message: " + message.Message);
                 }
                 return info;                
             }
@@ -844,12 +863,6 @@ namespace SkillzBot.MYSQL
 
         }        
          */   
-        private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
-        {
-            // Unix timestamp is seconds past epoch
-            DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            dateTime = dateTime.AddSeconds(unixTimeStamp).ToLocalTime();
-            return dateTime;
-        }        
+               
     } 
 }
