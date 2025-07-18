@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "e/cysZoAHrQ=",
+  "dgSpecHash": "QdCIV9zu9og=",
   "success": true,
   "projectFilePath": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
   "expectedPackageFiles": [
@@ -165,10 +165,10 @@
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.api.core.models\\3.9.0\\twitchlib.api.core.models.3.9.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.api.helix\\3.9.0\\twitchlib.api.helix.3.9.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.api.helix.models\\3.9.0\\twitchlib.api.helix.models.3.9.0.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client\\3.3.1\\twitchlib.client.3.3.1.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client.enums\\3.3.1\\twitchlib.client.enums.3.3.1.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client.models\\3.3.1\\twitchlib.client.models.3.3.1.nupkg.sha512",
-    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.communication\\1.0.4\\twitchlib.communication.1.0.4.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client\\3.4.0\\twitchlib.client.3.4.0.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client.enums\\3.4.0\\twitchlib.client.enums.3.4.0.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.client.models\\3.4.0\\twitchlib.client.models.3.4.0.nupkg.sha512",
+    "C:\\Users\\atras\\.nuget\\packages\\twitchlib.communication\\1.0.6\\twitchlib.communication.1.0.6.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.core\\2.6.0\\twitchlib.eventsub.core.2.6.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.eventsub.websockets\\0.6.0\\twitchlib.eventsub.websockets.0.6.0.nupkg.sha512",
     "C:\\Users\\atras\\.nuget\\packages\\twitchlib.pubsub\\3.2.6\\twitchlib.pubsub.3.2.6.nupkg.sha512",

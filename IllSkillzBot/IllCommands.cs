@@ -42,7 +42,6 @@ namespace SkillzBot.IllSkillzBot
 
         private static readonly TimeSpan ClipCooldown = TimeSpan.FromSeconds(30);
         private static DateTimeOffset LastClipTime = DateTimeOffset.MinValue;
-
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
 
         readonly static List<string> popMessages = new List<string>();
@@ -67,7 +66,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static void Prediction(UserObject user, string[] command)
         {
-            if (!IllAccess.Low(user)) return;
+            if (!IllAccess.Mid(user)) return;
             if (command.Length > 1)
             {
                 switch (command[1])
@@ -96,7 +95,7 @@ namespace SkillzBot.IllSkillzBot
         {
             if (command.Length > 2)
             {
-                if (!IllAccess.Low(user)) return;
+                if (!IllAccess.Mid(user)) return;
                 if (!singleton.inAmatch)
                     {
                         switch (command.Last())
@@ -135,21 +134,22 @@ namespace SkillzBot.IllSkillzBot
                         {
                             TtvIRCClient.SendMessage($"ERROR: {result}");
                         }
-                    }
-                    else
-                    {
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.LPInaMatch, user.Name));
-                    }                
+                }
+                else
+                {
+                    TtvIRCClient.SendMessage(string.Format(STRINGS.LPInaMatch, user.Name));
+                }                
             }
             else
             {
-                if (user.isVip == 1 || IllAccess.Low(user))
-                    lpCD = 0;
-                if (DateTimeOffset.Now.ToUnixTimeSeconds() - lpCD >= 30)
-                {
-                    lpCD = DateTimeOffset.Now.ToUnixTimeSeconds();
+                //!!!!!!!!!!!!!!!      TESTING CD-MANAGER !!!!!!!!!!!!!!!!!
+                //if (IllAccess.Low(user))
+                //    lpCD = 0;
+                //if (DateTimeOffset.Now.ToUnixTimeSeconds() - lpCD >= 30)
+                //{
+                //    lpCD = DateTimeOffset.Now.ToUnixTimeSeconds();
                     await ShowLPAsync(user.Name).ConfigureAwait(false);
-                }
+                //}
             }
         }
         public static async Task RouletteTop(UserObject user)
@@ -157,7 +157,7 @@ namespace SkillzBot.IllSkillzBot
             int secCD = 600;
             if (user.isSub == 1) secCD = 300;
             if (user.isVip == 1) secCD = 100;
-            if (IllAccess.Low(user)) secCD = 0;
+            if (IllAccess.Mid(user)) secCD = 0;
             if (DateTimeOffset.Now.ToUnixTimeSeconds() - rtoppCD >= secCD)
             {
                 rtoppCD = DateTimeOffset.Now.ToUnixTimeSeconds();
@@ -350,12 +350,9 @@ namespace SkillzBot.IllSkillzBot
                             var promo = new List<string>();
                             foreach (var prog in mType.MiniSeries.Progress)
                             {
-                                if (prog == 'L')
-                                    promo.Add("❌");
-                                if (prog == 'W')
-                                    promo.Add("✅");
-                                if (prog == 'N')
-                                    promo.Add("➖");
+                                if (prog == 'L') promo.Add("❌");
+                                if (prog == 'W') promo.Add("✅");
+                                if (prog == 'N') promo.Add("➖");
                             }
                             string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
                             string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -1084,7 +1081,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task RemoveUserFromBlacklist(UserObject user, string[] input)
         {
-            if (!IllAccess.Low(user)) return;
+            if (!IllAccess.Mid(user)) return;
             if (input.Length != 2)
             {
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -1154,7 +1151,7 @@ namespace SkillzBot.IllSkillzBot
                 await Task.Delay(10).ConfigureAwait(false);
             }         
         }
-        public static async void getJobs(UserObject user)
+        public static async Task getJobs(UserObject user)
         {
             if (!IllAccess.Root(user)) return;
             TtvIRCClient.SendMessage(await QuartzBackgroundTaskManager.GetRunningJobs().ConfigureAwait(false));

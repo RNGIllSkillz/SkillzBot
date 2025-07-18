@@ -23,6 +23,10 @@ namespace SkillzBot.IllSkillzBot
         private readonly static object _LockMessagesObject = new object();
         private readonly static object _LockBufferObject = new object();
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
+        private static readonly int TimeoutSec = 600;
+        private static readonly int LightTimeoutSec = 300;
+        private static readonly int SaveBufferCount = 100; //number of messages to wrap up for bulk save in db
+
         static IllChatMessageHandler()
         {
             DataColumn idColumnMess = new DataColumn("Id", Type.GetType("System.Int32"))
@@ -68,25 +72,25 @@ namespace SkillzBot.IllSkillzBot
                 bool fl2 = false;
                 if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
                 {
-                    await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOutBadPic).ConfigureAwait(false);
+                    await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutBadPic).ConfigureAwait(false);
                     return user;
                 }
                 if (IllChatFilters.FilterASCII(e))
                 {
-                    await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutPic).ConfigureAwait(false);
+                    await TtvAPI.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutPic).ConfigureAwait(false);
                     fl2 = true;
                 }
                 if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
                     return await IllCommands.IllFilterTrigger(user, e.ChatMessage.Id).ConfigureAwait(false);
                 if (fl2)
                     return user;
-                await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);                
-                
+                await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);
+
                 //if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
-                //return await TtvAPI.TimeOutUser(user, 300, STRINGS.TimeOutSpam).ConfigureAwait(false);
+                //return await TtvAPI.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam).ConfigureAwait(false);
                 if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))
                 {
-                    await TtvAPI.TimeOutUser(user, 600, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+                    await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason).ConfigureAwait(false);
                     return user;
                 }
                 if (IllSingleton.GetInstance().QuizIsRunning)
@@ -107,7 +111,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task SaveBuffer(bool IsForced)
         {
-            if (messagesBuffer.Count < 100 && !IsForced) return;
+            if (messagesBuffer.Count < SaveBufferCount && !IsForced) return;
             if (messagesBuffer.Count == 0) return;
             List<MessageBuffer> temp;
             lock (_LockBufferObject)

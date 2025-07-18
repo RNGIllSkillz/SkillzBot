@@ -564,10 +564,10 @@ namespace SkillzBot.MYSQL
 
                 await transaction.CommitAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                await transaction.RollbackAsync().ConfigureAwait(false);
-                throw ex;
+                await transaction.RollbackAsync().ConfigureAwait(false);         
+                throw;
             }
             finally
             {

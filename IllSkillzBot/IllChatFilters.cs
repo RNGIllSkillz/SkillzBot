@@ -30,6 +30,9 @@ namespace SkillzBot.IllSkillzBot
         private static HashSet<string> userBlackList;
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static readonly int[] Arabic2;
+        private static readonly int CharsInRow = 29;
+        private static readonly int ArabCharsInRow = 4;
+        private static readonly int RowsNum = 3;
         static IllChatFilters()
         {
             pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.PichkaListFileName)));
@@ -143,10 +146,10 @@ namespace SkillzBot.IllSkillzBot
             if (e.ChatMessage.CustomRewardId != singleton.Pi4KaId)
             {
                 int count = StringUtil.CheckASCII(e.ChatMessage.Message);
-                if (count / 29 >= 3 && e.ChatMessage.Message.Length / 29 > 3)
+                if (count / CharsInRow >= RowsNum && e.ChatMessage.Message.Length / CharsInRow > RowsNum)
                     return true;
                 var arabicCount = Arabic2.Select(b => e.ChatMessage.Message.Count(f => f == (char)b)).Sum();
-                if (arabicCount / 4 >= 3 && e.ChatMessage.Message.Length / 4 >= 3)
+                if (arabicCount / ArabCharsInRow >= RowsNum && e.ChatMessage.Message.Length / ArabCharsInRow >= RowsNum)
                     return true;
                 if (e.ChatMessage.Message.Contains("ﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞ"))
                     return true;

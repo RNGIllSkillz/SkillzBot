@@ -2,6 +2,7 @@
 using SkillzBot.MODELS;
 using SkillzBot.Singleton;
 using SkillzBot.Utils;
+using System;
 using System.Threading.Tasks;
 
 
@@ -10,6 +11,33 @@ namespace SkillzBot.IllSkillzBot
     internal class IllCommandHandler
     {
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
+        static readonly CooldownManager CooldownManager = new();
+
+        private static readonly int getJobsCooldownSec = 10;
+        private static readonly int lpCooldownSec = 60;
+        static IllCommandHandler()
+        {
+            CooldownManager.RegisterCooldown(nameof(IllCommands.getJobs), TimeSpan.FromSeconds(getJobsCooldownSec));
+            CooldownManager.RegisterCooldown(nameof(IllCommands.LpCommand), TimeSpan.FromSeconds(lpCooldownSec));
+        }
+
+        static async Task CallWithCooldownAsync(UserObject user, string methodName, Func<UserObject, Task> method)
+        {
+            var result = await CooldownManager.TryInvokeAsync(user, methodName, method);
+            if (result != null)
+            {
+                TtvIRCClient.SendMessage($"[{user.TwitchID}] {methodName} on cooldown: {result.Value.TotalSeconds:F1}s left");
+            }
+        }
+        static async Task CallWithCooldownAsync(UserObject user, string[] Command, string methodName, Func<UserObject, string[], Task> method)
+        {
+            var result = await CooldownManager.TryInvokeAsync(user, Command, methodName, method);
+            if (result != null)
+            {
+                TtvIRCClient.SendMessage($"[{user.TwitchID}] {methodName} on cooldown: {result.Value.TotalSeconds:F1}s left");
+            }
+        }
+
         public static async Task<UserObject> CommandHandler(UserObject user, string message) 
         {
             if (singleton.isActiveSub || user.Name == singleton.rootUser)
@@ -29,6 +57,7 @@ namespace SkillzBot.IllSkillzBot
                         break;
 
                     case "!рулетка":
+                    case "!hektnrf":
                         return await IllGames.Rulette(user).ConfigureAwait(false);
 
                     case "!ртоп":
@@ -40,9 +69,12 @@ namespace SkillzBot.IllSkillzBot
                         break;
 
                     case "!лп":
+                    case "!kg":
+                    case "!дз":
                     case "!lp":
                     case "!rank":
-                        await IllCommands.LpCommand(user, Command).ConfigureAwait(false);
+                        await CallWithCooldownAsync(user, Command, nameof(IllCommands.LpCommand), IllCommands.LpCommand);
+                        //await IllCommands.LpCommand(user, Command).ConfigureAwait(false);
                         break;
 
                     case "!ммр":
@@ -202,7 +234,8 @@ namespace SkillzBot.IllSkillzBot
                         await IllCommands.Sheptun(user).ConfigureAwait(false);
                         break;
                     case "!jobs":
-                        IllCommands.getJobs(user);                        
+                        await CallWithCooldownAsync(user, nameof(IllCommands.getJobs), IllCommands.getJobs);
+                        // IllCommands.getJobs(user);                        
                         break;
                     default:
                         break;
