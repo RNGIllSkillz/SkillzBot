@@ -26,7 +26,7 @@ namespace SkillzBot.IllSkillzBot
             var result = await CooldownManager.TryInvokeAsync(user, methodName, method);
             if (result != null)
             {
-                TtvIRCClient.SendMessage($"[{user.TwitchID}] {methodName} on cooldown: {result.Value.TotalSeconds:F1}s left");
+                //TtvIRCClient.SendMessage($"[{user.TwitchID}] {methodName} on cooldown: {result.Value.TotalSeconds:F1}s left");
             }
         }
         static async Task CallWithCooldownAsync(UserObject user, string[] Command, string methodName, Func<UserObject, string[], Task> method)
@@ -34,7 +34,7 @@ namespace SkillzBot.IllSkillzBot
             var result = await CooldownManager.TryInvokeAsync(user, Command, methodName, method);
             if (result != null)
             {
-                TtvIRCClient.SendMessage($"[{user.TwitchID}] {methodName} on cooldown: {result.Value.TotalSeconds:F1}s left");
+                //TtvIRCClient.SendMessage($"[{user.TwitchID}] {methodName} on cooldown: {result.Value.TotalSeconds:F1}s left");
             }
         }
 

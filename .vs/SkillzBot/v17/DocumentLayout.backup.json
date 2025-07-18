@@ -7,6 +7,10 @@
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illcommandhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\utils\\cooldownmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:utils\\cooldownmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -17,10 +21,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illaccess.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illaccess.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illchatfilters.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -66,26 +66,26 @@
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "CooldownManager.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\CooldownManager.cs",
               "RelativeDocumentMoniker": "Utils\\CooldownManager.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\CooldownManager.cs",
               "RelativeToolTip": "Utils\\CooldownManager.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAowCwAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-18T20:39:17.937Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "IllCommands.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommands.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllCommands.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommands.cs",
               "RelativeToolTip": "IllSkillzBot\\IllCommands.cs",
-              "ViewState": "AgIAAE0CAAAAAAAAAAAcwCkAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAkAAAAAAAAAAAAAACkAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-17T22:45:29.968Z",
               "EditorCaption": ""
@@ -96,9 +96,9 @@
               "Title": "IllCommandHandler.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandHandler.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllCommandHandler.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandHandler.cs",
-              "RelativeToolTip": "IllSkillzBot\\IllCommandHandler.cs",
-              "ViewState": "AgIAACgAAAAAAAAAAAAqwDoAAAAkAAAAAAAAAA==",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandHandler.cs*",
+              "RelativeToolTip": "IllSkillzBot\\IllCommandHandler.cs*",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAACQAAAASAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-17T22:44:34.116Z",
               "EditorCaption": ""
@@ -117,7 +117,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "IllAccess.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllAccess.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllAccess.cs",
@@ -125,8 +125,7 @@
               "RelativeToolTip": "IllSkillzBot\\IllAccess.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-17T22:35:02.521Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-17T22:35:02.521Z"
             },
             {
               "$type": "Document",
@@ -166,7 +165,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 1,
               "Title": "IllChatMessageHandler.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllChatMessageHandler.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllChatMessageHandler.cs",
