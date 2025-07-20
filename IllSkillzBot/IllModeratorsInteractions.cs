@@ -2,11 +2,7 @@
 using SkillzBot.IRC;
 using SkillzBot.MODELS;
 using SkillzBot.MYSQL;
-using SkillzBot.Singleton;
 using SkillzBot.IllSTRINGS;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SkillzBot.IllSkillzBot

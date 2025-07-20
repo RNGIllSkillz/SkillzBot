@@ -6,67 +6,63 @@ using System.Threading.Tasks;
 
 namespace SkillzBot.Utils
 {
+#nullable enable
     public class CooldownManager
     {
-        private readonly Dictionary<string, DateTime> _cooldowns = new();
+        private record CooldownKey(string CommandName, int? TwitchID);
+        private readonly Dictionary<CooldownKey, DateTime> _cooldowns = new();
         private readonly Dictionary<string, TimeSpan> _cooldownDurations = new();
+        private readonly Dictionary<string, bool> _ignoreAccessLevel = new();
+        private readonly Dictionary<string, bool> _isGlobal = new();
+        
 
-        public void RegisterCooldown(string methodName, TimeSpan cooldown)
+        public void RegisterCooldown(string methodName, TimeSpan cooldown, bool IgnoreAccessLevel = false, bool IsGlobal = false)
         {
             _cooldownDurations[methodName] = cooldown;
-            _cooldowns[methodName] = DateTime.MinValue;
+            _ignoreAccessLevel[methodName] = IgnoreAccessLevel;
+            _isGlobal[methodName] = IsGlobal;
+            if (IsGlobal)
+                _cooldowns[new CooldownKey(methodName, null)] = DateTime.MinValue;
         }
 
-        public async Task<TimeSpan?> TryInvokeAsync(UserObject user, string methodName, Func<UserObject, Task> methodLogic)
+        public async Task<TimeSpan?> TryInvokeAsync(UserObject user, string methodName, Delegate methodLogic, string[]? command = null)
         {
             if (!_cooldownDurations.ContainsKey(methodName))
                 throw new InvalidOperationException($"Method {methodName} is not registered.");
 
-            if (IllAccess.Low(user))
+            bool forceCooldownForAll = _ignoreAccessLevel.TryGetValue(methodName, out var force) && force;
+            bool isGlobal = _isGlobal.TryGetValue(methodName, out var global) && global;
+            if (!forceCooldownForAll && IllAccess.Vip(user))
             {
-                await methodLogic(user);
+                await InvokeDelegate(methodLogic, user, command).ConfigureAwait(false);
                 return null;
             }
-
-            string key = $"{user.TwitchID}:{methodName}";
+            var key = new CooldownKey(methodName, isGlobal ? null : user.TwitchID);
             var now = DateTime.UtcNow;
-            var cooldown = _cooldownDurations[methodName];
-            _cooldowns.TryGetValue(key, out var lastUsed);
 
-            if (now - lastUsed < cooldown)
+            if (_cooldowns.TryGetValue(key, out var lastUsed))
             {
-                var remaining = cooldown - (now - lastUsed);
-                return remaining;
+                var cooldownDuration = _cooldownDurations.GetValueOrDefault(methodName);
+                var elapsed = now - lastUsed;
+                if (elapsed < cooldownDuration)
+                {
+                    return cooldownDuration - elapsed;
+                }
             }
             _cooldowns[key] = now;
-            await methodLogic(user).ConfigureAwait(false);            
+
+            await InvokeDelegate(methodLogic, user, command).ConfigureAwait(false);
             return null;
         }
-
-        public async Task<TimeSpan?> TryInvokeAsync(UserObject user, string[] command, string methodName, Func<UserObject, string[], Task> methodLogic)
+        public static Task InvokeDelegate(Delegate del, UserObject? user, string[]? command)
         {
-            if (!_cooldownDurations.ContainsKey(methodName))
-                throw new InvalidOperationException($"Method {methodName} is not registered.");
-
-            if (IllAccess.Low(user))
+            return del switch
             {
-                await methodLogic(user, command);
-                return null;
-            }
-
-            string key = $"{user.TwitchID}:{methodName}";
-            var now = DateTime.UtcNow;
-            var cooldown = _cooldownDurations[methodName];
-            _cooldowns.TryGetValue(key, out var lastUsed);
-
-            if (now - lastUsed < cooldown)
-            {
-                var remaining = cooldown - (now - lastUsed);
-                return remaining;
-            }
-            _cooldowns[key] = now;
-            await methodLogic(user, command).ConfigureAwait(false);
-            return null;
+                Func<UserObject, Task> func1 => func1(user),
+                Func<UserObject, string[], Task> func2 when command != null => func2(user, command),
+                Func<Task> func3 => func3(),
+                _ => throw new ArgumentException("Unsupported delegate signature or missing command.")
+            };
         }
     }
 }

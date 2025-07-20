@@ -14,6 +14,7 @@ using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
 using SkillzBot.MODELS;
 using SkillzBot.QuartZ;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
 
 namespace SkillzBot.TtvClient.TTVRewards
 {

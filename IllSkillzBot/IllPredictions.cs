@@ -220,7 +220,7 @@ namespace SkillzBot.IllSkillzBot
                             singleton.numLoose++;
                             await UpdateDailyStats(false).ConfigureAwait(false);
                         }
-                        IllCommands.SaveGameStats();
+                        IllCommandsNest.IllCommands.SaveGameStats();
                     }
                     else
                     {

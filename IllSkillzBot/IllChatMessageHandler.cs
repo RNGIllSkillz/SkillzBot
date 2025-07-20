@@ -13,6 +13,7 @@ using F23.StringSimilarity;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.IRC;
 using SkillzBot.API.OpenAI;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
 
 namespace SkillzBot.IllSkillzBot
 {

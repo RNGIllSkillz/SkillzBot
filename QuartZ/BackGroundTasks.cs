@@ -9,6 +9,7 @@ using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
 using SkillzBot.SubUtils;
 using SkillzBot.API.RiotGames;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
 
 namespace SkillzBot.QuartZ
 {

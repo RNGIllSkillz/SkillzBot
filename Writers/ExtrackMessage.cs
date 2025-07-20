@@ -21,9 +21,9 @@ namespace SkillzBot.WRITERS
                 {
                     File.Create(filePath);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    throw e;
+                    throw;
                 }
             }
             mutexObj.WaitOne();

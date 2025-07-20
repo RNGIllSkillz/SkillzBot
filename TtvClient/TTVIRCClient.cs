@@ -18,6 +18,7 @@ using SkillzBot.Discord;
 using SkillzBot.API.Twitch;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using MySqlX.XDevAPI;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
 
 namespace SkillzBot.IRC
 {

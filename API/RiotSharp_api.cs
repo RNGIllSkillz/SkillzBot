@@ -151,7 +151,7 @@ namespace SkillzBot.API.Riot_Deprecated
                     }
                     else
                     {
-                        throw ex;
+                        throw;
                     }
                 }
                 else
@@ -163,7 +163,7 @@ namespace SkillzBot.API.Riot_Deprecated
                     }
                     else
                     {
-                        throw ex;
+                        throw;
                     }
                 }
             }

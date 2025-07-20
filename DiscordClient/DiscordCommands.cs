@@ -1,6 +1,7 @@
 ﻿using Discord.Commands;
 using SkillzBot.API.OpenAI;
 using SkillzBot.IllSkillzBot;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.IRC;
 using SkillzBot.Singleton;
 using SkillzBot.Utils;
