@@ -32,9 +32,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         readonly static List<string> popMessages = new List<string>();
 
-        public static void Help(UserObject user)
+        public static async Task Help(UserObject user)
         {
             TtvIRCClient.SendMessage(string.Format(STRINGS.HelpMessage, user.Name));
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task Points(UserObject user)
         {
@@ -43,7 +44,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var QtPos = await MySQL.GetTopPos(user.Name, "QuizTotal").ConfigureAwait(false);
             TtvIRCClient.SendMessage(string.Format(STRINGS.PointsMessage, user.Name, user.Points, pos[0], pos[1], user.QuizPoints, QPos[0], QPos[1], user.QuizTotal, QtPos[0], QtPos[1]));
         }
-        public static void Prediction(UserObject user, string[] command)
+        public static async Task Prediction(UserObject user, string[] command)
         {
             if (command.Length > 1)
             {
@@ -68,6 +69,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
             else
                 TtvIRCClient.SendMessage($"{user.Name} Не правильная команда! (!prediction on/off)");
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task LpCommand(UserObject user, string[] command)
         {
@@ -459,6 +461,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         public static async Task GetMMR(UserObject user)
         {
             var result = await MyLOLMMRApi.GetMMR(singleton.SUMMONER_NAME).ConfigureAwait(false);
+            if (result == null) return;
             if (result.Count == 2)
                 TtvIRCClient.SendMessage($"@{user.Name} {result[0]}: mmr:{result[1]}");
         }
@@ -532,11 +535,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         public static async Task BanUserForTrack(UserObject user)
         {
             var history = await StreamElementsAPI.GetHistory().ConfigureAwait(false);
-            if (history == null)
-            {
-                //ERROR getting history
-                return;
-            }
+            if (history == null) return;
+            
             int userID = TempDataReader.GetUserIDByTreckID(history.History[0].Song.VideoId);
             MediaBlackListWriter.Write(history.History[0].Song.VideoId);
             if (userID != -1)
@@ -765,7 +765,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 await Task.CompletedTask.ConfigureAwait(false);
             }
         }
-        public static void SetAntiBotLvl(UserObject user, string[] input)
+        public static async Task SetAntiBotLvl(UserObject user, string[] input)
         {
             if (input.Length > 1)
             {
@@ -790,8 +790,9 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
             else
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
+            await Task.CompletedTask.ConfigureAwait(false);
         }
-        public static void SetChatfilterLvl(UserObject user, string[] input)
+        public static async Task SetChatfilterLvl(UserObject user, string[] input)
         {
             if (input.Length == 2)
             {
@@ -834,6 +835,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
             else
                 TtvIRCClient.SendMessage("Допустимые значения: 0, 1, 2, 3, 4. 0 - бездействие. 1 - удаление сообщения. 2 - удаления и оповещение модераторов. 3 - таймаут на сутки. 4 - таймаут на неделю. 5 - бан. <<!chatfilter 3>>");
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task GetAllRewards(UserObject user)
         {
@@ -874,7 +876,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var jobs = await quartzBackgroundTaskManager.GetAllJobsNames().ConfigureAwait(false);
             TtvIRCClient.SendMessage(jobs);
         }
-        public static void ChangeLanguage(UserObject user, string[] input)
+        public static async Task ChangeLanguage(UserObject user, string[] input)
         {
             switch (input[1])
             {
@@ -906,6 +908,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 default:
                     break;
             }
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task TestingMethod(UserObject user)
         {
@@ -930,17 +933,19 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                  return await GetGPTResponce(message, userName).ConfigureAwait(false);
              }*/
         }
-        public static void ToggleDebug(UserObject user)
+        public static async Task ToggleDebug(UserObject user)
         {
             if (singleton.debug) singleton.debug = false;
             else singleton.debug = true;
             TtvIRCClient.SendMessage($"Debug mode is {singleton.debug}");
+            await Task.CompletedTask.ConfigureAwait(false);
         }
-        public static void ToggleSilentMode(UserObject user)
+        public static async Task ToggleSilentMode(UserObject user)
         {
             if (singleton.IsSilent) singleton.IsSilent = false;
             else singleton.IsSilent = true;
             TtvIRCClient.SendMessage($"SilentMode mode is {singleton.IsSilent}");
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task Ttvgg(UserObject user)
         {
@@ -991,7 +996,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} не был найден в черном списке");
 
         }
-        public static void AddTowhiteList(UserObject user, string[] input)
+        public static async Task AddTowhiteList(UserObject user, string[] input)
         {
             if (input.Length != 2)
             {
@@ -1002,18 +1007,21 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             path = Path.Combine(path, singleton.DicWhiteListFileName);
             FileManipulator.AddLineToFile(path, input[1]);
             IllChatFilters.AddToWhiteList(input[1]);
+            await Task.CompletedTask.ConfigureAwait(false);
         }
-        public static void AddSubscription(UserObject user)
+        public static async Task AddSubscription(UserObject user)
         {
             TtvIRCClient.SendMessage(AddSub.NewPurchase().ToString());
             SubCheck.RunChecker();
+            await Task.CompletedTask.ConfigureAwait(false);
         }
-        public static void CheckSubscription(UserObject user)
+        public static async Task CheckSubscription(UserObject user)
         {
             if (SubCheck.RunChecker())
                 TtvIRCClient.SendMessage("Valid!");
             else
                 TtvIRCClient.SendMessage("Expired!");
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task GetMods(UserObject user)
         {

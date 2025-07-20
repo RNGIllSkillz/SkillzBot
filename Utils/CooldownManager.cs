@@ -1,5 +1,6 @@
 ﻿using SkillzBot.IllSkillzBot;
 using SkillzBot.MODELS;
+using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace SkillzBot.Utils
         private readonly Dictionary<string, TimeSpan> _cooldownDurations = new();
         private readonly Dictionary<string, bool> _ignoreAccessLevel = new();
         private readonly Dictionary<string, bool> _isGlobal = new();
+        static LogWriter _logWriter = new LogWriter();
         
 
         public void RegisterCooldown(string methodName, TimeSpan cooldown, bool IgnoreAccessLevel = false, bool IsGlobal = false)

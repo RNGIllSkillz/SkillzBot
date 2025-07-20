@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SkillzBot")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f397dd9a02174b51c7b8dcdeaf83f2e61b10ed5f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8a7507bbb90ea220088818fd7053bb5c4fe126a5")]
 [assembly: System.Reflection.AssemblyProductAttribute("SkillzBot")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SkillzBot")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

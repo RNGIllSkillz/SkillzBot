@@ -3,12 +3,24 @@
   "WorkspaceRootPath": "Z:\\prj\\GitHub\\SkillzBot\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illcommandsnest\\illcommandhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illcommandsnest\\illcommandhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illcommandsnest\\illcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illcommandsnest\\illcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illcommandsnest\\illcommandhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illcommandsnest\\illcommandhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\utils\\cooldownmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:utils\\cooldownmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illmoderatorsinteractions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illmoderatorsinteractions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\ttvclient\\ttvrewards\\rewardsredemption.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -19,24 +31,12 @@
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illpredictions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illmoderatorsinteractions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illmoderatorsinteractions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\utils\\cooldownmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:utils\\cooldownmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\discordclient\\discordcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:discordclient\\discordcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\quartz\\backgroundtasks.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:quartz\\backgroundtasks.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illchatmessagehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\ttvclient\\ttvircclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -98,50 +98,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 10,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "IllModeratorsInteractions.cs",
-              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllModeratorsInteractions.cs",
-              "RelativeDocumentMoniker": "IllSkillzBot\\IllModeratorsInteractions.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllModeratorsInteractions.cs",
-              "RelativeToolTip": "IllSkillzBot\\IllModeratorsInteractions.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAWAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T22:11:51.037Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "IllPredictions.cs",
-              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllPredictions.cs",
-              "RelativeDocumentMoniker": "IllSkillzBot\\IllPredictions.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllPredictions.cs",
-              "RelativeToolTip": "IllSkillzBot\\IllPredictions.cs",
-              "ViewState": "AgIAAMgAAAAAAAAAAAAEwN4AAAAYAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T21:49:52.554Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "RewardsRedemption.cs",
-              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVRewards\\RewardsRedemption.cs",
-              "RelativeDocumentMoniker": "TtvClient\\TTVRewards\\RewardsRedemption.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVRewards\\RewardsRedemption.cs",
-              "RelativeToolTip": "TtvClient\\TTVRewards\\RewardsRedemption.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAdAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T21:49:37.508Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 8,
               "Title": "BackGroundTasks.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\QuartZ\\BackGroundTasks.cs",
               "RelativeDocumentMoniker": "QuartZ\\BackGroundTasks.cs",
@@ -149,12 +110,11 @@
               "RelativeToolTip": "QuartZ\\BackGroundTasks.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T21:49:31.472Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-19T21:49:31.472Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "DiscordCommands.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\DiscordClient\\DiscordCommands.cs",
               "RelativeDocumentMoniker": "DiscordClient\\DiscordCommands.cs",
@@ -162,31 +122,30 @@
               "RelativeToolTip": "DiscordClient\\DiscordCommands.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T21:49:21.709Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-19T21:49:21.709Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "IllCommandHandler.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs",
-              "RelativeToolTip": "IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs",
-              "ViewState": "AgIAAFcAAAAAAAAAAADwv10AAAA7AAAAAAAAAA==",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs*",
+              "RelativeToolTip": "IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs*",
+              "ViewState": "AgIAADkAAAAAAAAAAAAowE8AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-17T22:44:34.116Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 2,
               "Title": "CooldownManager.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\CooldownManager.cs",
               "RelativeDocumentMoniker": "Utils\\CooldownManager.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\CooldownManager.cs",
               "RelativeToolTip": "Utils\\CooldownManager.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAD0AAABVAAAAAAAAAA==",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAgwDoAAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-19T15:53:48.965Z",
               "EditorCaption": ""
@@ -201,21 +160,44 @@
               "RelativeToolTip": "Writers\\LogWriter.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAqwBQAAAAmAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T16:38:26.805Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-19T16:38:26.805Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 11,
-              "Title": "SkillzBot",
+              "Title": "SkillzBot.csproj",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
               "RelativeDocumentMoniker": "SkillzBot.csproj",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\SkillzBot.csproj",
               "RelativeToolTip": "SkillzBot.csproj",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAABOAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2025-07-19T16:38:07.743Z",
+              "WhenOpened": "2025-07-19T16:38:07.743Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "IllCommands.cs",
+              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
+              "RelativeDocumentMoniker": "IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommands.cs*",
+              "RelativeToolTip": "IllSkillzBot\\IllCommandsNest\\IllCommands.cs*",
+              "ViewState": "AgIAAE8DAAAAAAAAAAAuwBYCAABBAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T14:54:28.516Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "IllPredictions.cs",
+              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllPredictions.cs",
+              "RelativeDocumentMoniker": "IllSkillzBot\\IllPredictions.cs",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllPredictions.cs",
+              "RelativeToolTip": "IllSkillzBot\\IllPredictions.cs",
+              "ViewState": "AgIAAMgAAAAAAAAAAAAEwN4AAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T21:49:52.554Z"
             },
             {
               "$type": "Document",
@@ -227,21 +209,45 @@
               "RelativeToolTip": "API\\RiotSharp_api.cs",
               "ViewState": "AgIAAIMAAAAAAAAAAAAvwJkAAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T16:37:29.941Z",
+              "WhenOpened": "2025-07-19T16:37:29.941Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "IllChatMessageHandler.cs",
+              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllChatMessageHandler.cs",
+              "RelativeDocumentMoniker": "IllSkillzBot\\IllChatMessageHandler.cs",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllChatMessageHandler.cs",
+              "RelativeToolTip": "IllSkillzBot\\IllChatMessageHandler.cs",
+              "ViewState": "AgIAAE0AAAAAAAAAAAAEwG8AAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-28T07:02:09.428Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "IllCommands.cs",
-              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
-              "RelativeDocumentMoniker": "IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommands.cs*",
-              "RelativeToolTip": "IllSkillzBot\\IllCommandsNest\\IllCommands.cs*",
-              "ViewState": "AgIAAG4CAAAAAAAAAAAvwI8CAAA7AAAAAAAAAA==",
+              "DocumentIndex": 3,
+              "Title": "IllModeratorsInteractions.cs",
+              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllModeratorsInteractions.cs",
+              "RelativeDocumentMoniker": "IllSkillzBot\\IllModeratorsInteractions.cs",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllModeratorsInteractions.cs",
+              "RelativeToolTip": "IllSkillzBot\\IllModeratorsInteractions.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T14:54:28.516Z",
+              "WhenOpened": "2025-07-19T22:11:51.037Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "RewardsRedemption.cs",
+              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVRewards\\RewardsRedemption.cs",
+              "RelativeDocumentMoniker": "TtvClient\\TTVRewards\\RewardsRedemption.cs",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVRewards\\RewardsRedemption.cs",
+              "RelativeToolTip": "TtvClient\\TTVRewards\\RewardsRedemption.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T21:49:37.508Z"
             },
             {
               "$type": "Document",
@@ -253,8 +259,7 @@
               "RelativeToolTip": "MODELS\\MessageBuffer.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T16:37:56.128Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-19T16:37:56.128Z"
             },
             {
               "$type": "Document",
@@ -266,8 +271,7 @@
               "RelativeToolTip": "TtvClient\\TTVEventSub.cs",
               "ViewState": "AgIAAFEAAAAAAAAAAAApwJEAAAAZAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-19T14:54:54.239Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-19T14:54:54.239Z"
             },
             {
               "$type": "Document",
@@ -279,21 +283,7 @@
               "RelativeToolTip": "IllSkillzBot\\IllChatFilters.cs",
               "ViewState": "AgIAAAYAAAAAAAAAAAAAAKUAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-17T22:35:11.261Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "IllChatMessageHandler.cs",
-              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllChatMessageHandler.cs",
-              "RelativeDocumentMoniker": "IllSkillzBot\\IllChatMessageHandler.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllChatMessageHandler.cs",
-              "RelativeToolTip": "IllSkillzBot\\IllChatMessageHandler.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAoAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-28T07:02:09.428Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-17T22:35:11.261Z"
             },
             {
               "$type": "Document",
@@ -305,8 +295,7 @@
               "RelativeToolTip": "TtvClient\\TTVIRCClient.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-28T04:21:35.764Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-06-28T04:21:35.764Z"
             },
             {
               "$type": "Document",
@@ -378,8 +367,7 @@
               "RelativeToolTip": "API\\RiotGames\\camille_riotapi.cs",
               "ViewState": "AgIAAGUAAAAAAAAAAAAEwHsAAAATAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-28T06:54:31.211Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-06-28T06:54:31.211Z"
             }
           ]
         }

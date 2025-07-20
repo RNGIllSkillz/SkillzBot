@@ -27,8 +27,13 @@ namespace SkillzBot.IllSkillzBot
                 var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
                 if (aUser.dbID != -404)
                 {
-                    await TtvAPI.AddChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false);
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.AddModSuccess, aUser.Name));
+                    if (aUser.isVip == 1)
+                        await TtvAPI.DeleteChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
+
+                    if (await TtvAPI.AddChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false))
+                        TtvIRCClient.SendMessage(string.Format(STRINGS.AddModSuccess, aUser.Name));
+                    else
+                        TtvIRCClient.SendMessage("Модерытор не добавлен, произошла ошибка.");
                 }
                 else
                     TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
