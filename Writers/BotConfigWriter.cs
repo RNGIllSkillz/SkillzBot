@@ -2,11 +2,9 @@
 using Newtonsoft.Json;
 using SkillzBot.JSON.Settings;
 using SkillzBot.MODELS;
-using SkillzBot.Singleton;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using SkillzBot.Singleton;
 using System.Threading;
 
 namespace SkillzBot.Writers
@@ -15,8 +13,7 @@ namespace SkillzBot.Writers
     {
         private static readonly Mutex mutexObj = new Mutex();
         private static readonly ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
-        private static readonly string filePath = Path.Combine(dataPath.uniquePath, $"{singleton.ChannelName}.ini");
+        private static readonly string filePath = Path.Combine(dataPath.uniquePath, $"{IllSingleton.Config.ChannelName}.ini");
 
         public static void Write()
         {
@@ -34,37 +31,35 @@ namespace SkillzBot.Writers
             {
                 SettingsJson Settings = new SettingsJson
                 {
-                    SummonerName = singleton.SUMMONER_NAME,
-                    ChannelName = singleton.ChannelName,
-                    BotTwitchName = singleton.BotTwitchName,
-                    BotTwitchAuth = singleton.BotTwitchAuth,
-                    TApiAccessToken = singleton.TApiAccessToken,
-                    TApiClientId = singleton.TApiClientId,
-                    YouTubeApiToken = singleton.YouTubeApiToken,
-                    RiotApiToken = singleton.RiotApiToken,
-                    BrodcasterId = singleton.BrodcasterId,
-                    CenceleUval = singleton.CenceleUval,
-                    EmoteModeId = singleton.EmoteModeId,
-                    uvalMod = singleton.uvalMod,
-                    UvalId = singleton.UvalId,
-                    Pi4KaId = singleton.Pi4KaId,
-                    ZakazTrekaId = singleton.ZakazTrekaId,
-                    UvalSabId = singleton.UvalSabId,
-                    UvalVipId = singleton.UvalVipId,
-                    MySQL_User = singleton.MySQL_User,
-                    MySQL_password = singleton.MySQL_password,
-                    StreamElementsApiToken = singleton.StreamElementsApiToken,
-                    StreamElementsID = singleton.StreamElementsID,
-                    ChatWithBot = singleton.ChatWithBot,
-                    ReleaseBot = singleton.ReleaseBot,
-                    GPTApiToken = singleton.GPTApiToken,
-                    SummonerRegion = singleton.SummonerRegion,
-                    MySQL_IP = singleton.MySQL_IP,
-                    MySQL_Port = singleton.MySQL_Port,
-                    ChatFilterLvl = singleton.ChatFilterLvl,
-                    DiscordBotToken = singleton.DiscordBotToken,
-                    DiscordNoteID = singleton.DiscordNoteID,
-                    DiscordSpamID = singleton.DiscordSpamID
+                    SummonerName = IllSingleton.Game.SummonerName,
+                    ChannelName = IllSingleton.Config.ChannelName,
+                    BotTwitchName = IllSingleton.Config.BotTwitchName,
+                    BotTwitchAuth = IllSingleton.Config.BotTwitchAuth,
+                    TApiAccessToken = IllSingleton.Config.TApiAccessToken,
+                    TApiClientId = IllSingleton.Config.TApiClientId,
+                    YouTubeApiToken = IllSingleton.Config.YouTubeApiToken,
+                    RiotApiToken = IllSingleton.Config.RiotApiToken,
+                    BrodcasterId = IllSingleton.Config.BroadcasterId,
+                    CenceleUval = IllSingleton.Config.ChannelIds.CenceleUval,
+                    EmoteModeId = IllSingleton.Config.ChannelIds.EmoteModeId,
+                    uvalMod = IllSingleton.Config.ChannelIds.UvalMod,
+                    UvalId = IllSingleton.Config.ChannelIds.UvalId,
+                    Pi4KaId = IllSingleton.Config.ChannelIds.Pi4KaId,
+                    ZakazTrekaId = IllSingleton.Config.ChannelIds.ZakazTrekaId,
+                    UvalSabId = IllSingleton.Config.ChannelIds.UvalSabId,
+                    UvalVipId = IllSingleton.Config.ChannelIds.UvalVipId,
+                    MySQL_User = IllSingleton.Config.Database.Username,
+                    MySQL_password = IllSingleton.Config.Database.Password,
+                    StreamElementsApiToken = IllSingleton.Config.StreamElementsApiToken,
+                    StreamElementsID = IllSingleton.Config.StreamElementsID,
+                    GPTApiToken = IllSingleton.Config.GPTApiToken,
+                    SummonerRegion = IllSingleton.Game.SummonerRegion,
+                    MySQL_IP = IllSingleton.Config.Database.Host,
+                    MySQL_Port = IllSingleton.Config.Database.Port,
+                    ChatFilterLvl = IllSingleton.State.ChatFilterLvl,
+                    DiscordBotToken = IllSingleton.Config.DiscordBotToken,
+                    DiscordNoteID = IllSingleton.Config.DiscordNoteID,
+                    DiscordSpamID = IllSingleton.Config.DiscordSpamID
                 };
                 File.WriteAllText(filePath, JsonConvert.SerializeObject(Settings, Formatting.Indented));               
             }

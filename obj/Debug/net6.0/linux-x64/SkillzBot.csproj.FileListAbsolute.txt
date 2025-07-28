@@ -372,7 +372,6 @@ Z:\prj\GitHub\SkillzBot\bin\Debug\net6.0\linux-x64\libhostfxr.so
 Z:\prj\GitHub\SkillzBot\bin\Debug\net6.0\linux-x64\libhostpolicy.so
 Z:\prj\GitHub\SkillzBot\bin\Debug\net6.0\linux-x64\libmscordaccore.so
 Z:\prj\GitHub\SkillzBot\bin\Debug\net6.0\linux-x64\libmscordbi.so
-Z:\prj\GitHub\SkillzBot\bin\Debug\net6.0\linux-x64\IllPubSub.dll
 Z:\prj\GitHub\SkillzBot\bin\Debug\net6.0\linux-x64\RiotSharp.dll
 Z:\prj\GitHub\SkillzBot\obj\Debug\net6.0\linux-x64\SkillzBot.csproj.AssemblyReference.cache
 Z:\prj\GitHub\SkillzBot\obj\Debug\net6.0\linux-x64\SkillzBot.csproj.SuggestedBindingRedirects.cache

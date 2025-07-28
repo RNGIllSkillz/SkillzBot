@@ -1,5 +1,4 @@
 ﻿using SkillzBot.IllSkillzBot;
-using SkillzBot.Singleton;
 using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
@@ -10,28 +9,31 @@ using SkillzBot.IRC;
 using SkillzBot.SubUtils;
 using SkillzBot.API.RiotGames;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
+using SkillzBot.Hosts;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.QuartZ
 {
     internal class BackGroundTasks
     {
+        private static readonly ILogger<BackGroundTasks> _logger = IllServiceProvider.GetLogger<BackGroundTasks>();
         public static async Task RunDaily()
         {
             var t = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
-            var singleton = IllSingleton.GetInstance();
             if (t != null)
             {
                 if (int.TryParse(t[1], out int startLP))
-                    singleton.startLP = startLP;
+                    IllSingleton.Game.StartLP = startLP;
                 else
-                    singleton.startLP = 0;
-                singleton.elo = t[0];
-                singleton.tier = t[2];
+                    IllSingleton.Game.StartLP = 0;
+                IllSingleton.Game.Elo = t[0];
+                IllSingleton.Game.Tier = t[2];
             }
-            singleton.earnedLP = 0;
-            singleton.numLoose = 0;
-            singleton.numGames = 0;
-            singleton.numWins = 0;
+            IllSingleton.Game.EarnedLP = 0;
+            IllSingleton.Game.NumLosses = 0;
+            IllSingleton.Game.NumGames = 0;
+            IllSingleton.Game.NumWins = 0;
             IllCommands.SaveGameStats();
         }
         public static async Task RunEvery5Min()
@@ -44,7 +46,7 @@ namespace SkillzBot.QuartZ
         }
         public static async Task TopRuleteTask()
         {
-            if (IllSingleton.GetInstance().BroadcasterIsOnline)
+            if (IllSingleton.State.BroadcasterIsOnline)
             {
                 try
                 {
@@ -52,7 +54,7 @@ namespace SkillzBot.QuartZ
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, "null");
+                    _logger.LogError(ex, "");
                 }
             }
         }
@@ -70,7 +72,7 @@ namespace SkillzBot.QuartZ
             await Task.Delay(2000).ConfigureAwait(false); // wait for PubSub time out event
             while (true)
             {
-                var user = await MySQL.GetUser(UserName).ConfigureAwait(false);
+                var user = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
                 if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
                 {
                     while (!await TtvAPI.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))

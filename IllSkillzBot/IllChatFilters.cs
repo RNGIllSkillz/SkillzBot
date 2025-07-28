@@ -9,12 +9,10 @@ using System.Threading.Tasks;
 using SkillzBot.MODELS;
 using TwitchLib.Client.Events;
 using SkillzBot.API.Twitch;
-using SkillzBot.Singleton;
 using System.Linq;
-using System.Text.RegularExpressions;
 using urldetector.detection;
-using System.Text;
-using SkillzBot.Discord;
+using SkillzBot.Singleton;
+using SkillzBot.IRC;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -26,23 +24,24 @@ namespace SkillzBot.IllSkillzBot
         private static readonly HashSet<string> channelBlack;
         private static readonly HashSet<string> dictionary;
         private static readonly HashSet<string> dictionaryGen;
+        private static readonly BannedWordsTrie bannedWordsTrie = new BannedWordsTrie();
         private static HashSet<string> whiteList;
         private static HashSet<string> userBlackList;
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static readonly int[] Arabic2;
         private static readonly int CharsInRow = 29;
         private static readonly int ArabCharsInRow = 4;
         private static readonly int RowsNum = 3;
         static IllChatFilters()
         {
-            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.PichkaListFileName)));
-            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.MediaListFileName)));
-            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.ChannelListFileName)));
-            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.DicFileName)));
-            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, singleton.DicWhiteListFileName)));
-            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.uniquePath, singleton.UserblacklistFileName)));
+            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.PichkaListFileName)));
+            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.MediaListFileName)));
+            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.ChannelListFileName)));
+            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.DicFileName)));
+            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.DicWhiteListFileName)));
+            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.uniquePath, IllSingleton.Config.FilePaths.UserBlacklistFileName)));
             Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
             dictionaryGen = StringUtil.GenerateDictionary(dictionary);
+            bannedWordsTrie.BuildTrie(dictionaryGen);
         }
        
 
@@ -67,6 +66,57 @@ namespace SkillzBot.IllSkillzBot
         }
         public static bool ZapCheck(string message, string name)
         {
+            var exact = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var CleanMessage = StringUtil.Clean(message);
+            foreach (var white in whiteList)
+            {
+                CleanMessage = CleanMessage.Replace(white, "");
+            }
+            CleanMessage = StringUtil.Clean(CleanMessage);
+
+            //parallel for exact words
+            
+            if(CheckExact(message, name))
+                return true;
+
+            //tire for substrings
+            var bannedWord = bannedWordsTrie.FindBannedWord(CleanMessage);
+            if (bannedWord != null)
+            {
+                FlagWriter.FlagWriterTask($"{name} : {message} : {bannedWord}");
+                if (IllSingleton.State.Debug)
+                    TtvIRCClient.SendMessage("substring trigger");
+                return true;
+            }                        
+            return false;
+        }
+        private static bool CheckExact(string message, string name)
+        {
+            var messageWords = message.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(word => StringUtil.Clean(word))
+                .Where(word => !string.IsNullOrEmpty(word))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var matchedWord = dictionaryGen.AsParallel()
+                .FirstOrDefault(dictWord =>
+                {
+                    // Check exact word match first (fastest)
+                    if (messageWords.Contains(dictWord))
+                        return true;
+                    return false;
+                });
+
+            if (matchedWord != null)
+            {
+                FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {matchedWord}");
+                if (IllSingleton.State.Debug)
+                    TtvIRCClient.SendMessage("exact trigger");
+                return true;
+            }
+            return false;
+        }
+        /*public static bool ZapCheck(string message, string name)
+        {
             var exact = message.Split(' ');
             var CleanMessage = StringUtil.Clean(message);
             foreach (var white in whiteList)
@@ -87,7 +137,7 @@ namespace SkillzBot.IllSkillzBot
                     return true;
                 }
             return false;
-        }        
+        }*/
         public static async Task<List<string>> YouTubeFilter(string ID)
         {
             List<string> output = new List<string>();
@@ -143,7 +193,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public static bool FilterASCII(OnMessageReceivedArgs e)
         {            
-            if (e.ChatMessage.CustomRewardId != singleton.Pi4KaId)
+            if (e.ChatMessage.CustomRewardId != IllSingleton.Config.ChannelIds.Pi4KaId)
             {
                 int count = StringUtil.CheckASCII(e.ChatMessage.Message);
                 if (count / CharsInRow >= RowsNum && e.ChatMessage.Message.Length / CharsInRow > RowsNum)
@@ -164,37 +214,5 @@ namespace SkillzBot.IllSkillzBot
         {
             whiteList.Add(WordToAdd);
         }
-
-
-        /////
-        /*
-        public static bool ZapCheck_DEPRICATED(string message, string name)
-        {
-            var exact = message.Split(' ');
-            var CleanMessage = StringUtil.Clean(message);
-            foreach (var white in whiteList)
-            {
-                CleanMessage = CleanMessage.Replace(white, "");
-            }
-            CleanMessage = StringUtil.Clean(CleanMessage);
-            foreach (var word in dictionary)
-                if (CleanMessage.Contains(word))
-                {
-                    FlagWriter.FlagWriterTask($"{name} : {message} : {word}");
-                    return true;
-                }
-
-            foreach (var exactWord in exact)
-                if (dictionary.Contains(StringUtil.Clean(exactWord)))
-                {
-                    FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {exactWord}");
-                    return true;
-                }
-            return false;
-        }
-
-
-        */
-        /////
     }
 }

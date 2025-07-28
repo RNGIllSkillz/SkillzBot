@@ -1,12 +1,9 @@
 ﻿using System.Text;
 using System;
 using System.IO;
-using SkillzBot.WRITERS;
 using SkillzBot.IRC;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
-using SkillzBot.Singleton;
-using SkillzBot.MYSQL;
 using SkillzBot.API.Twitch;
 using System.Globalization;
 using System.Threading;
@@ -14,171 +11,264 @@ using SkillzBot.JSON.Settings;
 using SkillzBot.MODELS;
 using SkillzBot.Discord;
 using SkillzBot.Hosts;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Generic;
+using System.Linq;
+using SkillzBot.MySQL;
+using SkillzBot.Singleton;
 
 
 namespace IllSkillzBot
 {
     class IllSkillzBotMain
     {
-        //static private int PubSubReconnects = 0;
-        static string dataPath;
-        static string sharedPath;
-        static string ConfigPath;
-        private static IllSingleton singleton;
-        private readonly static IHostBuilders HostBuilders = new IHostBuilders();
-        //private readonly static IWebHostBuilders WebhostBuilders;
-        private readonly static ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
-        static async Task Main()
-        {            
-            CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
-            CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("ru-RU");
+        private static ILogger<IllSkillzBotMain> _logger;
+        private static IHost _host;
 
-            AppDomain currentDomain = AppDomain.CurrentDomain;
-            currentDomain.UnhandledException += new UnhandledExceptionEventHandler(MainHandler);
-            Console.OutputEncoding = Encoding.UTF8;
+        private static readonly ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
 
+        private static string _dataPath;
+        private static string _sharedPath;
+        private static string _configPath;
+        private static string _channelName;
 
-            string channelName = Environment.GetEnvironmentVariable("ENV_CHANNEL_NAME");
-
-            dataPath = Path.Combine(currentDomain.BaseDirectory, $"Channels_Data/{channelName}/DATA/");
-            sharedPath = Path.Combine(currentDomain.BaseDirectory, $"Channels_Data/_shared/");
-            Directory.CreateDirectory(dataPath);
-            ConfigPath = Path.Combine(dataPath, $"{channelName}.ini");
-
-            if (!File.Exists(ConfigPath))
-            {
-                Console.WriteLine(CreateDefoults(dataPath, sharedPath));
-                Console.WriteLine(CreateDefoultConfig(ConfigPath, channelName));           
-            }
-
-            singleton = IllSingleton.GetInstance();            
-            MySQL MySQLClientInst = new MySQL();
-            DiscordClient discordClient = new DiscordClient();
-
-            await StartUpConfigs().ConfigureAwait(false);
-            TtvIRCClient TtvIRCClientInst = new TtvIRCClient();
-            //PubSubClientInst = new PubSubClient();
-            
-
-            QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
-            await quartzBackgroundTaskManager.ScheduleTasks().ConfigureAwait(false);
-
-            var EventSubhost = HostBuilders.EventSubHos();
-            //var eAPIhost = WebhostBuilders.ILLAPIHost();
-            await EventSubhost.StartAsync().ConfigureAwait(false);
-            //await eAPIhost.StartAsync().ConfigureAwait(false);
-            _resetEvent.Wait();
-            await EventSubhost.StopAsync().ConfigureAwait(false);
-            //await eAPIhost.StopAsync().ConfigureAwait(false);
-        }
-        private static async Task StartUpConfigs()
-        {            
-            if (await TtvAPI.GetStreamStatus().ConfigureAwait(false))
-            {
-                singleton.BroadcasterIsOnline = true;
-                Console.WriteLine($"{singleton.ChannelName} is LIVE!");
-            }
-            else
-            {
-                singleton.BroadcasterIsOnline = false;
-                Console.WriteLine($"{singleton.ChannelName} is Offline!");
-            }
-        }        
-        static string CreateDefoults(string DataPath, string SharedPath)
-        {
-            string dicDir = SharedPath + "dic.txt";
-            string dicDirWhite = SharedPath + "dicWhiteList.txt";
-            string mediaQueueDir = DataPath + "mediaqueue.txt";
-            string userBlackListDir = DataPath + "userblacklist.txt";
-            string mediaBlackList = DataPath + "mediaList.txt";
-            string channelBlackList = DataPath + "channelList.txt";
-            string pichkaList = SharedPath + "pichkaList.txt";
-            string dailyStatsDir = DataPath + "dailyStats.txt";
-
-            try
-            {
-                if (!File.Exists(dicDir))
-                    File.Create(dicDir);
-
-                if (!File.Exists(dicDirWhite))
-                    File.Create(dicDirWhite);
-
-                if (!File.Exists(mediaQueueDir))
-                    File.Create(mediaQueueDir);
-
-                if (!File.Exists(userBlackListDir))
-                    File.Create(userBlackListDir);
-
-                if (!File.Exists(mediaBlackList))
-                    File.Create(mediaBlackList);
-
-                if (!File.Exists(channelBlackList))
-                    File.Create(channelBlackList);
-
-                if (!File.Exists(dailyStatsDir))
-                    File.Create(dailyStatsDir);
-
-                if (!File.Exists(pichkaList))
-                    File.Create(pichkaList);
-            }
-            catch (Exception e)
-            {
-                return e.Message;
-            }
-            return "Файлы были успешно созданны";
-
-        }
-        static string CreateDefoultConfig(string ConfPath,string ChannelName)
+        static async Task Main(string[] args)
         {
             try
-            {/*
-                SettingsJson Settings = new SettingsJson
-                {
-                    SummonerName = "Имя Призывателя",
-                    ChannelName = ChannelName,
-                    BotTwitchName = "Имя бота",
-                    BotTwitchAuth = "oAuth для аккаунта бота",
-                    TApiAccessToken = "Token для доступа к API Twitch",
-                    TApiClientId = "ClientId для доступа к API Twitch",
-                    YouTubeApiToken = "Token для доступа а API YouTube",
-                    RiotApiToken = "Token для доступа а API Riot Games",
-                    BrodcasterId = "Brodcaster TTV ID",
-                    CenceleUval = "Reward ID",
-                    EmoteModeId = "Reward ID",
-                    uvalMod = "Reward ID",
-                    UvalId = "Reward ID",
-                    Pi4KaId = "Reward ID",
-                    ZakazTrekaId = "Reward ID",
-                    UvalSabId = "Reward ID",
-                    UvalVipId = "Reward ID",
-                    MySQL_User = "MySQL username",
-                    MySQL_password = "MySQL password"
-                };*/
-                SettingsJson Settings = new SettingsJson();
-                File.WriteAllText(ConfPath, JsonConvert.SerializeObject(Settings, Formatting.Indented));
+            {
+                await InitializeHostAsync().ConfigureAwait(false);
+                await InitializeApplicationAsync().ConfigureAwait(false);
+                await RunApplicationAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                return ex.Message;
+                if (_logger != null)
+                {
+                    _logger.LogCritical(ex, "Critical error in main application");
+                }
+                else
+                {
+                    Console.WriteLine($"Critical error before logger initialization: {ex}");
+                }
+                Environment.Exit(1);
             }
-            return "Создан дефолтный файл конфигурации";
+            finally
+            {
+                _resetEvent?.Dispose();
+                _host?.Dispose();
+            }
         }
-        static void MainHandler(object sender, UnhandledExceptionEventArgs args)
+        
+        private static async Task InitializeHostAsync()
         {
-            Exception e = (Exception)args.ExceptionObject;
-            Log.WriteLog(e, "MainHandler caught : ");
+            // Initialize paths first (needed for log file path)
+            InitializePaths();
+            await IllSingleton.InitializeAsync(_configPath).ConfigureAwait(false);
+
+            var hostBuilders = new IHostBuilders(_dataPath, _channelName);
+            _host = hostBuilders.BuildMainApplicationHost();
+
+            _logger = _host.Services.GetRequiredService<ILogger<IllSkillzBotMain>>();
+            IllServiceProvider.Initialize(_host.Services);
+            await _host.StartAsync().ConfigureAwait(false);
         }
+
+        private static async Task InitializeApplicationAsync()
+        {
+            AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionHandler;
+            Console.CancelKeyPress += OnCancelKeyPress;
+            Console.OutputEncoding = Encoding.UTF8;
+            var culture = new CultureInfo("ru-RU");
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            await EnsureDefaultFilesExistAsync().ConfigureAwait(false);
+            await EnsureConfigurationExistsAsync().ConfigureAwait(false);            
+
+            _logger.LogInformation("Application initialized successfully for channel: {ChannelName}", _channelName);
+        }
+
+        private static void InitializePaths()
+        {
+            _channelName = Environment.GetEnvironmentVariable("ENV_CHANNEL_NAME");
+
+            if (string.IsNullOrWhiteSpace(_channelName))
+            {
+                throw new InvalidOperationException("ENV_CHANNEL_NAME environment variable is required");
+            }
+
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            _dataPath = Path.Combine(baseDirectory, $"Channels_Data/{_channelName}/DATA/");
+            _sharedPath = Path.Combine(baseDirectory, "Channels_Data/_shared/");
+            _configPath = Path.Combine(_dataPath, $"{_channelName}.ini");
+
+            Directory.CreateDirectory(_dataPath);
+            Directory.CreateDirectory(_sharedPath);
+            Directory.CreateDirectory(Path.Combine(_dataPath, "logs"));
+        }
+
+        private static async Task RunApplicationAsync()
+        {
+            var services = await InitializeServicesAsync().ConfigureAwait(false);
+            // Configure startup settings
+            await ConfigureStartupAsync().ConfigureAwait(false);
+
+            // Start background tasks
+            var quartzManager = new QuartzBackgroundTaskManager();
+            await quartzManager.ScheduleTasks().ConfigureAwait(false);
+
+            // Start hosts
+            //var eventSubHost = _hostBuilders.EventSubHos();
+            //await eventSubHost.StartAsync().ConfigureAwait(false);
+
+            // Wait for shutdown signal
+            _resetEvent.Wait();
+
+            _logger.LogInformation("Shutting down application...");
+            //await eventSubHost.StopAsync().ConfigureAwait(false);
+            await _host.StopAsync().ConfigureAwait(false);
+            foreach (var service in services.OfType<IDisposable>())
+            {
+                service.Dispose();
+            }
+        }
+
+        private static async Task<IList<object>> InitializeServicesAsync()
+        {
+            var services = new List<object>();
+
+            try
+            {
+                var databaseService = _host.Services.GetRequiredService<IDatabaseService>();
+                services.Add(databaseService);
+
+                var discordClient = new DiscordClient();
+                services.Add(discordClient);
+
+                bool ircInitialized = await TtvIRCClient.InitializeAsync().ConfigureAwait(false);
+                if (!ircInitialized)
+                {
+                    _logger.LogWarning("Failed to initialize Twitch IRC. Continuing without it...");
+                }
+
+                return services;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to initialize services");
+                throw;
+            }
+        }
+
+        private static async Task ConfigureStartupAsync()
+        {
+            try
+            {
+                bool isStreamLive = await TtvAPI.GetStreamStatus().ConfigureAwait(false);
+                IllSingleton.State.BroadcasterIsOnline = isStreamLive;
+
+                string status = isStreamLive ? "LIVE" : "Offline";
+                _logger.LogInformation("{ChannelName} is {Status}!", IllSingleton.Config.ChannelName, status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to configure startup settings");
+                throw;
+            }
+        }
+
+        private static async Task EnsureDefaultFilesExistAsync()
+        {
+            var filesToCreate = new[]
+            {
+                Path.Combine(_sharedPath, "dic.txt"),
+                Path.Combine(_sharedPath, "dicWhiteList.txt"),
+                Path.Combine(_sharedPath, "pichkaList.txt"),
+                Path.Combine(_dataPath, "mediaqueue.txt"),
+                Path.Combine(_dataPath, "userblacklist.txt"),
+                Path.Combine(_dataPath, "mediaList.txt"),
+                Path.Combine(_dataPath, "channelList.txt"),
+                Path.Combine(_dataPath, "dailyStats.txt")
+            };
+
+            foreach (string filePath in filesToCreate)
+            {
+                await EnsureFileExistsAsync(filePath);
+            }
+
+            _logger.LogInformation("Default files verified/created successfully");
+        }
+
+        private static async Task EnsureFileExistsAsync(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    await File.WriteAllTextAsync(filePath, string.Empty);
+                    _logger.LogDebug("Created file: {FilePath}", filePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create file: {FilePath}", filePath);
+                throw;
+            }
+        }
+
+        private static async Task EnsureConfigurationExistsAsync()
+        {
+            try
+            {
+                if (!File.Exists(_configPath))
+                {
+                    var defaultSettings = new SettingsJson();
+                    string jsonContent = JsonConvert.SerializeObject(defaultSettings, Formatting.Indented);
+                    await File.WriteAllTextAsync(_configPath, jsonContent);
+                    _logger.LogInformation("Created default configuration file: {ConfigPath}", _configPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create configuration file: {ConfigPath}", _configPath);
+                throw;
+            }
+        }
+
+        private static void UnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs args)
+        {
+            var exception = (Exception)args.ExceptionObject;
+            _logger.LogCritical(exception, "Unhandled exception occurred. IsTerminating: {IsTerminating}",
+                args.IsTerminating);
+
+            _logger.LogCritical(exception, "MainHandler caught : ");
+
+            if (args.IsTerminating)
+            {
+                _resetEvent.Set();
+            }
+        }
+
+        private static void OnCancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            _logger.LogInformation("Shutdown signal received");
+            e.Cancel = true; // Prevent immediate termination
+            _resetEvent.Set();
+        }
+
         public static ConfPathes GetDataPath()
         {
             return new ConfPathes
             {
-                sharedPath = sharedPath,
-                uniquePath = dataPath
+                sharedPath = _sharedPath,
+                uniquePath = _dataPath
             };
         }
+
         public static string GetConfigPath()
         {
-            return ConfigPath;
+            return _configPath;
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SkillzBot.MODELS
 {
-    internal class MessageBuffer
+    public class MessageBuffer
     {
             public string Name { get; set; }
             public string Message { get; set; }

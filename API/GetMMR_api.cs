@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using SkillzBot.IRC;
 using System.Collections.Generic;
 using SkillzBot.WRITERS;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using SkillzBot.IllSkillzBot;
 
 namespace SkillzBot.API.MMR
 {
@@ -12,7 +15,7 @@ namespace SkillzBot.API.MMR
     {
         private static readonly HttpClient client;
         private static readonly string baseUrl = "https://api.mylolmmr.com/api/mmr/euw1/";
-
+        private static readonly ILogger<MyLOLMMRApi> _logger = Hosts.IllServiceProvider.GetLogger<MyLOLMMRApi>();
         static MyLOLMMRApi()
         {
             client = new HttpClient();
@@ -42,7 +45,7 @@ namespace SkillzBot.API.MMR
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetMMR");
+                _logger.LogError(ex, "GetMMR");
                 return null;
             }
         }

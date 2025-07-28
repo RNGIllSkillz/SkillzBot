@@ -1,0 +1,35 @@
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using SkillzBot.MYSQL;
+using SkillzBot.Singleton;
+
+namespace SkillzBot.MySQL
+{
+    public static class DatabaseServiceCollectionExtensions
+    {
+        public static IServiceCollection AddDatabaseServices(this IServiceCollection services, IConfiguration configuration)
+        {
+            // Configure database settings from your existing configuration
+            services.Configure<DatabaseConfiguration>(options =>
+            {
+                // Map from your existing IllSingleton.Config to the new configuration
+                options.Host = IllSingleton.Config.Database.Host;
+                options.Port = IllSingleton.Config.Database.Port;
+                options.Username = IllSingleton.Config.Database.Username;
+                options.Password = IllSingleton.Config.Database.Password;
+                options.DatabaseName = IllSingleton.Config.ChannelName; 
+                options.ConnectionTimeout = 30;
+                options.CommandTimeout = 30;
+                options.MaxPoolSize = 100;
+                options.MinPoolSize = 0;
+                options.Pooling = true;
+                options.CharacterSet = "utf8mb4";
+            });
+
+            // Register database service
+            services.AddSingleton<IDatabaseService, MySqlDatabaseService>();
+
+            return services;
+        }
+    }
+}

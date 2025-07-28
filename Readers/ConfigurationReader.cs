@@ -3,11 +3,15 @@ using SkillzBot.WRITERS;
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
+using SkillzBot.QuartZ;
 
 namespace SkillzBot.Readers
 {
     public class Config
     {
+        private static readonly ILogger<Config> _logger = IllServiceProvider.GetLogger<Config>();
         readonly private string _ConfigPath;
 
         public Config(string ConfigPath)
@@ -27,7 +31,7 @@ namespace SkillzBot.Readers
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, "Error reading bot configuration file");
+                _logger.LogCritical(e, "Error reading bot configuration file");
                 throw;
             }
         }

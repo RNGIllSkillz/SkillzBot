@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
+using SkillzBot.Singleton;
 using SkillzBot.WRITERS;
 using SkillzBot.API.YouTube;
-using SkillzBot.MYSQL;
 using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
 using SkillzBot.Utils;
-using SkillzBot.Singleton;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
 using SkillzBot.MODELS;
 using SkillzBot.QuartZ;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
+using SkillzBot.Hosts;
+using Microsoft.Extensions.Logging;
 
 namespace SkillzBot.TtvClient.TTVRewards
 {
@@ -25,17 +25,16 @@ namespace SkillzBot.TtvClient.TTVRewards
         private static readonly HashSet<Task> _runningTasks = new HashSet<Task>();
         private static readonly HashSet<string> mods = new HashSet<string>();
         private static readonly object _lock = new object();
-
+        private static readonly ILogger<RewardsRedemption> _logger = IllServiceProvider.GetLogger<RewardsRedemption>();
         public static async Task UvalSabReward(string UserName, string message, string redemID, string rewardID)
         {            
-            var singleton = IllSingleton.GetInstance();
             var uName = StringUtil.GetUserNameFromInput(message);
-            var qUser = await MySQL.GetUser(UserName).ConfigureAwait(false);
-            if (uName != singleton.rootUser)
+            var qUser = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
+            if (uName != IllSingleton.Config.RootUser)
             {
-                if (uName != singleton.ChannelName)
+                if (uName != IllSingleton.Config.ChannelName)
                 {
-                    var user = await MySQL.GetUser(uName).ConfigureAwait(false);
+                    var user = await IllServiceProvider.Database.GetUserAsync(uName).ConfigureAwait(false);
                     if (user.dbID == -404)
                     {
                         TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
@@ -52,7 +51,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                                     duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
                                 await TtvAPI.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutSub).ConfigureAwait(false);
                                 TtvIRCClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1));
-                                if (UserName != singleton.rootUser)
+                                if (UserName != IllSingleton.Config.RootUser)
                                     await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                                 else
                                     await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -70,7 +69,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                 else
                 {
                     await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
-                    if (UserName != singleton.rootUser)
+                    if (UserName != IllSingleton.Config.RootUser)
                         await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                     else
                         await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -81,7 +80,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                 if (!Convert.ToBoolean(qUser.isMod))
                 {
                     await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
-                    if (UserName != singleton.rootUser)
+                    if (UserName != IllSingleton.Config.RootUser)
                         await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                     else
                         await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -95,13 +94,12 @@ namespace SkillzBot.TtvClient.TTVRewards
             try
             {
                 var uName = StringUtil.GetUserNameFromInput(message);
-                var qUser = await MySQL.GetUser(UserName).ConfigureAwait(false);
-                var singleton = IllSingleton.GetInstance();
-                if (!singleton.rootUser.Equals(uName, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (uName != singleton.ChannelName)
+                var qUser = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
+                if (!IllSingleton.Config.RootUser.Equals(uName, StringComparison.OrdinalIgnoreCase))
+                { 
+                    if (uName != IllSingleton.Config.ChannelName)
                     {
-                        var user = await MySQL.GetUser(uName).ConfigureAwait(false);
+                        var user = await IllServiceProvider.Database.GetUserAsync(uName).ConfigureAwait(false);
 
                         if (user.dbID == -404)
                         {
@@ -117,7 +115,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                                     duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
                                 await TtvAPI.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                                 TtvIRCClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1));
-                                if (UserName != singleton.rootUser)
+                                if (UserName != IllSingleton.Config.RootUser)
                                     await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                                 else
                                     await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -129,7 +127,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     else
                     {
                         await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
-                        if (UserName != singleton.rootUser)
+                        if (UserName != IllSingleton.Config.RootUser)
                             await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
                             await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -140,7 +138,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     if (!Convert.ToBoolean(qUser.isMod))
                     {
                         await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
-                        if (UserName != singleton.rootUser)
+                        if (UserName != IllSingleton.Config.RootUser)
                             await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
                             await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -151,7 +149,7 @@ namespace SkillzBot.TtvClient.TTVRewards
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "");
+                _logger.LogError(ex, "");
             }
         }
         public static async Task UvalModReward(string UserName, string message, string redemID, string rewardID)
@@ -159,11 +157,10 @@ namespace SkillzBot.TtvClient.TTVRewards
             try
             {
                 var uName = StringUtil.GetUserNameFromInput(message);
-                var qUser = await MySQL.GetUser(UserName).ConfigureAwait(false);
-                var singleton = IllSingleton.GetInstance();
-                if (uName != singleton.ChannelName)
+                var qUser = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
+                if (uName != IllSingleton.Config.ChannelName)
                 {
-                    var user = await MySQL.GetUser(uName).ConfigureAwait(false);
+                    var user = await IllServiceProvider.Database.GetUserAsync(uName).ConfigureAwait(false);
                     if (user.dbID == -404)
                     {
                         TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
@@ -178,7 +175,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                                 duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;                            
                             await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                             TtvIRCClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1));
-                            if (UserName != singleton.rootUser)
+                            if (UserName != IllSingleton.Config.RootUser)
                                 await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                             else
                                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -191,7 +188,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                 else
                 {
                     await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
-                    if (UserName != singleton.rootUser)
+                    if (UserName != IllSingleton.Config.RootUser)
                         await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                     else
                         await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -199,21 +196,20 @@ namespace SkillzBot.TtvClient.TTVRewards
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "");
+                _logger.LogError(ex, "");
             }
         }
         public static async Task UvalReward(string UserName, string message, string redemID, string rewardID)
         {
             try
             {
-                var singleton = IllSingleton.GetInstance();
                 var uName = StringUtil.GetUserNameFromInput(message);
-                var qUser = await MySQL.GetUser(UserName).ConfigureAwait(false);
-                if (uName != singleton.rootUser)
+                var qUser = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
+                if (uName != IllSingleton.Config.RootUser)
                 {
-                    if (uName != singleton.ChannelName)
+                    if (uName != IllSingleton.Config.ChannelName)
                     {
-                        var user = await MySQL.GetUser(uName).ConfigureAwait(false);
+                        var user = await IllServiceProvider.Database.GetUserAsync(uName).ConfigureAwait(false);
                         if (user.dbID == -404)
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName));
@@ -230,7 +226,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                                         duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
                                     await TtvAPI.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutUnsub).ConfigureAwait(false);
                                     TtvIRCClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1));
-                                    if (UserName != singleton.rootUser)
+                                    if (UserName != IllSingleton.Config.RootUser)
                                         await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                                     else
                                         await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -248,7 +244,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     else
                     {
                         await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
-                        if (UserName != singleton.rootUser)
+                        if (UserName != IllSingleton.Config.RootUser)
                             await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
                             await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -259,7 +255,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     if (!Convert.ToBoolean(qUser.isMod))
                     {
                         await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
-                        if (UserName != singleton.rootUser)
+                        if (UserName != IllSingleton.Config.RootUser)
                             await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
                             await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -270,12 +266,11 @@ namespace SkillzBot.TtvClient.TTVRewards
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "");
+                _logger.LogError(ex, "");
             }
         }
         public static async Task<bool> ZakazTrekaReward(string UserName, string Link, string redemID, string rewardID)
         {
-            var singleton = IllSingleton.GetInstance();
             string yID = StringUtil.ExtractYouTubeVideoId(Link) ?? await YouTubeSearch.YouTubeSearchByKeyWordTask(Link).ConfigureAwait(false);            
             if (yID != null)
             {
@@ -291,8 +286,8 @@ namespace SkillzBot.TtvClient.TTVRewards
                 {
                     if (rewardID != null)
                         await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.Track_Esception, singleton.rootUser));
-                    Log.WriteLog(null, $"{Link} -> {yID}");
+                    TtvIRCClient.SendMessage(string.Format(STRINGS.Track_Esception, IllSingleton.Config.RootUser));
+                    _logger.LogError(null, "{Link} -> {yID}", Link, yID);
                     return false;
                 }
 
@@ -307,7 +302,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                             return false;
                         }
 
-                        var user = await MySQL.GetUser(UserName).ConfigureAwait(false);
+                        var user = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
                         if (IllChatFilters.IsUserBlacklisted(user.TwitchID.ToString()))
                         {
                             TtvIRCClient.SendMessage(string.Format(STRINGS.Track500_bannedUser, UserName));
@@ -322,7 +317,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                             TtvIRCClient.SendMessage($"{UserName} Трек добавлен в очередь");
                             MediaqueueWriter.Write(user.TwitchID, yID);
                             if (rewardID == null) return true;
-                            if (UserName == singleton.rootUser)
+                            if (UserName == IllSingleton.Config.RootUser)
                                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             else
                                 await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
@@ -356,7 +351,7 @@ namespace SkillzBot.TtvClient.TTVRewards
 
                     case "ZAP":
                         MediaBlackListWriter.Write(yID);
-                        var user2 = await MySQL.GetUser(UserName).ConfigureAwait(false);
+                        var user2 = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
                         if (user2.dbID == -404) return false;
                         await IllCommands.IllFilterTrigger(user2).ConfigureAwait(false);                        
                         FlagWriter.FlagWriterTask($"{UserName} : {Link}");
@@ -384,7 +379,7 @@ namespace SkillzBot.TtvClient.TTVRewards
             {
                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);               
                 var uName = StringUtil.GetUserNameFromInput(message);
-                var user = await MySQL.GetUser(uName).ConfigureAwait(false);
+                var user = await IllServiceProvider.Database.GetUserAsync(uName).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
                     TtvIRCClient.SendMessage(string.Format(STRINGS.CencelUval404, UserName, uName));
@@ -428,7 +423,7 @@ namespace SkillzBot.TtvClient.TTVRewards
             {
                 //отменить увал
                 CencelUvalIsWating = false;
-                var user = await MySQL.GetUser(CencelUvalUserName).ConfigureAwait(false);
+                var user = await IllServiceProvider.Database.GetUserAsync(CencelUvalUserName).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
                     TtvIRCClient.SendMessage(STRINGS.CencelUval404);
@@ -439,7 +434,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                 }
                 await TtvAPI.UpdateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                 CencelUvalUserName = "";
-                if (UserName != IllSingleton.GetInstance().rootUser)
+                if (!IllAccess.MeetsLevel(user, IllEnums.AccessLevel.Root))
                     await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                 else
                     await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -447,7 +442,7 @@ namespace SkillzBot.TtvClient.TTVRewards
         }
         public static async Task Pi4kaReward(string UserName, string redemID, string rewardID)
         {
-            if (UserName != IllSingleton.GetInstance().rootUser)
+            if (UserName != IllSingleton.Config.RootUser)
                 await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
             else
                 await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
@@ -456,7 +451,7 @@ namespace SkillzBot.TtvClient.TTVRewards
         {
             await TtvAPI.SetEmoteOnlyMode(true);
             long emoteModeTimer = DateTimeOffset.Now.ToUnixTimeSeconds();
-            if (UserName != IllSingleton.GetInstance().rootUser)
+            if (UserName != IllSingleton.Config.RootUser)
                 await TtvAPI.ApproveReward(rewardID, redemID);
             else
                 await TtvAPI.CencelReward(rewardID, redemID);
@@ -469,25 +464,6 @@ namespace SkillzBot.TtvClient.TTVRewards
                 }
                 await Task.Delay(1000);
             }
-        }
-        public static async Task EnglishWisReward(string UserName, string redemID, string rewardID)
-        {
-            var singleton = IllSingleton.GetInstance();
-            var reward = await TtvAPI.GetReward(rewardID).ConfigureAwait(false);
-            if (reward == null)
-            {
-                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
-                TtvIRCClient.SendMessage("Error");
-                return;
-            }
-            if (UserName != singleton.rootUser)
-                await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);                
-            else
-                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
-            await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
-            TtvIRCClient.SendMessage($"@{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! @{singleton.ChannelName}, СЛОВО! ");
-            singleton.WisCD = DateTimeOffset.Now.ToUnixTimeSeconds();
-            singleton.wisEnabled = false;
         }
         public static async Task ChatWithBot(string UserName, string message, string redemID, string rewardID)
         {
@@ -505,7 +481,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                 return;
             }
             TtvIRCClient.SendMessage($"@{UserName} {responce}");
-            if (UserName != IllSingleton.GetInstance().rootUser)
+            if (UserName != IllSingleton.Config.RootUser)
                 await TtvAPI.ApproveReward(rewardID, redemID);
             else
                 await TtvAPI.CencelReward(rewardID, redemID);

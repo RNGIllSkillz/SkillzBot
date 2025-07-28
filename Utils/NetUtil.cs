@@ -5,11 +5,15 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Threading.Tasks;
 using SkillzBot.WRITERS;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
+using SkillzBot.Readers;
 
 namespace SkillzBot.Utils
 {
     internal class NetUtil
     {
+        private static readonly ILogger<NetUtil> _logger = IllServiceProvider.GetLogger<NetUtil>();
         private const string LinkPattern = @"((http|https):\/\/|(www\.)?)?[\w\-]+(\.[a-zA-Z]{2,})([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?";
         public static bool IsValidLink(string input)
         {
@@ -39,7 +43,7 @@ namespace SkillzBot.Utils
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, "IsUrlValid(1)");
+                    _logger.LogError(ex, "IsUrlValid(1)");
                 }
             }
             else if (Uri.IsWellFormedUriString(url, UriKind.RelativeOrAbsolute))
@@ -55,7 +59,7 @@ namespace SkillzBot.Utils
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, "IsUrlValid(2)");
+                    _logger.LogError(ex, "IsUrlValid(2)");
                 }
             }
             return false;

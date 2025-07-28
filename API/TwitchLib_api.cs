@@ -2,7 +2,6 @@
 using TwitchLib.Api;
 using System.Linq;
 using System.Threading.Tasks;
-using SkillzBot.WRITERS;
 using System.Collections.Generic;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomRewardRedemptionStatus;
@@ -14,16 +13,16 @@ using TwitchLib.Api.Helix.Models.Moderation.BanUser;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelVIPs;
 using SkillzBot.MODELS;
 using TwitchLib.Api.Helix.Models.Chat.ChatSettings;
-using SkillzBot.Singleton;
 using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomRewardRedemption;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using SkillzBot.Utils;
-using Google.Protobuf.WellKnownTypes;
 using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.API.Twitch
 {
@@ -34,15 +33,16 @@ namespace SkillzBot.API.Twitch
         private static string winID;
         private static string looseID;
         private static readonly bool ValidToken = false;
-        private static readonly string BrodcasterID = IllSingleton.GetInstance().BrodcasterId;
         private static readonly int NumRecurcieveTryes = 10;
-
+        private static readonly string BrodcasterID;
+        private static readonly ILogger<TtvAPI> _logger = Hosts.IllServiceProvider.GetLogger<TtvAPI>();
         static TtvAPI()
         {
+            BrodcasterID = IllSingleton.Config.BroadcasterId;
             Console.Write("Initializing Ttv API... ");
             API = new TwitchAPI();
-            API.Settings.ClientId = IllSingleton.GetInstance().TApiClientId;
-            API.Settings.AccessToken = IllSingleton.GetInstance().TApiAccessToken;
+            API.Settings.ClientId = IllSingleton.Config.TApiClientId;
+            API.Settings.AccessToken = IllSingleton.Config.TApiAccessToken;
             if (!StringUtil.IsValidApiToken(API.Settings.ClientId) || !StringUtil.IsValidApiToken(API.Settings.AccessToken))
             {
                 Console.WriteLine("ERROR.");
@@ -79,7 +79,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "Start_2_Prediction");
+                _logger.LogError(ex, "Start_2_Prediction");
                 return;
             }
             await GetCurrentPred().ConfigureAwait(false);
@@ -112,7 +112,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "Start_10_Prediction");
+                _logger.LogError(ex, "Start_10_Prediction");
                 return;
             }
             await GetCurrentPred().ConfigureAwait(false);
@@ -122,7 +122,7 @@ namespace SkillzBot.API.Twitch
             if (!ValidToken) return;
             if (Champs == null || Champs.Count != 5)
             {
-                Log.WriteLog(null, "Champs list must have exactly 5 items.");
+                _logger.LogError(null, "Champs list must have exactly 5 items.");
                 return;
             }
 
@@ -144,7 +144,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "Start_10_Prediction");
+                _logger.LogError(ex, "Start_10_Prediction");
                 return;
             }
             await GetCurrentPred().ConfigureAwait(false);            
@@ -159,7 +159,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "End_Multy_Prediction");
+                _logger.LogError(ex, "End_Multy_Prediction");
                 return "ERR";
             }
             string currentPredID = Predictions.Data.First().Id;
@@ -183,13 +183,13 @@ namespace SkillzBot.API.Twitch
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, "End_Multy_Prediction");
+                    _logger.LogError(ex, "End_Multy_Prediction");
                     return "ERR";
                 }
             }
             else
             {
-                Log.WriteLog(null, "(Task EndPrediction) currentPredID != PredID");
+                _logger.LogError(null, "(Task EndPrediction) currentPredID != PredID");
             }
             return "OK";
         }
@@ -203,7 +203,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetCurrentPred");
+                _logger.LogError(ex, "GetCurrentPred");
                 return;
             }
             PredID = Predictions.Data.First().Id;
@@ -219,7 +219,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetCurrentPredPublic");
+                _logger.LogError(ex, "GetCurrentPredPublic");
                 return null;
             }
         }
@@ -234,7 +234,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "End_WinLoose_Prediction()");
+                _logger.LogError(ex, "End_WinLoose_Prediction()");
                 await Task.Delay(1000);
                 await End_WinLoose_Prediction(win, tryes++).ConfigureAwait(false);
             }
@@ -251,14 +251,14 @@ namespace SkillzBot.API.Twitch
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, "End_WinLoose_Prediction()");
+                    _logger.LogError(ex, "End_WinLoose_Prediction()");
                     await Task.Delay(1000);
                     await End_WinLoose_Prediction(win, tryes++).ConfigureAwait(false);
                 }
             }
             else
             {
-                Log.WriteLog(null, "(Task EndPrediction) currentPredID != PredID");
+                _logger.LogError(null, "(Task EndPrediction) currentPredID != PredID");
             }
         }
         public static async Task CencelePrediction()
@@ -271,7 +271,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "CencelePrediction");
+                _logger.LogError(ex, "CencelePrediction");
                 return;
             }
             string currentPredID = Predictions.Data.First().Id;
@@ -283,13 +283,13 @@ namespace SkillzBot.API.Twitch
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, "Start_10_Prediction");
+                    _logger.LogError(ex, "Start_10_Prediction");
                     return;
                 }
             }
             else
             {
-                Log.WriteLog(null, "(Task EndPrediction) currentPredID != PredID");
+                _logger.LogError(null, "(Task EndPrediction) currentPredID != PredID");
             }
         }
         public static async Task<GetCustomRewardsResponse> GetAllRewards()
@@ -302,12 +302,12 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "getAllRewards");
+                _logger.LogError(ex, "getAllRewards");
                 return null;
             }
             foreach (var reward in AllRewards.Data)
             {
-                Log.WriteLog(null, $"{reward.Id} - {reward.Title} - {reward.IsEnabled}");
+                _logger.LogError(null, $"{reward.Id} - {reward.Title} - {reward.IsEnabled}");
             }
             return AllRewards;
         }
@@ -321,7 +321,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetReward");
+                _logger.LogError(ex, "GetReward");
                 return null;
             }
             foreach (var reward in rewards.Data)
@@ -343,7 +343,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetReward");
+                _logger.LogError(ex, "GetReward");
                 return null;
             }
             foreach (var reward in rewards.Data)
@@ -373,7 +373,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "updateReward");
+                _logger.LogError(ex, "updateReward");
             }
         }
         public static async Task DeleteReward(string rewardID)
@@ -385,7 +385,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "DeleteReward");
+                _logger.LogError(ex, "DeleteReward");
                 return;
             }
         }
@@ -407,7 +407,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "DeleteReward");
+                _logger.LogError(ex, "DeleteReward");
                 return null;
             }            
         }
@@ -423,7 +423,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "CencelReward");
+                _logger.LogError(ex, "CencelReward");
             }
         }
         public static async Task ApproveReward(string rewardID, string RedemID)
@@ -438,7 +438,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "ApproveReward");
+                _logger.LogError(ex, "ApproveReward");
             }
         }
         public static async Task<CreatedClipResponse> CreateClip()
@@ -450,7 +450,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "CreateClip");
+                _logger.LogError(ex, "CreateClip");
                 return null;
             }
         }
@@ -468,7 +468,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetStreamStatus()");
+                _logger.LogError(ex, "GetStreamStatus()");
                 return false;
             }
             if (streams != null && streams.Streams.Any())
@@ -499,7 +499,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetStreamStatus()");
+                _logger.LogError(ex, "GetStreamStatus()");
                 return null;
             }
             for (int i = 0; i < redemption.Data.Length; i++)            
@@ -521,7 +521,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "TimeOutUserAsync");
+                _logger.LogError(ex, "TimeOutUserAsync");
             }
         }
         public static async Task BanUser(string UserID, string Reason)
@@ -537,7 +537,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "BanUser");
+                _logger.LogError(ex, "BanUser");
             }
         }
         public static async Task UnBanUser(string UserID)
@@ -549,7 +549,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "UnBanUser");
+                _logger.LogError(ex, "UnBanUser");
             }
         }
         public static async Task<bool> Announce(string Message)
@@ -561,7 +561,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "Announce");
+                _logger.LogError(ex, "Announce");
                 return false;
             }
             return true;
@@ -575,7 +575,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "DeleteMessage");
+                _logger.LogError(ex, "DeleteMessage");
             }
         }
         public static async Task DeleteAllMessages()
@@ -587,7 +587,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "DeleteAllMessages");
+                _logger.LogError(ex, "DeleteAllMessages");
             }
         }
         public static async Task<bool> AddChannelModerator(string UserID)
@@ -600,7 +600,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "AddChannelModerator");
+                _logger.LogError(ex, "AddChannelModerator");
                 return false;
             }
         }
@@ -615,7 +615,7 @@ namespace SkillzBot.API.Twitch
                 //singleton.wisEnabled = false;
             }
             else
-                Log.WriteLog(null, $"DisableRewardAsync -> null. Id: {rewardID}");
+                _logger.LogError(null, $"DisableRewardAsync -> null. Id: {rewardID}");
         }
         public static async Task EnableRewardAsync(string rewardID)
         {
@@ -628,7 +628,7 @@ namespace SkillzBot.API.Twitch
                 //singleton.wisEnabled = true;
             }
             else
-                Log.WriteLog(null, $"EnableRewardAsync -> null. Id: {rewardID}");
+                _logger.LogError(null, $"EnableRewardAsync -> null. Id: {rewardID}");
         }
         public static async Task DeleteChannelModerator(string UserID)
         {
@@ -639,7 +639,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "AddChannelModerator");
+                _logger.LogError(ex, "AddChannelModerator");
             }
         }
         public static async Task<GetChannelVIPsResponse> GetVIPs()
@@ -651,7 +651,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "AddChannelModerator");
+                _logger.LogError(ex, "AddChannelModerator");
                 return null;
             }
         }
@@ -664,7 +664,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex) 
             { 
-                Log.WriteLog(ex, "AddChannelVIP"); 
+                _logger.LogError(ex, "AddChannelVIP"); 
             }
         }
         public static async Task DeleteChannelVIP(string UserID)
@@ -676,7 +676,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "DeleteChannelVIP");
+                _logger.LogError(ex, "DeleteChannelVIP");
             }
         }
         public static async Task SetEmoteOnlyMode(bool IsEmoteOnly)
@@ -691,7 +691,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "SetEmoteOnlyMode");
+                _logger.LogError(ex, "SetEmoteOnlyMode");
             }
         }
         public static async Task TimeOutUser(UserObject user, int Duration, string Reasone)
@@ -704,7 +704,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "TimeOutUser");
+                _logger.LogError(ex, "TimeOutUser");
             }
         }
         public static async Task TimeOutModerator(UserObject user, int Duration, string Reasone)
@@ -716,7 +716,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "TimeOutUser");
+                _logger.LogError(ex, "TimeOutUser");
             }
         }
         public static async Task SendWhisper(string toUserID, string message, bool newRec = true)
@@ -728,7 +728,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "SendWhisper");
+                _logger.LogError(ex, "SendWhisper");
             }
         }
         public static async Task<Moderator[]> GetAllMods()
@@ -741,7 +741,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetAllModsIds");
+                _logger.LogError(ex, "GetAllModsIds");
                 return null;
             }
             return Responce.Data;
@@ -757,7 +757,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetStreamInfo");
+                _logger.LogError(ex, "GetStreamInfo");
                 return null;
             }
         }
@@ -772,7 +772,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetStreamInfo");
+                _logger.LogError(ex, "GetStreamInfo");
                 return null;
             }
         }
@@ -801,7 +801,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, "getChateers()");
+                _logger.LogError(e, "getChateers()");
                 return null;
             }
         }*/
@@ -814,7 +814,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetChattersAsync");
+                _logger.LogError(ex, "GetChattersAsync");
                 return null;
             }
         }
@@ -830,7 +830,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetClipByID");
+                _logger.LogError(ex, "GetClipByID");
                 return false;
             }
         }
@@ -846,7 +846,7 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetUsetIDByName");
+                _logger.LogError(ex, "GetUsetIDByName");
                 return null;
             }
         }

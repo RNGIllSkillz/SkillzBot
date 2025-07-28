@@ -1,27 +1,21 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using MySqlX.XDevAPI;
-using RiotSharp.Endpoints.StatusEndpoint;
-using SkillzBot.IllSkillzBot;
-using SkillzBot.Singleton;
-using SkillzBot.WRITERS;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
 using System;
-using System.ComponentModel.Design;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Input;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.Discord
-{    
+{
     internal class DiscordClient
     {
         private static DiscordSocketClient _client;
         private static CommandService _commands;
         private static IServiceProvider _services;
+        private static readonly ILogger<DiscordClient> _logger = IllServiceProvider.GetLogger<DiscordClient>();
 
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static bool _IsTokenValid = true;
         public DiscordClient()
         {
@@ -29,13 +23,13 @@ namespace SkillzBot.Discord
         }
         private static async Task Init()
         {
-            if (singleton.DiscordNoteID == 0 || singleton.DiscordBotToken == null)
+            if (IllSingleton.Config.DiscordNoteID == 0 || IllSingleton.Config.DiscordBotToken == null)
             {
                 Console.WriteLine("Discord config is invalid! Discord bot is disabled");
                 _IsTokenValid = false;
             }
             if (_IsTokenValid)
-                await StartUp(singleton.DiscordBotToken).ConfigureAwait(false);
+                await StartUp(IllSingleton.Config.DiscordBotToken).ConfigureAwait(false);
         }
         private static async Task StartUp(string token)
         {
@@ -58,13 +52,13 @@ namespace SkillzBot.Discord
             Console.WriteLine("Discord Bot has been disconnected!.");
             await Task.Delay(1000).ConfigureAwait(false);
             _client.Dispose();
-            await StartUp(singleton.DiscordBotToken).ConfigureAwait(false);
+            await StartUp(IllSingleton.Config.DiscordBotToken).ConfigureAwait(false);
         }
 
         private static Task DisLog(LogMessage arg)
         {
             Console.WriteLine(arg);
-            Log.WriteLog(null, arg.Message);
+            _logger.LogError(arg.Message);
             return Task.CompletedTask;
         }
 
@@ -76,7 +70,7 @@ namespace SkillzBot.Discord
         public static async Task SendMessage(string message, ulong? DiscordNoteID = null)
         {
             if (!_IsTokenValid) return;
-            DiscordNoteID ??= singleton.DiscordNoteID;
+            DiscordNoteID ??= IllSingleton.Config.DiscordNoteID;
             if (_client.GetChannel((ulong)DiscordNoteID) is SocketTextChannel channel)
                 await channel.SendMessageAsync(message).ConfigureAwait(false);
             else
@@ -88,10 +82,10 @@ namespace SkillzBot.Discord
             EmbedBuilder embedBuilder = new EmbedBuilder();
             if (isUp)
             {
-                embedBuilder.Title = $"На канале {IllSingleton.GetInstance().ChannelName} начался стрим!";
+                embedBuilder.Title = $"На канале {IllSingleton.Config.ChannelName} начался стрим!";
                 embedBuilder.Description = Description;
                 embedBuilder.ImageUrl = ImageUrl;
-                embedBuilder.Url = $"https://www.twitch.tv/{IllSingleton.GetInstance().ChannelName}";
+                embedBuilder.Url = $"https://www.twitch.tv/{IllSingleton.Config.ChannelName}";
                 embedBuilder.Color = Color.Blue;
             }
             else
@@ -107,10 +101,10 @@ namespace SkillzBot.Discord
             if (!isUp)
                 if (stats != null)
                     embedBuilder.AddField("За сегродня", stats);
-            embedBuilder.WithUrl($"https://www.twitch.tv/{IllSingleton.GetInstance().ChannelName}");
+            embedBuilder.WithUrl($"https://www.twitch.tv/{IllSingleton.Config.ChannelName}");
 
             var builtEmbed = embedBuilder.Build();
-            DiscordNoteID ??= singleton.DiscordNoteID;
+            DiscordNoteID ??= IllSingleton.Config.DiscordNoteID;
             if (_client.GetChannel((ulong)DiscordNoteID) is SocketTextChannel channel)
                 await channel.SendMessageAsync(embed: builtEmbed).ConfigureAwait(false);
             else
@@ -125,7 +119,7 @@ namespace SkillzBot.Discord
         private static async Task HandleCommandAsync(SocketMessage arg)
         {
             var message = arg as SocketUserMessage;
-            if (message.Channel.Id != singleton.DiscordSpamID) return;
+            if (message.Channel.Id != IllSingleton.Config.DiscordSpamID) return;
             if (message.Author.IsBot) return;
             if (message.Content.StartsWith("!"))
                 await DiscordCommands.CommandHandler(message.Content).ConfigureAwait(false);
@@ -135,7 +129,7 @@ namespace SkillzBot.Discord
         {
             if (!(arg is SocketUserMessage message)) return;
             if (message.Author.IsBot) return;
-            if (message.Channel.Id != singleton.DiscordSpamID) return;
+            if (message.Channel.Id != IllSingleton.Config.DiscordSpamID) return;
             int argPos = 0;
             if (!(message.HasStringPrefix("!", ref argPos))) return;
             var context = new SocketCommandContext(_client, message);

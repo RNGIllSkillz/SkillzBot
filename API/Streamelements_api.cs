@@ -1,5 +1,4 @@
-﻿using SkillzBot.WRITERS;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Net.Http;
@@ -11,20 +10,23 @@ using Newtonsoft.Json;
 using System.Net;
 using System.Threading;
 using SkillzBot.JSON.StreamElements;
-using SkillzBot.Singleton;
 using SkillzBot.IRC;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.API.StreamElements
 {
     internal class StreamElementsAPI
     {
         private static readonly HttpClient httpClient = new HttpClient();
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static readonly bool ValidToken = false;
+        private static readonly ILogger<StreamElementsAPI> _logger = IllServiceProvider.GetLogger<StreamElementsAPI>();
+
         static StreamElementsAPI()
         {
             Console.Write("Initializing StreamElements API... ");
-            if (singleton.StreamElementsApiToken == null)
+            if (IllSingleton.Config.StreamElementsApiToken == null)
             {
                 Console.WriteLine();
                 Console.WriteLine("No valid StreamElements API token. StreamElements API functionality is offline");
@@ -32,7 +34,7 @@ namespace SkillzBot.API.StreamElements
             }
             ValidToken = true;
             httpClient.BaseAddress = new Uri("https://api.streamelements.com/kappa/v2/");
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", singleton.StreamElementsApiToken);
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", IllSingleton.Config.StreamElementsApiToken);
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             Console.WriteLine("OK.");
         }
@@ -43,7 +45,7 @@ namespace SkillzBot.API.StreamElements
             {
                 var payload = new { video = youTubeVideoId };
                 var jsonPayload = JsonConvert.SerializeObject(payload);
-                using var request = new HttpRequestMessage(HttpMethod.Post, $"songrequest/{singleton.StreamElementsID}/queue")
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"songrequest/{IllSingleton.Config.StreamElementsID}/queue")
                 {
                     Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
                 };
@@ -58,11 +60,11 @@ namespace SkillzBot.API.StreamElements
                     if (webEx.Response is HttpWebResponse httpResp)
                     {
                         TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(httpResp.StatusCode)}");
-                        Log.WriteLog(null, $"SendMediaAsync() {httpResp.StatusCode}");
+                        _logger.LogError(null, $"SendMediaAsync() {httpResp.StatusCode}");
                     }
                 }
                 else
-                    Log.WriteLog(ex, $"SendMediaAsync({youTubeVideoId})");
+                    _logger.LogError(ex, $"SendMediaAsync({youTubeVideoId})");
                 return false;
             }
         }
@@ -71,7 +73,7 @@ namespace SkillzBot.API.StreamElements
             if (!ValidToken) return null;
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/history?limit=1&offset=0");
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{IllSingleton.Config.StreamElementsID}/history?limit=1&offset=0");
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -81,20 +83,20 @@ namespace SkillzBot.API.StreamElements
                 else
                 {
                     TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
-                    Log.WriteLog(null, $"getFirstInHistory() {Convert.ToString(response.StatusCode)}");
+                    _logger.LogError($"getFirstInHistory() {Convert.ToString(response.StatusCode)}");
                 }
                 return null;
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetHistory()");
+                _logger.LogError(ex, "GetHistory()");
                 return null;
             }
         }
         public static async Task<List<MediaQueueJson>> GetQueue(CancellationToken cancellationToken = default)
         {
             if (!ValidToken) return null;
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/queue");
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{IllSingleton.Config.StreamElementsID}/queue");
             try
             {
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -106,20 +108,20 @@ namespace SkillzBot.API.StreamElements
                 else
                 {
                     TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
-                    Log.WriteLog(null, $"getTrackQueue() {Convert.ToString(response.StatusCode)}");
+                    _logger.LogError(null, $"getTrackQueue() {Convert.ToString(response.StatusCode)}");
                 }
                 return null;
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetQueue()");
+                _logger.LogError(ex, "GetQueue()");
                 return null;
             }
         }
         public static async Task<StreamElementsJSON> GetCurrentSong(CancellationToken cancellationToken = default)
         {
             if (!ValidToken) return null;
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{singleton.StreamElementsID}/playing");
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{IllSingleton.Config.StreamElementsID}/playing");
             try
             {                
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -131,13 +133,13 @@ namespace SkillzBot.API.StreamElements
                 else
                 {
                     TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
-                    Log.WriteLog(null, $"GetCurrentSong() {Convert.ToString(response.StatusCode)}");
+                    _logger.LogError(null, $"GetCurrentSong() {Convert.ToString(response.StatusCode)}");
                 }
                 return null;
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetCurrentSong()");
+                _logger.LogError(ex, "GetCurrentSong()");
                 return null;
             }            
         }
@@ -145,7 +147,7 @@ namespace SkillzBot.API.StreamElements
         {
             if (!ValidToken) return;
             var jsonPayload = JsonConvert.SerializeObject(new { message });
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"bot/{singleton.StreamElementsID}/say")
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"bot/{IllSingleton.Config.StreamElementsID}/say")
             {
                 Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
             };
@@ -153,11 +155,11 @@ namespace SkillzBot.API.StreamElements
             {
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)                
-                    Log.WriteLog(null, $"SendChatMessage() {response.StatusCode}");                
+                    _logger.LogError(null, $"SendChatMessage() {response.StatusCode}");                
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, $"SendChatMessage({message})");
+                _logger.LogError(ex, $"SendChatMessage({message})");
             }
         }
     }

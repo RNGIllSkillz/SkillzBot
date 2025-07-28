@@ -7,6 +7,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using SkillzBot.Singleton;
 using SkillzBot.API.RiotGames;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
 
 namespace SkillzBot.Readers
 {
@@ -15,6 +17,7 @@ namespace SkillzBot.Readers
         static readonly string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
         static readonly string mediaQueueDir = Path.Combine(dataPath, "mediaqueue.txt");
         readonly private static string dailyStatsDir = Path.Combine(dataPath, "dailyStats.txt");
+        private static readonly ILogger<TempDataReader> _logger = IllServiceProvider.GetLogger<TempDataReader>();
         public static int GetUserIDByTreckID(string treckID)
         {
             IEnumerable<String> QueueList;
@@ -30,43 +33,45 @@ namespace SkillzBot.Readers
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, "GetUserIDByTreckID()");
+                _logger.LogError(e, "GetUserIDByTreckID()");
                 return -1;
             }
             return -1;
         }
-        public static async Task ReadGameStats()
+        public static async Task<string> ReadGameStats()
         {
             try
             {
-                var singleton = IllSingleton.GetInstance();
                 IEnumerable<String> stats = File.ReadLines(dailyStatsDir);
                 if (stats.Count() == 0)
-                {
+                {                    
                     var t = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
-                    singleton.startLP = int.Parse(t[1]);
-                    singleton.elo = t[0];
-                    singleton.earnedLP = 0;
-                    singleton.numLoose = 0;
-                    singleton.numGames = 0;
-                    singleton.numWins = 0;
-                    singleton.tier = t[2];
+                    return string.Join(" ", int.Parse(t[1]), t[0], "0", "0", "0", "0", t[2]);
+                    //IllSingleton.Game.StartLP = int.Parse(t[1]);
+                    //IllSingleton.Game.Elo = t[0];
+                    //IllSingleton.Game.EarnedLP = 0;
+                    //IllSingleton.Game.NumLosses = 0;
+                    //IllSingleton.Game.NumGames = 0;
+                    //IllSingleton.Game.NumWins = 0;
+                    //IllSingleton.Game.Tier = t[2];
                 }
                 else
                 {
-                    string[] subs = stats.First().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    singleton.startLP = int.Parse(subs[0]);
-                    singleton.elo = subs[1];
-                    singleton.earnedLP = int.Parse(subs[2]);
-                    singleton.numLoose = int.Parse(subs[3]);
-                    singleton.numGames = int.Parse (subs[4]);
-                    singleton.numWins = int.Parse(subs[5]);
-                    singleton.tier = subs[6];
+                    return stats.First();
+                    //IllSingleton.Game.StartLP = int.Parse(subs[0]);
+                    //IllSingleton.Game.Elo = subs[1];
+                    //IllSingleton.Game.EarnedLP = int.Parse(subs[2]);
+                    //IllSingleton.Game.NumLosses = int.Parse(subs[3]);
+                    //IllSingleton.Game.NumGames = int.Parse (subs[4]);
+                    //IllSingleton.Game.NumWins = int.Parse(subs[5]);
+                    //IllSingleton.Game.Tier = subs[6];
                 }
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, "readGameStats()");
+                _logger.LogError(e, "readGameStats()");
+                Console.WriteLine($"readGameStats() {e.Message}");
+                return null;
             }
         }
     }

@@ -7,11 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SkillzBot.QuartZ;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
 
 public class QuartzBackgroundTaskManager
 {
     private static IScheduler _scheduler;
-
+    private static readonly ILogger<BackGroundTasks> _logger = IllServiceProvider.GetLogger<BackGroundTasks>();
     public QuartzBackgroundTaskManager()
     {
         ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
@@ -63,7 +65,7 @@ public class QuartzBackgroundTaskManager
         }
         catch (Exception ex)
         {
-            Log.WriteLog(ex, "UpdateJobSchedule");
+            _logger.LogCritical(ex, "UpdateJobSchedule");
         }
     }
     public static async Task<string> GetRunningJobs()
@@ -102,7 +104,7 @@ public class QuartzBackgroundTaskManager
     }
     public async Task<string> GetAllJobsNames()
     {
-        Log.WriteLog(null, "GetAllJobsNames start");
+        _logger.LogCritical("GetAllJobsNames start");
         var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup()).ConfigureAwait(false);
         if (jobKeys == null || jobKeys.Count == 0)
         {

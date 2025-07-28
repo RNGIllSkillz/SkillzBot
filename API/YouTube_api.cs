@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using System.Linq;
-using SkillzBot.Singleton;
 using Google.Apis.YouTube.v3.Data;
-using SkillzBot.WRITERS;
 using SkillzBot.Utils;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.API.YouTube
 {
@@ -16,7 +16,8 @@ namespace SkillzBot.API.YouTube
     {
         private readonly static YouTubeService _YouTubeService;
         private readonly static List<string> _request;
-        private static readonly bool IsValidToken = StringUtil.IsValidApiToken(IllSingleton.GetInstance().YouTubeApiToken);
+        private static readonly bool IsValidToken = StringUtil.IsValidApiToken(IllSingleton.Config.YouTubeApiToken);
+        private static readonly ILogger<YouTubeSearch> _logger = Hosts.IllServiceProvider.GetLogger<YouTubeSearch>();
         static YouTubeSearch()
         {
             Console.Write("Initializing YouTube Search... ");
@@ -28,7 +29,7 @@ namespace SkillzBot.API.YouTube
             }
             _YouTubeService = new YouTubeService(new BaseClientService.Initializer()
             {
-                ApiKey = IllSingleton.GetInstance().YouTubeApiToken,
+                ApiKey = IllSingleton.Config.YouTubeApiToken,
                 ApplicationName = "IllSKillzBot v3.0"
             });
             _request = new List<string>
@@ -52,7 +53,7 @@ namespace SkillzBot.API.YouTube
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "YouTubeSearchByIDTask");
+                _logger.LogError(ex, "YouTubeSearchByIDTask");
                 return null;
             }
             var youTubeVideo = searchResponse.Items[0];
@@ -82,7 +83,7 @@ namespace SkillzBot.API.YouTube
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "YouTubeSearchByKeyWordTask");
+                _logger.LogError(ex, "YouTubeSearchByKeyWordTask");
                 return null;
             }           
             var searchRequest = _YouTubeService.Videos.List(_request);

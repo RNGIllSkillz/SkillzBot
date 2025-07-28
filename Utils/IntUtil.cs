@@ -1,4 +1,4 @@
-﻿using Quartz;
+﻿using SkillzBot.Singleton;
 using SkillzBot.API.Twitch;
 using System;
 using System.Collections.Generic;
@@ -42,10 +42,10 @@ namespace SkillzBot.Utils
             const int SecondsInTenMinutes = 600;
             var rewardsMap = new Dictionary<string, string>
             {
-                ["IsSub"] = Singleton.IllSingleton.GetInstance().UvalSabId,
-                ["IsVip"] = Singleton.IllSingleton.GetInstance().UvalVipId,
-                ["IsUnsub"] = Singleton.IllSingleton.GetInstance().UvalId,
-                ["IsMod"] = Singleton.IllSingleton.GetInstance().uvalMod
+                ["IsSub"] = IllSingleton.Config.ChannelIds.UvalSabId,
+                ["IsVip"] = IllSingleton.Config.ChannelIds.UvalVipId,
+                ["IsUnsub"] = IllSingleton.Config.ChannelIds.UvalId,
+                ["IsMod"] = IllSingleton.Config.ChannelIds.UvalMod
             };
 
             if (rewardsMap.TryGetValue(subscriptionType, out string rewardId))

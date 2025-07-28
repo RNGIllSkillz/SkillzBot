@@ -1,9 +1,7 @@
 ﻿using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.Singleton;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.SubUtils
 {
@@ -37,10 +35,9 @@ namespace SkillzBot.SubUtils
         }
         private void PurchaseProcess (int amount, int rate)
         {
-            var singleton = IllSingleton.GetInstance();
             var responce = AddSub.NewPurchase(amount, rate);
             SubCheck.RunChecker();
-            TtvIRCClient.SendMessage($"@{singleton.ChannelName} {responce}");
+            TtvIRCClient.SendMessage($"@{IllSingleton.Config.ChannelName} {responce}");
         }
     }
 }

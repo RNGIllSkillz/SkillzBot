@@ -6,39 +6,36 @@ using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
-using SkillzBot.Singleton;
 using TwitchLib.EventSub.Websockets;
 using System.Collections.Generic;
-using SkillzBot.WRITERS;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.IRC;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 using SkillzBot.IllSTRINGS;
-using SkillzBot.MYSQL;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using SkillzBot.MySQL;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.EventSub
 {
     public class TTVEventSub: IHostedService
     {
+        private static ILogger<TTVEventSub>? _logger;
+        private readonly IDatabaseService _databaseService;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
-        private readonly IllSingleton singleton = IllSingleton.GetInstance();
-        private readonly string zakazTreka;
-        private readonly string pi4ka;
-        private readonly string uval;
-        private readonly string uvalSab;
-        private readonly string uvalVIP;
-        private readonly string emoteMode;
-        private readonly string cenceleUval;
-        private readonly string uvalMod;
-        private readonly string ChatWithBot;
-        private readonly string BrodcasterId;
         private int tryes = 0;
         private readonly Dictionary<string, string> SubscriptionsTypes;
 
-        public TTVEventSub(EventSubWebsocketClient eventSubWebsocketClient)
+        public TTVEventSub(EventSubWebsocketClient eventSubWebsocketClient, IServiceProvider serviceProvider, IDatabaseService databaseService)
         {
+            _logger = serviceProvider.GetRequiredService<ILogger<TTVEventSub>>();
+
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
+            _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+            _logger.LogDebug("TTVEventSub initialized with injected dependencies");
+
             _eventSubWebsocketClient.WebsocketConnected += OnWebsocketConnected;
             _eventSubWebsocketClient.WebsocketDisconnected += OnWebsocketDisconnected;
             _eventSubWebsocketClient.WebsocketReconnected += OnWebsocketReconnected;
@@ -52,18 +49,9 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelUnban += OnUnban;
             _eventSubWebsocketClient.ChannelBan += OnChannelBan;
 
-            _twitchApi.Settings.ClientId = singleton.TApiClientId;
-            _twitchApi.Settings.AccessToken = singleton.TApiAccessToken;
-            BrodcasterId = singleton.BrodcasterId;
-            pi4ka = singleton.Pi4KaId;
-            uval = singleton.UvalId;
-            uvalSab = singleton.UvalSabId;
-            uvalVIP = singleton.UvalVipId;
-            emoteMode = singleton.EmoteModeId;
-            cenceleUval = singleton.CenceleUval;
-            uvalMod = singleton.uvalMod;
-            ChatWithBot = singleton.ChatWithBot;
-            zakazTreka = singleton.ZakazTrekaId; 
+            _twitchApi.Settings.ClientId = IllSingleton.Config.TApiClientId;
+            _twitchApi.Settings.AccessToken = IllSingleton.Config.TApiAccessToken;
+            
             SubscriptionsTypes = new Dictionary<string, string> //name, version
             { 
                 { "channel.bits.use", "1" }, 
@@ -76,33 +64,31 @@ namespace SkillzBot.EventSub
         #region EventSub stuff
         private async Task OnErrorOccurred(object sender, ErrorOccuredArgs e)
         {
-            Log.WriteLog(null, $"Websocket error: {e.Message}, Session ID: {_eventSubWebsocketClient.SessionId}");
+            _logger.LogError("Websocket error: {Message} , Session ID: {SessionId}", e.Message, _eventSubWebsocketClient.SessionId);
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
         private async Task OnChannelFollow(object sender, ChannelFollowArgs e)
         {            
-            //var eventData = e.Notification.Payload.Event;
-            //Log.WriteLog(null, $"{eventData.UserName} followed {eventData.BroadcasterUserName} at {eventData.FollowedAt}");
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            Log.WriteLog(null, "Starting Twitch EventSub service...");
+            _logger.LogInformation("Starting Twitch EventSub service...");
             await _eventSubWebsocketClient.ConnectAsync().ConfigureAwait(false);
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            Log.WriteLog(null, "Stopping Twitch EventSub service...");
+            _logger.LogInformation("Stopping Twitch EventSub service...");
             
             await _eventSubWebsocketClient.DisconnectAsync().ConfigureAwait(false);
         }
 
         private async Task OnWebsocketConnected(object sender, WebsocketConnectedArgs e)
         {
-            Log.WriteLog(null, $"Websocket connected. Session ID: {_eventSubWebsocketClient.SessionId}, Reconnect: {e.IsRequestedReconnect}");
+            _logger.LogInformation("Websocket connected. Session ID: {SessionId}, Reconnect: {IsRequestedReconnect}", _eventSubWebsocketClient.SessionId, e.IsRequestedReconnect);
             if (!e.IsRequestedReconnect)
             {
                 await Subscribe().ConfigureAwait(false);
@@ -111,7 +97,7 @@ namespace SkillzBot.EventSub
 
         private async Task OnWebsocketDisconnected(object sender, EventArgs e)
         {
-            Log.WriteLog(null, $"Websocket disconnected. Session ID: {_eventSubWebsocketClient.SessionId}");
+            _logger.LogWarning(null, "Websocket disconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
 
             int retryCount = 0;
             int maxRetries = 5;
@@ -124,26 +110,26 @@ namespace SkillzBot.EventSub
                 {
                     if (await _eventSubWebsocketClient.ReconnectAsync().ConfigureAwait(false))
                     {
-                        Log.WriteLog(null, "Websocket reconnected successfully.");
+                        _logger.LogInformation("Websocket reconnected successfully.");
                         return;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, $"Websocket reconnect attempt {retryCount + 1}/{maxRetries} failed.");
+                    _logger.LogError(ex, "Websocket reconnect attempt {retryCount}/{maxRetries} failed.", retryCount+1, maxRetries);
                 }
 
                 retryCount++;
                 int delay = baseDelayMs * (int)Math.Pow(2, retryCount) + jitter.Next(0, 100); // Exponential backoff with jitter
-                Log.WriteLog(null, $"Waiting {delay}ms before retry {retryCount + 1}/{maxRetries}...");
+                _logger.LogDebug("Waiting {delay}ms before retry {retryCount}/{maxRetries}...", delay, retryCount + 1, maxRetries);
                 await Task.Delay(delay).ConfigureAwait(false);
             }
-            Log.WriteLog(null, "Failed to reconnect after maximum retries. Please restart the service.");
+            _logger.LogCritical("Failed to reconnect after maximum retries. Please restart the service.");
         }
 
         private async Task OnWebsocketReconnected(object sender, EventArgs e)
         {
-            Log.WriteLog(null, $"Websocket reconnected. Session ID: {_eventSubWebsocketClient.SessionId}");
+            _logger.LogInformation("Websocket reconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
             await Task.CompletedTask.ConfigureAwait(false);
         }
         private async Task Subscribe()
@@ -157,19 +143,18 @@ namespace SkillzBot.EventSub
         {
             try
             {
-                var condition = new Dictionary<string, string> { { "broadcaster_user_id", BrodcasterId }, { "moderator_user_id", BrodcasterId } };
+                var condition = new Dictionary<string, string> { { "broadcaster_user_id", IllSingleton.Config.BroadcasterId }, { "moderator_user_id", IllSingleton.Config.BroadcasterId } };
                 var subscription = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                     type: _type,
                     version: _version,
                     condition: condition,
                     method: EventSubTransportMethod.Websocket,
                     websocketSessionId: _eventSubWebsocketClient.SessionId).ConfigureAwait(false);
-                Log.WriteLog(null, $"Subscribed to {_type}. Subscription ID: {subscription.Subscriptions[0].Id}");
-                //TtvIRCClient.SendMessage($"Subscribed to {_type}. Subscription ID: {subscription.Subscriptions[0].Id}");
+                _logger.LogInformation("Subscribed to {_type}. Subscription ID: {Id}", _type, subscription.Subscriptions[0].Id);
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, $"Failed to subscribe to {_type} event.");
+                _logger.LogError(ex, "Failed to subscribe to {_type} event.", _type);
             }
         }
         #endregion
@@ -199,35 +184,35 @@ namespace SkillzBot.EventSub
         }        
         private async Task OnPrediction(object sender, ChannelPredictionBeginArgs e)
         {
-            if (!singleton.isActiveSub) return;
+            if (!IllSingleton.State.isSubActive) return;
             TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Notification.Payload.Event.Title));
             await Task.CompletedTask.ConfigureAwait(false);
         }
         private async Task OnUnban(object sender, ChannelUnbanArgs e)
         {
-            if (!singleton.isActiveSub) return;
+            if (!IllSingleton.State.isSubActive) return;
             //TtvIRCClient.OnUnban(e);
             try
             {
-                var user = await MySQL.GetUser(e.Notification.Payload.Event.UserLogin).ConfigureAwait(false);
+                var user = await _databaseService.GetUserAsync(e.Notification.Payload.Event.UserLogin).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
-                    Log.WriteLog(null, $"UserTimedoutEventTask id = -1 username:{e.Notification.Payload.Event.UserLogin}");
+                    _logger.LogCritical("UserTimedoutEventTask id = -1 username:{UserLogin}", e.Notification.Payload.Event.UserLogin);
                 }
                 else
                 {
                     user.UvalTimer = 0;
-                    await MySQL.UpdateUser(user).ConfigureAwait(false);
+                    await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "null");
+                _logger.LogCritical(ex, "Database operation failed");
             }
         }
         private async Task OnChannelPointsCustomRewardRedemptionAdd(object sender, ChannelPointsCustomRewardRedemptionArgs e)
         {
-            if (!singleton.isActiveSub) return;
+            if (!IllSingleton.State.isSubActive) return;
             await RewardProcess
             (
                 e.Notification.Payload.Event.Reward.Id,
@@ -242,45 +227,45 @@ namespace SkillzBot.EventSub
 
         private async Task RewardProcess(string rewardID, string userName, string message, string redemID)
         {
-            if (!singleton.isActiveSub) return;
+            if (!IllSingleton.State.isSubActive) return;
             try
             {
-                if (rewardID == zakazTreka)
+                if (rewardID == IllSingleton.Config.ChannelIds.ZakazTrekaId)
                 {
                     await RewardsRedemption.ZakazTrekaReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == pi4ka)
+                if (rewardID == IllSingleton.Config.ChannelIds.Pi4KaId)
                 {
                     await RewardsRedemption.Pi4kaReward(userName, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == uval)
+                if (rewardID == IllSingleton.Config.ChannelIds.UvalId)
                 {
                     await RewardsRedemption.UvalReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == uvalSab)
+                if (rewardID == IllSingleton.Config.ChannelIds.UvalSabId)
                 {
                     await RewardsRedemption.UvalSabReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == uvalVIP)
+                if (rewardID == IllSingleton.Config.ChannelIds.UvalVipId)
                 {
                     await RewardsRedemption.UvalVIPReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == emoteMode)
+                if (rewardID == IllSingleton.Config.ChannelIds.EmoteModeId)
                 {
                     await RewardsRedemption.EmoteOnlyReward(userName, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == cenceleUval)
+                if (rewardID == IllSingleton.Config.ChannelIds.CenceleUval)
                 {
                     await RewardsRedemption.CenceleUvalReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == uvalMod)
+                if (rewardID == IllSingleton.Config.ChannelIds.UvalMod)
                 {
                     await RewardsRedemption.UvalModReward(userName, message, redemID, rewardID).ConfigureAwait(false);
                 }
-                if (rewardID == ChatWithBot)
-                {
-                    await RewardsRedemption.ChatWithBot(userName, message, redemID, rewardID).ConfigureAwait(false);
-                }
+                //if (rewardID == ChatWithBot)
+                //{
+                //    await RewardsRedemption.ChatWithBot(userName, message, redemID, rewardID).ConfigureAwait(false);
+                //}
             }
             catch (Exception e)
             {
@@ -288,14 +273,14 @@ namespace SkillzBot.EventSub
                 {
                     if (e.Message.Contains("500"))
                     {
-                        Log.WriteLog(e, $"rewardProcess() tryes: {tryes}");
+                        _logger.LogError(e, "Cant perform ttv reward operation! Num of tryes: {tryes}", tryes);
                         await Task.Delay(2000).ConfigureAwait(false);
                         tryes++;
                         await RewardProcess(rewardID, userName, message, redemID).ConfigureAwait(false);
                     }
                 }
                 tryes = 0;
-                Log.WriteLog(e, "rewardProcess()");
+                _logger.LogWarning(e, "Cant perform ttv reward operation. Retrying...");
             }
         }
     }

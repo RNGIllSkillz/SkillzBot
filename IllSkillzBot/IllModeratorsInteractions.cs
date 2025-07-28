@@ -1,14 +1,15 @@
 ﻿using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.MYSQL;
 using SkillzBot.IllSTRINGS;
 using System.Threading.Tasks;
+using SkillzBot.MySQL;
+using SkillzBot.Hosts;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal class IllModeratorsInteractions
-    {        
+    internal static class IllModeratorsInteractions
+    {
         public static async Task IllAllModsNotification(string message)
         {
             var mIds = await TtvAPI.GetAllMods().ConfigureAwait(false);
@@ -24,7 +25,7 @@ namespace SkillzBot.IllSkillzBot
             if (!IllAccess.Root(user)) return;
             if (UserInput.Length == 2)
             {
-                var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
+                var aUser = await IllServiceProvider.Database.GetUserAsync(UserInput[1]).ConfigureAwait(false);
                 if (aUser.dbID != -404)
                 {
                     if (aUser.isVip == 1)
@@ -46,7 +47,7 @@ namespace SkillzBot.IllSkillzBot
             if (!IllAccess.Root(user)) return;
             if (UserInput.Length == 2)
             {
-                var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
+                var aUser = await IllServiceProvider.Database.GetUserAsync(UserInput[1]).ConfigureAwait(false);
                 if (aUser.dbID != -404)
                 {
                     await TtvAPI.DeleteChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false);

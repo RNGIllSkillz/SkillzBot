@@ -32,7 +32,6 @@
           "TwitchLib.EventSub.Core": "2.6.0",
           "TwitchLib.EventSub.Websockets": "0.6.0",
           "eladaus.urldetector": "1.3.0",
-          "IllPubSub": "3.2.6.0",
           "RiotSharp": "5.0.0.0",
           "runtimepack.Microsoft.NETCore.App.Runtime.linux-x64": "6.0.36",
           "runtimepack.Microsoft.AspNetCore.App.Runtime.linux-x64": "6.0.36"
@@ -2741,14 +2740,6 @@
           }
         }
       },
-      "IllPubSub/3.2.6.0": {
-        "runtime": {
-          "IllPubSub.dll": {
-            "assemblyVersion": "3.2.6.0",
-            "fileVersion": "3.2.6.0"
-          }
-        }
-      },
       "RiotSharp/5.0.0.0": {
         "runtime": {
           "RiotSharp.dll": {
@@ -3957,11 +3948,6 @@
       "sha512": "sha512-TR4j17WeVSEb3ncgL2NqlXEqcy04I+Kk9CaebNDplUeL8XOgjkZ7fP4Wg4grBdPLIqsV86p2QaXTkZoRMVOsew==",
       "path": "zstdsharp.port/0.8.5",
       "hashPath": "zstdsharp.port.0.8.5.nupkg.sha512"
-    },
-    "IllPubSub/3.2.6.0": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
     },
     "RiotSharp/5.0.0.0": {
       "type": "reference",

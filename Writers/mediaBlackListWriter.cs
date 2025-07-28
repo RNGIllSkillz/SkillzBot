@@ -2,6 +2,8 @@
 using System.IO;
 using System.Threading;
 using IllSkillzBot;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
 
 namespace SkillzBot.WRITERS
 {
@@ -10,7 +12,7 @@ namespace SkillzBot.WRITERS
         readonly static Mutex mutexObj = new Mutex();
         readonly static string dataPath = IllSkillzBotMain.GetDataPath().sharedPath;
         readonly static string filePath = Path.Combine(dataPath, "mediaList.txt");
-
+        private static readonly ILogger<MediaBlackListWriter> _logger = IllServiceProvider.GetLogger<MediaBlackListWriter>();
         public static void Write(string Message)
         {
             if (!File.Exists(filePath))
@@ -29,7 +31,7 @@ namespace SkillzBot.WRITERS
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, "MediaBlackListWriter");
+                _logger.LogError(e, "MediaBlackListWriter");
             }
             finally 
             {                

@@ -5,15 +5,13 @@ using System.Threading.Tasks;
 using TwitchLib.Client.Events;
 using SkillzBot.API.Twitch;
 using SkillzBot.MODELS;
-using SkillzBot.MYSQL;
-using SkillzBot.Singleton;
-using SkillzBot.WRITERS;
 using TwitchLib.Client.Models;
 using F23.StringSimilarity;
 using SkillzBot.IllSTRINGS;
-using SkillzBot.IRC;
-using SkillzBot.API.OpenAI;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Singleton;
+using SkillzBot.Hosts;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -23,13 +21,14 @@ namespace SkillzBot.IllSkillzBot
         private readonly static List<MessageBuffer> messagesBuffer = new List<MessageBuffer>();
         private readonly static object _LockMessagesObject = new object();
         private readonly static object _LockBufferObject = new object();
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         private static readonly int TimeoutSec = 600;
         private static readonly int LightTimeoutSec = 300;
         private static readonly int SaveBufferCount = 100; //number of messages to wrap up for bulk save in db
+        private static readonly ILogger<IllChatMessageHandler> _logger = IllServiceProvider.GetLogger<IllChatMessageHandler>();
 
         static IllChatMessageHandler()
         {
+
             DataColumn idColumnMess = new DataColumn("Id", Type.GetType("System.Int32"))
             {
                 Unique = true,
@@ -68,7 +67,7 @@ namespace SkillzBot.IllSkillzBot
             user.messageCon++;
             await SaveBuffer(false).ConfigureAwait(false);            
 
-            if (singleton.isActiveSub)
+            if (IllSingleton.State.isSubActive)
             {
                 bool fl2 = false;
                 if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
@@ -94,7 +93,7 @@ namespace SkillzBot.IllSkillzBot
                     await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason).ConfigureAwait(false);
                     return user;
                 }
-                if (IllSingleton.GetInstance().QuizIsRunning)
+                if (IllSingleton.State.QuizIsRunning)
                     user = IllGames.UserGuessAnswer(user, e.ChatMessage.Message);
                 else
                     IllGames.QuizzActiveUser(user.TwitchID.ToString());
@@ -120,7 +119,7 @@ namespace SkillzBot.IllSkillzBot
                 temp = new List<MessageBuffer>(messagesBuffer);
                 messagesBuffer.Clear();
             }
-            await MySQL.SaveMessages(temp).ConfigureAwait(false);
+            await IllServiceProvider.Database.SaveMessagesAsync(temp).ConfigureAwait(false);
         }
         private static void SaveToBuffer(OnMessageReceivedArgs e)
         {
@@ -176,7 +175,7 @@ namespace SkillzBot.IllSkillzBot
                     var dRows = Messages.Select(expression);
                     if (dRows.Length > 1)
                     {
-                        Log.WriteLog(null, $"findUser2() Douplicates detected - {Name}");
+                        _logger.LogError($"findUser2() Douplicates detected - {Name}");
                         return -1;
                     }
                     if (dRows.Length == 0) return -1;                    
@@ -185,7 +184,7 @@ namespace SkillzBot.IllSkillzBot
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "findUser2()");
+                _logger.LogError(ex, "findUser2()");
             }
             return -1;
         }
@@ -193,7 +192,7 @@ namespace SkillzBot.IllSkillzBot
         {
             if (int.TryParse(chatmessage.UserId, out int ttvid))
             {
-                UserObject user = await MySQL.GetUser(ttvid).ConfigureAwait(false);
+                UserObject user = await IllServiceProvider.Database.GetUserAsync(ttvid).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
                     user.TwitchID = ttvid;
@@ -203,7 +202,7 @@ namespace SkillzBot.IllSkillzBot
                     user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
                     user.isMod = chatmessage.IsModerator ? 1 : 0;
                     user.isPartner = chatmessage.IsPartner ? 1 : 0;
-                    await MySQL.AddUser(user).ConfigureAwait(false);
+                    await IllServiceProvider.Database.AddOrUpdateUserAsync(user).ConfigureAwait(false);
                     return user;
                 }
                 else
@@ -219,7 +218,7 @@ namespace SkillzBot.IllSkillzBot
             }
             else
             {
-                Log.WriteLog(null, "GetAddUser(): TtvID Conversion Error");
+                _logger.LogError("GetAddUser(): TtvID Conversion Error");
                 return null;
             }
         }

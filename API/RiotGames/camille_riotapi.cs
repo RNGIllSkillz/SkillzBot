@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using SkillzBot.Singleton;
-using SkillzBot.WRITERS;
 using System.Threading.Tasks;
 using System.Threading;
 using SkillzBot.Utils;
@@ -12,15 +10,16 @@ using Camille.RiotGames.SpectatorV5;
 using Camille.RiotGames.LeagueV4;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.AccountV1;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.API.RiotGames
 {
     internal class RiotAPI
     {
-        //private static readonly RiotApi riotApi;
         private static readonly RiotGamesApi riotApi;
         private static string lastErrorMessage = null;
-        private static readonly IllSingleton singleton;
         private static readonly bool IsValidToken;
         private static Summoner summoner;
         private static Exception tempEx = null;
@@ -28,29 +27,29 @@ namespace SkillzBot.API.RiotGames
         private static string gameName;
         private static string tagLine;
         private static Account account;
+        private static readonly ILogger<RiotAPI> _logger = IllServiceProvider.GetLogger<RiotAPI>();
 
         static RiotAPI()
         {
-            singleton = IllSingleton.GetInstance();
-            IsValidToken = StringUtil.IsValidApiToken(singleton.RiotApiToken);
+            IsValidToken = StringUtil.IsValidApiToken(IllSingleton.Config.RiotApiToken);
             if (!IsValidToken)
             {
                 Console.WriteLine("No valid RiotAPI token. RiotAPI functionality is offline");
                 return;
             }
             Console.Write("Initializing Camille... ");      
-            platformRout = singleton.SummonerRegion switch
+            platformRout = IllSingleton.Game.SummonerRegion switch
             {
                 "ru" => PlatformRoute.RU,
                 //"euw" => Region.Euw,
                 //"na" => Region.Na,
                 _ => PlatformRoute.EUW1,
             };
-            var name = singleton.SUMMONER_NAME.Split('#');
+            var name = IllSingleton.Game.SummonerName.Split('#');
             gameName = name[0];
             tagLine = name[1];
             riotApi = RiotGamesApi.NewInstance(
-                new RiotGamesApiConfig.Builder(singleton.RiotApiToken)
+                new RiotGamesApiConfig.Builder(IllSingleton.Config.RiotApiToken)
                 {
                     MaxConcurrentRequests = 200,
                     Retries = 10,
@@ -81,7 +80,7 @@ namespace SkillzBot.API.RiotGames
             {
                 if (tempEx == null || tempEx != ex)
                 {
-                    Log.WriteLog(ex, "RiotApi InitAsync");
+                    _logger.LogError(ex, "RiotApi InitAsync");
                     tempEx = ex;
                 }
                 return null;
@@ -104,7 +103,7 @@ namespace SkillzBot.API.RiotGames
                     {
                         if (!ex.InnerException.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
                         {
-                            Log.WriteLog(ex, "GetCurrentMatchTask_1");
+                            _logger.LogError(ex, "GetCurrentMatchTask_1");
                             lastErrorMessage = ex.Message;
                         }
                     }
@@ -115,7 +114,7 @@ namespace SkillzBot.API.RiotGames
                     {
                         if (!ex.Message.Contains("Data not found")) //Ожидаемо. Мы еще не в игре.
                         {
-                            Log.WriteLog(ex, "GetCurrentMatchTask_2");
+                            _logger.LogError(ex, "GetCurrentMatchTask_2");
                             lastErrorMessage = ex.Message;
                         }
                     }
@@ -134,7 +133,7 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetRankBySummonerAsync");
+                _logger.LogError(ex, "GetRankBySummonerAsync");
                 return null;
             }
             foreach (var mType in rank)
@@ -162,7 +161,7 @@ namespace SkillzBot.API.RiotGames
              }
              catch (Exception ex)
              {
-                 Log.WriteLog(ex, "GetRankBySummonerAsync");
+                 _logger.LogError(ex, "GetRankBySummonerAsync");
                  return null;
              }
              foreach (var mType in rank)
@@ -255,7 +254,7 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetLeagueEntriesBySummonerAsync");
+                _logger.LogError(ex, "GetLeagueEntriesBySummonerAsync");
                 return null;
             }
         }
@@ -280,7 +279,7 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetChampByIdAsync");
+                _logger.LogError(ex, "GetChampByIdAsync");
                 return null;
             }
         } */
@@ -289,7 +288,7 @@ namespace SkillzBot.API.RiotGames
             foreach (var Participant in match.Info.Participants)
             {
                 Console.WriteLine($"Participant.RiotIdGameName = {Participant.RiotIdGameName} Participant.RiotIdTagline = {Participant.RiotIdTagline}");
-                if (string.Equals(StringUtil.RemoveWhitespace(Participant.RiotIdGameName + "#" + Participant.RiotIdTagline), IllSingleton.GetInstance().SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(StringUtil.RemoveWhitespace(Participant.RiotIdGameName + "#" + Participant.RiotIdTagline), IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                     return Participant;
             }
             return null;
@@ -304,7 +303,7 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetMatchListAsync");
+                _logger.LogError(ex, "GetMatchListAsync");
                 return null;
             }
         }*/
@@ -328,7 +327,7 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex.InnerException ?? ex, "UpdateSummonerByNameAsync");
+                _logger.LogError(ex.InnerException ?? ex, "UpdateSummonerByNameAsync");
                 return ex.Message;
             }
         }
@@ -341,7 +340,7 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetSummonerByNameAsync()");
+                _logger.LogError(ex, "GetSummonerByNameAsync()");
                 return null;
             }
         }
@@ -355,20 +354,20 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-                Log.WriteLog(ex, "GetLeagueEntriesBySummonerAsync()");
+                _logger.LogError(ex, "GetLeagueEntriesBySummonerAsync()");
                 return null;
             }
         }
         public static void UpdateConfig()
         {
-            platformRout = singleton.SummonerRegion switch
+            platformRout = IllSingleton.Game.SummonerRegion switch
             {
                 //"ru" => Region.Ru,
                 //"euw" => Region.Euw,
                 //"na" => Region.Na,
                 _ => PlatformRoute.EUW1,
             };
-            var name = singleton.SUMMONER_NAME.Split('#');
+            var name = IllSingleton.Game.SummonerName.Split('#');
             gameName = name[0];
             tagLine = name[1];
         }

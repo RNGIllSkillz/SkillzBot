@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace SkillzBot.Utils
@@ -26,6 +27,7 @@ namespace SkillzBot.Utils
         private readonly static char[] e;
         private const string urlPattern = @"https?:\/\/clips\.twitch\.tv\/[A-Za-z0-9_-]+";
         private const string YouTubeIDPattern = @"(?<=v=|\/)([a-zA-Z0-9_-]{11})(?=\&|\?|$)";
+        private static readonly HashSet<char> CharsToRemove = new HashSet<char> { ' ', '.', ',', '!', '_', '-' };
 
         static StringUtil()
         {
@@ -112,6 +114,30 @@ namespace SkillzBot.Utils
         }
         public static string Clean(string str)
         {
+            if (string.IsNullOrEmpty(str))
+                return string.Empty;
+
+            var sb = new StringBuilder(str.Length);
+            var lowerStr = str.ToLower();
+
+            if (lowerStr.Length > 0)
+            {
+                sb.Append(lowerStr[0]);
+
+                for (int i = 1; i < lowerStr.Length; i++)
+                {
+                    var currentChar = lowerStr[i];
+
+                    if (!CharsToRemove.Contains(currentChar) && sb[sb.Length - 1] != currentChar)
+                    {
+                        sb.Append(currentChar);
+                    }
+                }
+            }
+            return sb.ToString();
+        }
+        /*public static string Clean(string str)
+        {
             if (str.Length > 0)
             {
                 var set = new HashSet<char>(new char[] { ' ', '.', ',', '!', '_', '-' });
@@ -131,7 +157,7 @@ namespace SkillzBot.Utils
             }
             else
                 return string.Empty;
-        }
+        }*/
         public static string RemoveWhitespace(string input)
         {
             return new string(input.ToCharArray()

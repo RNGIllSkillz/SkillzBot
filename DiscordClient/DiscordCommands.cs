@@ -1,21 +1,14 @@
-﻿using Discord.Commands;
-using SkillzBot.API.OpenAI;
-using SkillzBot.IllSkillzBot;
+﻿using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
-using SkillzBot.IRC;
-using SkillzBot.Singleton;
 using SkillzBot.Utils;
-using System;
-using System.Collections.Generic;
+using SkillzBot.Singleton;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SkillzBot.Discord
 {
-    internal class DiscordCommands //: ModuleBase<SocketCommandContext>
+    internal class DiscordCommands
     {
-        readonly static IllSingleton singleton = IllSingleton.GetInstance();
         public static async Task CommandHandler(string UserInput)
         {
             var command = StringUtil.SplitAllWords(UserInput.ToLower());
@@ -38,20 +31,20 @@ namespace SkillzBot.Discord
                         }
                         var sNameTemp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));
                         lp = await IllCommands.GetLpAsync(sNameTemp, command.Last()).ConfigureAwait(false);
-                        await DiscordClient.SendMessage($"Призыватель {sNameTemp} - {lp.RANK} {lp.LPoints} LP", singleton.DiscordSpamID).ConfigureAwait(false);
+                        await DiscordClient.SendMessage($"Призыватель {sNameTemp} - {lp.RANK} {lp.LPoints} LP", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     }
                     else
                     {
                         lp = await IllCommands.GetLpAsync().ConfigureAwait(false);  
-                        await DiscordClient.SendMessage($"Призыватель {singleton.SUMMONER_NAME} - {lp.RANK} {lp.LPoints} LP", singleton.DiscordSpamID).ConfigureAwait(false);
+                        await DiscordClient.SendMessage($"Призыватель {IllSingleton.Game.SummonerName} - {lp.RANK} {lp.LPoints} LP", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     }
                         break;
 
                 case "!8ball":
                     if (command.Length < 2)
-                        await DiscordClient.SendMessage("Нет вопроса - нет ответа.", singleton.DiscordSpamID).ConfigureAwait(false);
+                        await DiscordClient.SendMessage("Нет вопроса - нет ответа.", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     else
-                        await DiscordClient.SendMessage(IllGames.GetMagic8BallAnswer(), singleton.DiscordSpamID).ConfigureAwait(false);
+                        await DiscordClient.SendMessage(IllGames.GetMagic8BallAnswer(), IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     break;
                 case "!gpt":
                     //var responce = await ChatGPT.GetGptResponceBasic(StringUtil.GetCommandFromUserInput(command));
@@ -59,7 +52,7 @@ namespace SkillzBot.Discord
                     break;
                     
                 default:
-                    await DiscordClient.SendMessage("Unknown command.", singleton.DiscordSpamID).ConfigureAwait(false);
+                    await DiscordClient.SendMessage("Unknown command.", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     break;
 
             }

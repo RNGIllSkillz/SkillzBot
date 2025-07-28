@@ -2,6 +2,8 @@
 using System.IO;
 using System.Threading;
 using IllSkillzBot;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
 
 namespace SkillzBot.WRITERS
 {
@@ -12,7 +14,7 @@ namespace SkillzBot.WRITERS
 
         readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
         readonly static string filePath = Path.Combine(dataPath, "userblacklist.txt");
-
+        private static readonly ILogger<UserBlackListWriter> _logger = IllServiceProvider.GetLogger<UserBlackListWriter>();
         #endregion
 
         public static void Write(string Message)
@@ -33,7 +35,7 @@ namespace SkillzBot.WRITERS
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, "UserBlackListWriter");
+                _logger.LogError(e, "UserBlackListWriter");
             }
             mutexObj.ReleaseMutex();
         }

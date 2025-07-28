@@ -10,7 +10,7 @@ namespace SkillzBot.QuartZ
 {
     [DisallowConcurrentExecution]
     public class BGTasks : IJob
-    {
+    {        
         public async Task Execute(IJobExecutionContext context)
         {
             switch (context.JobDetail.Key.Name)

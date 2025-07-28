@@ -2,6 +2,9 @@
 using System.IO;
 using System.Threading;
 using IllSkillzBot;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
+using SkillzBot.Utils;
 
 namespace SkillzBot.WRITERS
 {
@@ -10,7 +13,7 @@ namespace SkillzBot.WRITERS
         readonly static Mutex mutexObj = new Mutex();
         readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
         readonly static string filePath = Path.Combine(dataPath, "Flags.txt");
-
+        private static readonly ILogger<FlagWriter> _logger = IllServiceProvider.GetLogger<FlagWriter>();
         public static void FlagWriterTask(string Message)
         {
             if (!File.Exists(filePath))
@@ -31,7 +34,7 @@ namespace SkillzBot.WRITERS
             }
             catch (Exception e)
             {
-                Log.WriteLog(e, "FlagWriterTask()");
+                _logger.LogError(e, "FlagWriterTask()");
             }
             finally
             {

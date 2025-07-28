@@ -1,17 +1,13 @@
 ﻿using IllSkillzBot;
-using SkillzBot.Singleton;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using TwitchLib.Api.Helix;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.SubUtils
 {
     internal class SubCheck
     {
         private static readonly string _FilePath;
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         static SubCheck()
         {
             string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
@@ -22,14 +18,14 @@ namespace SkillzBot.SubUtils
             if (TryReadDateTimeFromFile(_FilePath, out DateTime savedDateTime))
             {
                 DateTime currentDateTime = DateTime.Now;
-                singleton.isActiveSub = currentDateTime < savedDateTime;
-                return singleton.isActiveSub;
+                IllSingleton.State.isSubActive = currentDateTime < savedDateTime;
+                return IllSingleton.State.isSubActive;
             }
             else
             {
-                singleton.isActiveSub = true;
+                IllSingleton.State.isSubActive = true;
                 Console.WriteLine("Failed to read DateTime from file.");
-                return singleton.isActiveSub;
+                return IllSingleton.State.isSubActive;
             }
         }
         private static bool TryReadDateTimeFromFile(string filePath, out DateTime result)

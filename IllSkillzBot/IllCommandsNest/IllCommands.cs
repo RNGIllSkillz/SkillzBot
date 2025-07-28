@@ -1,14 +1,12 @@
 ﻿using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.Singleton;
 using SkillzBot.Utils;
 using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
-using SkillzBot.MYSQL;
 using SkillzBot.Writers;
 using F23.StringSimilarity;
 using SkillzBot.API.MMR;
@@ -18,19 +16,22 @@ using SkillzBot.TtvClient.TTVRewards;
 using System.Globalization;
 using SkillzBot.IllSTRINGS;
 using IllSkillzBot;
-using SkillzBot.API.OpenAI;
 using System.IO;
 using SkillzBot.SubUtils;
-using TwitchLib.Client;
 using Camille.Enums;
 using SkillzBot.API.RiotGames;
+using SkillzBot.MySQL;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.IllSkillzBot.IllCommandsNest
 {
     internal class IllCommands
     {
-        private static readonly IllSingleton singleton = IllSingleton.GetInstance();
         readonly static List<string> popMessages = new List<string>();
+        private static IDatabaseService _databaseService = IllServiceProvider.Database;
+        private static readonly ILogger<IllCommands> _logger = IllServiceProvider.GetLogger<IllCommands>();
 
         public static async Task Help(UserObject user)
         {
@@ -38,10 +39,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task Points(UserObject user)
-        {
-            var pos = await MySQL.GetTopPos(user.Name, "Points").ConfigureAwait(false);
-            var QPos = await MySQL.GetTopPos(user.Name, "QuizPoints").ConfigureAwait(false);
-            var QtPos = await MySQL.GetTopPos(user.Name, "QuizTotal").ConfigureAwait(false);
+        { 
+            var pos = await _databaseService.GetUserPositionAsync(user.Name, "Points").ConfigureAwait(false);
+            var QPos = await _databaseService.GetUserPositionAsync(user.Name, "QuizPoints").ConfigureAwait(false);
+            var QtPos = await _databaseService.GetUserPositionAsync(user.Name, "QuizTotal").ConfigureAwait(false);
             TtvIRCClient.SendMessage(string.Format(STRINGS.PointsMessage, user.Name, user.Points, pos[0], pos[1], user.QuizPoints, QPos[0], QPos[1], user.QuizTotal, QtPos[0], QtPos[1]));
         }
         public static async Task Prediction(UserObject user, string[] command)
@@ -51,15 +52,15 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 switch (command[1])
                 {
                     case "off":
-                        singleton.autoPred = false;
+                        IllSingleton.State.AutoPred = false;
                         TtvIRCClient.SendMessage($"@{user.Name} Автоставки Выключены!");
-                        Log.WriteLog(null, $"{user.Name} Выключил ставки!");
+                        _logger.LogInformation("{Name} Выключил ставки!", user.Name);
                         break;
 
                     case "on":
-                        singleton.autoPred = true;
+                        IllSingleton.State.AutoPred = true;
                         TtvIRCClient.SendMessage($"@{user.Name} Автоставки Включены!");
-                        Log.WriteLog(null, $"{user.Name} Включил ставки!");
+                        _logger.LogInformation("{Name} Включил ставки!", user.Name);
                         break;
 
                     default:
@@ -76,7 +77,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (command.Length > 2)
             {
                 if (!IllAccess.Mod(user)) return;
-                if (!singleton.inAmatch)
+                if (!IllSingleton.State.InMatch)
                 {
                     switch (command.Last())
                     {
@@ -92,19 +93,19 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     var result = await RiotAPI.UpdateSummonerByNameAsync(command[1], command[2], command.Last()).ConfigureAwait(false);
                     if (result == null)
                     {
-                        singleton.SUMMONER_NAME = command[1] + "#" + command[2];
-                        singleton.SummonerRegion = command.Last();
+                        IllSingleton.Game.SummonerName = command[1] + "#" + command[2];
+                        IllSingleton.Game.SummonerRegion = command.Last();
                         RiotAPI.UpdateConfig();
 
                         var Rank = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
                         if (Rank != null)
                         {
                             if (int.TryParse(Rank[1], out int buffStartLP))
-                                singleton.startLP = buffStartLP;
+                                IllSingleton.Game.StartLP = buffStartLP;
                             else
-                                singleton.startLP = 0;
-                            singleton.elo = Rank[0];
-                            singleton.tier = Rank[2];
+                                IllSingleton.Game.StartLP = 0;
+                            IllSingleton.Game.Elo = Rank[0];
+                            IllSingleton.Game.Tier = Rank[2];
                         }
                         SaveGameStats();
                         SaveAppConfig();
@@ -134,7 +135,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (UserInput.Length == 2)
             {
-                var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
+                var aUser = await _databaseService.GetUserAsync(UserInput[1]).ConfigureAwait(false);
                 if (aUser.dbID != -404)
                 {
                     await TtvAPI.AddChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
@@ -150,7 +151,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (UserInput.Length == 2)
             {
-                var aUser = await MySQL.GetUser(UserInput[1]).ConfigureAwait(false);
+                var aUser = await _databaseService.GetUserAsync(UserInput[1]).ConfigureAwait(false);
                 if (aUser.dbID != -404)
                 {
                     await TtvAPI.DeleteChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
@@ -167,7 +168,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (UserInput.Length > 1)
             {
-                var result = await MySQL.TrackUser(UserInput[1].ToLower()).ConfigureAwait(false);
+                var result = await _databaseService.TrackUserAsync(UserInput[1].ToLower()).ConfigureAwait(false);
                 if (result != null)
                 {
                     TtvIRCClient.SendMessage(string.Format(STRINGS.TrackUserSuccess, UserInput[1], result.Count));
@@ -199,7 +200,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
             else
             {
-                switch (singleton.ChatFilterLvl)
+                switch (IllSingleton.State.ChatFilterLvl)
                 {
                     case 0:
                         break;
@@ -210,7 +211,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     case 2:
                         if (messageID != null)
                             await TtvAPI.DeleteMessage(messageID).ConfigureAwait(false);
-                        string ModsZapMsg = $"Найдена запретка на канале {singleton.ChannelName} от пользователя @{user.Name}. Модерам на проверку";
+                        string ModsZapMsg = $"Найдена запретка на канале {IllSingleton.Config.ChannelName} от пользователя @{user.Name}. Модерам на проверку";
                         await IllModeratorsInteractions.IllAllModsNotification(ModsZapMsg).ConfigureAwait(false);
                         break;
                     case 3:
@@ -317,12 +318,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                             string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
                             string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                             var promoString = string.Join(" ", promo);
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, singleton.SUMMONER_NAME, subs[0], promoString));
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, IllSingleton.Game.SummonerName, subs[0], promoString));
                         }
                         else
                         {
                             int WR = (int)Math.Ceiling(mType.Wins * 100 / (double)(mType.Wins + mType.Losses));
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, singleton.SUMMONER_NAME, mType.Tier, mType.Rank, mType.LeaguePoints, WR, singleton.numGames, singleton.numWins, singleton.numLoose, singleton.earnedLP));
+                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, IllSingleton.Game.SummonerName, mType.Tier, mType.Rank, mType.LeaguePoints, WR, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
                         }
                     }
                 }
@@ -330,7 +331,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 TtvIRCClient.SendMessage("Riot API error");
             if (!ranked)
             {
-                TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, singleton.SUMMONER_NAME, singleton.numGames, singleton.numWins, singleton.numLoose, singleton.earnedLP));
+                TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, IllSingleton.Game.SummonerName, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
             }
         }
 
@@ -372,7 +373,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
        
         public static async Task TopRulete()
         {
-            var result = await MySQL.TOP("rtop").ConfigureAwait(false);
+            var result = await _databaseService.GetTopUsersAsync("rtop").ConfigureAwait(false);
             if (result != null && result.Count >= 3)
             {
                 TtvIRCClient.SendMessage(string.Format
@@ -385,12 +386,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
             else
             {
-                Log.WriteLog(null, "Cant get 3 users at TopRulete");
+                _logger.LogError("Cant get 3 users at TopRulete");
             }
         }
         public static async Task GetTopChat(UserObject user)
         {
-            var result = await MySQL.TOP("top").ConfigureAwait(false);
+            var result = await _databaseService.GetTopUsersAsync("top").ConfigureAwait(false);
             if (result != null && result.Count >= 3)
             {
                 TtvIRCClient.SendMessage(string.Format
@@ -403,20 +404,20 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
             else
             {
-                Log.WriteLog(null, "Cant get 3 users at GetTopChat");
+                _logger.LogError("Cant get 3 users at GetTopChat");
             }
         }
         public static void SaveGameStats()
         {
             GameStatsWriter.Write
                 (
-                $"{singleton.startLP} " +
-                $"{singleton.elo} " +
-                $"{singleton.earnedLP} " +
-                $"{singleton.numLoose} " +
-                $"{singleton.numGames} " +
-                $"{singleton.numWins} " +
-                $"{singleton.tier}"
+                $"{IllSingleton.Game.StartLP} " +
+                $"{IllSingleton.Game.Elo} " +
+                $"{IllSingleton.Game.EarnedLP} " +
+                $"{IllSingleton.Game.NumLosses} " +
+                $"{IllSingleton.Game.NumGames} " +
+                $"{IllSingleton.Game.NumWins} " +
+                $"{IllSingleton.Game.Tier}"
                 );
         }
         public static void SaveAppConfig()
@@ -460,14 +461,14 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         }
         public static async Task GetMMR(UserObject user)
         {
-            var result = await MyLOLMMRApi.GetMMR(singleton.SUMMONER_NAME).ConfigureAwait(false);
+            var result = await MyLOLMMRApi.GetMMR(IllSingleton.Game.SummonerName).ConfigureAwait(false);
             if (result == null) return;
             if (result.Count == 2)
                 TtvIRCClient.SendMessage($"@{user.Name} {result[0]}: mmr:{result[1]}");
         }
         public static async Task OpGG(UserObject user)
         {
-            TtvIRCClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, singleton.SUMMONER_NAME.Replace('#', '-')));
+            TtvIRCClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, IllSingleton.Game.SummonerName.Replace('#', '-')));
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task GetTreck(UserObject user)
@@ -482,7 +483,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 UserObject uUser = new UserObject();
                 if (userID != -1)
                 {
-                    uUser = await MySQL.GetUser(userID).ConfigureAwait(false);
+                    uUser = await _databaseService.GetUserAsync(userID).ConfigureAwait(false);
                 }
                 else
                     uUser.Name = "streamelements";
@@ -541,7 +542,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             MediaBlackListWriter.Write(history.History[0].Song.VideoId);
             if (userID != -1)
             {
-                var uUser = await MySQL.GetUser(userID).ConfigureAwait(false);
+                var uUser = await _databaseService.GetUserAsync(userID).ConfigureAwait(false);
                 await TtvAPI.TimeOutUser(uUser, 3600, STRINGS.TimeOutReason_Track).ConfigureAwait(false);
                 UserBlackListWriter.Write(uUser.TwitchID.ToString());
                 TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_chatMessage, user.Name, uUser.Name));
@@ -556,7 +557,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var Name = StringUtil.GetUserNameFromInput(input[1]);
                 if (Name != null)
                 {
-                    var idFind = await MySQL.GetUser(Name).ConfigureAwait(false);
+                    var idFind = await _databaseService.GetUserAsync(Name).ConfigureAwait(false);
                     if (idFind == null)
                     {
                         TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, Name));
@@ -720,7 +721,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         }
         public static async Task InjectSQL(UserObject user, string[] input)
         {
-            if (user.Name == singleton.rootUser)
+            if (user.Name == IllSingleton.Config.RootUser)
             {
                 //try
                 //{tv
@@ -772,16 +773,16 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 switch (input[1])
                 {
                     case "0":
-                        singleton.AntiBotProtectionLvL = 0;
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, singleton.AntiBotProtectionLvL));
+                        IllSingleton.State.AntiBotProtectionLvl = 0;
+                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
                         break;
                     case "1":
-                        singleton.AntiBotProtectionLvL = 1;
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, singleton.AntiBotProtectionLvL));
+                        IllSingleton.State.AntiBotProtectionLvl = 1;
+                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
                         break;
                     case "2":
-                        singleton.AntiBotProtectionLvL = 2;
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, singleton.AntiBotProtectionLvL));
+                        IllSingleton.State.AntiBotProtectionLvl = 2;
+                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
                         break;
                     default:
                         TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -799,34 +800,34 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 switch (input[1])
                 {
                     case "0":
-                        singleton.ChatFilterLvl = 0;
+                        IllSingleton.State.ChatFilterLvl = 0;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "1":
-                        singleton.ChatFilterLvl = 1;
+                        IllSingleton.State.ChatFilterLvl = 1;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "2":
-                        singleton.ChatFilterLvl = 2;
+                        IllSingleton.State.ChatFilterLvl = 2;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "3":
-                        singleton.ChatFilterLvl = 3;
+                        IllSingleton.State.ChatFilterLvl = 3;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "4":
-                        singleton.ChatFilterLvl = 4;
+                        IllSingleton.State.ChatFilterLvl = 4;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "5":
-                        singleton.ChatFilterLvl = 5;
+                        IllSingleton.State.ChatFilterLvl = 5;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {singleton.ChatFilterLvl}!");
+                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     default:
                         TtvIRCClient.SendMessage(STRINGS.InputERROR);
@@ -935,16 +936,16 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         }
         public static async Task ToggleDebug(UserObject user)
         {
-            if (singleton.debug) singleton.debug = false;
-            else singleton.debug = true;
-            TtvIRCClient.SendMessage($"Debug mode is {singleton.debug}");
+            if (IllSingleton.State.Debug) IllSingleton.State.Debug = false;
+            else IllSingleton.State.Debug = true;
+            TtvIRCClient.SendMessage($"Debug mode is {IllSingleton.State.Debug}");
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task ToggleSilentMode(UserObject user)
         {
-            if (singleton.IsSilent) singleton.IsSilent = false;
-            else singleton.IsSilent = true;
-            TtvIRCClient.SendMessage($"SilentMode mode is {singleton.IsSilent}");
+            if (IllSingleton.State.IsSilent) IllSingleton.State.IsSilent = false;
+            else IllSingleton.State.IsSilent = true;
+            TtvIRCClient.SendMessage($"SilentMode mode is {IllSingleton.State.IsSilent}");
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task Ttvgg(UserObject user)
@@ -952,12 +953,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             long currentUnixTime = DateTimeOffset.Now.ToUnixTimeSeconds();
             var taskList = new List<Task<int[]>>
                 {
-                    MySQL.GetTopPos(user.Name, "roulettCon"),
-                    MySQL.GetTopPos(user.Name, "UvalCon"),
-                    MySQL.GetTopPos(user.Name, "messageCon"),
-                    MySQL.GetTopPos(user.Name, "Points"),
-                    MySQL.GetTopPos(user.Name, "QuizPoints"),
-                    MySQL.GetTopPos(user.Name, "QuizTotal")
+                    _databaseService.GetUserPositionAsync(user.Name, "roulettCon"),
+                    _databaseService.GetUserPositionAsync(user.Name, "UvalCon"),
+                    _databaseService.GetUserPositionAsync(user.Name, "messageCon"),
+                    _databaseService.GetUserPositionAsync(user.Name, "Points"),
+                    _databaseService.GetUserPositionAsync(user.Name, "QuizPoints"),
+                    _databaseService.GetUserPositionAsync(user.Name, "QuizTotal")
                 };
             var results = await Task.WhenAll(taskList).ConfigureAwait(false);
             var roulettCD = user.roulettCD - currentUnixTime;
@@ -979,14 +980,14 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 TtvIRCClient.SendMessage(STRINGS.InputERROR);
                 return;
             }
-            var UserToUnban = await MySQL.GetUser(input[1]).ConfigureAwait(false);
+            var UserToUnban = await _databaseService.GetUserAsync(input[1]).ConfigureAwait(false);
             if (UserToUnban.dbID == -404)
             {
                 TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
                 return;
             }
             var path = IllSkillzBotMain.GetDataPath().uniquePath;
-            path = Path.Combine(path, singleton.UserblacklistFileName);
+            path = Path.Combine(path, IllSingleton.Config.FilePaths.UserBlacklistFileName);
             if (FileManipulator.DeleteLineFromFile(path, UserToUnban.TwitchID.ToString()))
             {
                 IllChatFilters.EditUserBlackList(UserToUnban.TwitchID.ToString());
@@ -1004,7 +1005,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 return;
             }
             var path = IllSkillzBotMain.GetDataPath().sharedPath;
-            path = Path.Combine(path, singleton.DicWhiteListFileName);
+            path = Path.Combine(path, IllSingleton.Config.FilePaths.DicWhiteListFileName);
             FileManipulator.AddLineToFile(path, input[1]);
             IllChatFilters.AddToWhiteList(input[1]);
             await Task.CompletedTask.ConfigureAwait(false);

@@ -1,35 +1,32 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using SkillzBot.API.Twitch;
-using SkillzBot.MODELS;
 using SkillzBot.Utils;
-using SkillzBot.WRITERS;
-using SkillzBot.Singleton;
 using SkillzBot.IRC;
 using System.Linq;
-using System.Threading;
 using Camille.Enums;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.SpectatorV5;
-using Google.Protobuf.WellKnownTypes;
 using SkillzBot.API.RiotGames;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.IllSkillzBot
 {
     internal sealed class IllPredictions
     {
-        private readonly static IllSingleton singleton = IllSingleton.GetInstance();
-        private readonly static string tChannel = singleton.ChannelName;
+        private readonly static string tChannel = IllSingleton.Config.ChannelName;
         //private readonly static string englishWis = singleton.EnglishWis;        
         private static string CurrentMatchID;
         private static string PlatformID;
         private static readonly int _maxGameLengthsec = 5400;
+        private static readonly ILogger<IllPredictions> _logger = IllServiceProvider.GetLogger<IllPredictions>();
         public static async Task GetCurrentMatchTask()
         {
-            if (!singleton.isActiveSub) return;
-            if (singleton.inAmatch || !singleton.autoPred) return;
-            PlatformID = singleton.SummonerRegion switch
+            if (!IllSingleton.State.isSubActive) return;
+            if (IllSingleton.State.InMatch || !IllSingleton.State.AutoPred) return;
+            PlatformID = IllSingleton.Game.SummonerRegion switch
             {
                 "ru" => "RU_",
                 "euw" => "EUW1_",
@@ -40,7 +37,8 @@ namespace SkillzBot.IllSkillzBot
             var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
             if (currentGame == null) return;
             if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength > 30) return;
-            Log.WriteLog(null, "Матч начался!");
+            if (IllSingleton.State.Debug)
+                _logger.LogDebug("Матч начался!");
             
             CurrentMatchID = PlatformID + Convert.ToString(currentGame.GameId);
             var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
@@ -56,7 +54,7 @@ namespace SkillzBot.IllSkillzBot
             string currentGameID = PlatformID + Convert.ToString(currentGame.GameId);
             var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
             if (rank == null) return;
-            singleton.inAmatch = true;
+            IllSingleton.State.InMatch = true;
             int wchance = 100;
             foreach (var mType in rank)
             {
@@ -146,26 +144,26 @@ namespace SkillzBot.IllSkillzBot
                     break;
                 }*/
             }
-            singleton.inAmatch = false;
+            IllSingleton.State.InMatch = false;
         }
         private static async Task Prediction_WIN_LOOSE(string currentGameID, string Title, string blue, string red, int sec)
         {
             await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
             Match onMatch;
-            if (singleton.debug)
+            if (IllSingleton.State.Debug)
             {
-                Log.WriteLog(null, "Ставка запущена");
-                Log.WriteLog(null, $"currentGameID: {currentGameID}");
+                _logger.LogDebug(null, "Ставка запущена");
+                _logger.LogDebug(null, $"currentGameID: {currentGameID}");
             }
             int errorThreshHold = 0;
             var maxGameTime = DateTimeOffset.Now.ToUnixTimeSeconds() + _maxGameLengthsec;
-            while (singleton.inAmatch)
+            while (IllSingleton.State.InMatch)
             {
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
                 {
-                    singleton.inAmatch = false;
-                    TtvIRCClient.SendMessage($"Качется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
-                    Log.WriteLog(null, $"Качется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
+                    IllSingleton.State.InMatch = false;
+                    TtvIRCClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
+                    _logger.LogWarning("Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}", currentGameID);
                     break;
                 }
                 try
@@ -174,11 +172,11 @@ namespace SkillzBot.IllSkillzBot
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(ex, "Prediction_WIN_LOOSE_1");
+                    _logger.LogError(ex, "Prediction_WIN_LOOSE_1");
                     errorThreshHold++;
                     if (errorThreshHold > 5)
                     {
-                        singleton.inAmatch = false;
+                        IllSingleton.State.InMatch = false;
                         break;
                     }
                     else
@@ -197,27 +195,27 @@ namespace SkillzBot.IllSkillzBot
                     await Task.Delay(4000).ConfigureAwait(false);
                     continue;
                 }   
-                singleton.inAmatch = false;
+                IllSingleton.State.InMatch = false;
                 var Participant = RiotAPI.GetParticipantByMatch(onMatch);
                 if (Participant != null)
                 {
                     if (onMatch.Info.GameDuration > 300)
-                    {                        
-                        singleton.numGames++;
+                    {
+                        IllSingleton.Game.NumGames++;
                         if (Participant.Win)
                         {
                             await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
-                            if (singleton.debug)
-                                Log.WriteLog(null, $"Матч завершен {Participant.Win}");
-                            singleton.numWins++;
+                            if (IllSingleton.State.Debug)
+                                _logger.LogDebug("Матч завершен {Win}", Participant.Win);
+                            IllSingleton.Game.NumWins++;
                             await UpdateDailyStats(true).ConfigureAwait(false);
                         }
                         else
                         {
                             await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
-                            if (singleton.debug)
-                                Log.WriteLog(null, $"Матч завершен {Participant.Win}");
-                            singleton.numLoose++;
+                            if (IllSingleton.State.Debug)
+                                _logger.LogDebug("Матч завершен {Win}", Participant.Win);
+                            IllSingleton.Game.NumLosses++;
                             await UpdateDailyStats(false).ConfigureAwait(false);
                         }
                         IllCommandsNest.IllCommands.SaveGameStats();
@@ -230,8 +228,8 @@ namespace SkillzBot.IllSkillzBot
                 }
                 else
                 {
-                    singleton.autoPred = false;
-                    Log.WriteLog(null, "(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
+                    IllSingleton.State.AutoPred = false;
+                    _logger.LogCritical("(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
                     TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
                 }                
             }
@@ -249,7 +247,7 @@ namespace SkillzBot.IllSkillzBot
             await TtvAPI.Start_10_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
-            while (singleton.inAmatch)
+            while (IllSingleton.State.InMatch)
             {
                 try
                 {
@@ -258,7 +256,7 @@ namespace SkillzBot.IllSkillzBot
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "Prediction_MAX_KDA");
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     break;
                 }
                 if (onMatch == null)
@@ -268,16 +266,16 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                 {
-                    singleton.inAmatch = false;
-                    singleton.numGames++;
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
                     if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numWins++;
+                        IllSingleton.Game.NumWins++;
                         await UpdateDailyStats(true).ConfigureAwait(false);
                     }
                     if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numLoose++;
+                        IllSingleton.Game.NumLosses++;
                         await UpdateDailyStats(false).ConfigureAwait(false);
                     }
                     IllCommands.SaveGameStats();
@@ -329,7 +327,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 else
                 {
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
@@ -341,7 +339,7 @@ namespace SkillzBot.IllSkillzBot
             await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
-            while (singleton.inAmatch)
+            while (IllSingleton.State.InMatch)
             {
                 try
                 {
@@ -350,7 +348,7 @@ namespace SkillzBot.IllSkillzBot
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "Prediction_MAX_KDA_2");
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     break;
                 }
                 if (onMatch == null)
@@ -360,16 +358,16 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                 {
-                    singleton.inAmatch = false;
-                    singleton.numGames++;
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
                     if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numWins++;
+                        IllSingleton.Game.NumWins++;
                         await UpdateDailyStats(true).ConfigureAwait(false);
                     }
                     if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numLoose++;
+                        IllSingleton.Game.NumLosses++;
                         await UpdateDailyStats(false).ConfigureAwait(false);
                     }
                     IllCommands.SaveGameStats();
@@ -379,7 +377,7 @@ namespace SkillzBot.IllSkillzBot
                     string getPosition = "";
                     foreach (var champGetData in FinParticipants)
                     {
-                        if (champGetData.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                        if (champGetData.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                         {
                             TeamID = champGetData.TeamId;
                             getPosition = champGetData.IndividualPosition;
@@ -431,7 +429,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 else
                 {
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
@@ -444,7 +442,7 @@ namespace SkillzBot.IllSkillzBot
             Match onMatch;
             foreach (var champ in Participants)
             {
-                if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                 {
                     teamid = champ.TeamId;
                 }
@@ -468,7 +466,7 @@ namespace SkillzBot.IllSkillzBot
             await TtvAPI.Start_5_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
-            while (singleton.inAmatch)
+            while (IllSingleton.State.InMatch)
             {
                 try
                 {
@@ -477,7 +475,7 @@ namespace SkillzBot.IllSkillzBot
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "Prediction_MAX_KDA_5");
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     break;
                 }
                 if (onMatch == null)
@@ -487,16 +485,16 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                 {
-                    singleton.inAmatch = false;
-                    singleton.numGames++;
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
                     if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numWins++;
+                        IllSingleton.Game.NumWins++;
                         await UpdateDailyStats(true).ConfigureAwait(false);
                     }
                     if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numLoose++;
+                        IllSingleton.Game.NumLosses++;
                         await UpdateDailyStats(false).ConfigureAwait(false);
                     }
                     IllCommands.SaveGameStats();
@@ -504,7 +502,7 @@ namespace SkillzBot.IllSkillzBot
                     var FinParticipants = onMatch.Info.Participants.ToArray();
                     foreach (var champ in FinParticipants)
                     {
-                        if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                        if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                         {
                             teamid = champ.TeamId;
                         }
@@ -562,7 +560,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 else
                 {
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
@@ -575,7 +573,7 @@ namespace SkillzBot.IllSkillzBot
             Match onMatch;
             foreach (var champ in Participants)
             {
-                if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                 {
                     teamid = champ.TeamId;
                 }
@@ -599,7 +597,7 @@ namespace SkillzBot.IllSkillzBot
             await TtvAPI.Start_5_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
-            while (singleton.inAmatch)
+            while (IllSingleton.State.InMatch)
             {
                 try
                 {
@@ -608,7 +606,7 @@ namespace SkillzBot.IllSkillzBot
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "Prediction_MAX_FLAG_5");
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     break;
                 }
                 if (onMatch == null)
@@ -618,16 +616,16 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                     {
-                        singleton.inAmatch = false;
-                        singleton.numGames++;
+                        IllSingleton.State.InMatch = false;
+                        IllSingleton.Game.NumGames++;
                         if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                         {
-                            singleton.numWins++;
+                            IllSingleton.Game.NumWins++;
                             await UpdateDailyStats(true).ConfigureAwait(false);
                         }
                         if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
                         {
-                            singleton.numLoose++;
+                            IllSingleton.Game.NumLosses++;
                             await UpdateDailyStats(false).ConfigureAwait(false);
                         }
                         IllCommands.SaveGameStats();
@@ -635,7 +633,7 @@ namespace SkillzBot.IllSkillzBot
                         var FinParticipants = onMatch.Info.Participants.ToArray();
                         foreach (var champ in FinParticipants)
                         {
-                            if (champ.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                            if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                             {
                                 teamid = champ.TeamId;
                             }
@@ -688,7 +686,7 @@ namespace SkillzBot.IllSkillzBot
                     }
                     else
                     {
-                        singleton.inAmatch = false;
+                        IllSingleton.State.InMatch = false;
                         TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }                
@@ -700,7 +698,7 @@ namespace SkillzBot.IllSkillzBot
             await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
-            while (singleton.inAmatch)
+            while (IllSingleton.State.InMatch)
             {
                 try
                 {
@@ -709,7 +707,7 @@ namespace SkillzBot.IllSkillzBot
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "Prediction_MAX_FLAG_2");
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     break;
                 }
                 if (onMatch == null)
@@ -719,16 +717,16 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                 {
-                    singleton.inAmatch = false;
-                    singleton.numGames++;
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
                     if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numWins++;
+                        IllSingleton.Game.NumWins++;
                         await UpdateDailyStats(true).ConfigureAwait(false);
                     }
                     else
                     {
-                        singleton.numLoose++;
+                        IllSingleton.Game.NumLosses++;
                         await UpdateDailyStats(false).ConfigureAwait(false);
                     }
                     IllCommands.SaveGameStats();
@@ -738,7 +736,7 @@ namespace SkillzBot.IllSkillzBot
                     string getPosition = "";
                     foreach (var champGetData in FinParticipants)
                     {
-                        if (champGetData.SummonerName.Equals(singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                        if (champGetData.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                         {
                             TeamID = champGetData.TeamId;
                             getPosition = champGetData.IndividualPosition;
@@ -785,7 +783,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 else
                 {
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
@@ -805,7 +803,7 @@ namespace SkillzBot.IllSkillzBot
             await TtvAPI.Start_10_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
             if (singleton.debug)
                 Log.WriteLog(null, "Ставка запущена");
-            while (singleton.inAmatch)
+            while (IllSingleton.State.InMatch)
             {
                 try
                 {
@@ -814,7 +812,7 @@ namespace SkillzBot.IllSkillzBot
                 catch (Exception ex)
                 {
                     Log.WriteLog(ex, "Prediction_MAX_FLAG");
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     break;
                 }
                 if (onMatch == null)
@@ -824,40 +822,40 @@ namespace SkillzBot.IllSkillzBot
                 }
                 if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
                 {
-                    singleton.inAmatch = false;
-                    singleton.numGames++;
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
                     if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numWins++;
+                        IllSingleton.Game.NumWins++;
                         var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
                         if (buffdata != null)
                         {
                             int bufflp = int.Parse(buffdata[1]);
-                            if (buffdata[0] != singleton.elo & buffdata[2] != "MASTER")
+                            if (buffdata[0] != IllSingleton.Game.Elo & buffdata[2] != "MASTER")
                             {
-                                singleton.earnedLP += 100 - singleton.startLP;
-                                singleton.startLP = 0;
-                                singleton.elo = buffdata[0];
+                                IllSingleton.Game.EarnedLP += 100 - IllSingleton.Game.StartLP;
+                                IllSingleton.Game.StartLP = 0;
+                                IllSingleton.Game.Elo = buffdata[0];
                             }
-                            singleton.earnedLP += bufflp - singleton.startLP;
-                            singleton.startLP = bufflp;
+                            IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
+                            IllSingleton.Game.StartLP = bufflp;
                         }
                     }
                     if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
                     {
-                        singleton.numLoose++;
+                        IllSingleton.Game.NumLosses++;
                         var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
                         if (buffdata != null)
                         {
                             int bufflp = int.Parse(buffdata[1]);
-                            if (buffdata[0] != singleton.elo & buffdata[2] != "MASTER")
+                            if (buffdata[0] != IllSingleton.Game.Elo & buffdata[2] != "MASTER")
                             {
-                                singleton.startLP = 100;
-                                singleton.elo = buffdata[0];
-                                singleton.tier = buffdata[2];
+                                IllSingleton.Game.StartLP = 100;
+                                IllSingleton.Game.Elo = buffdata[0];
+                                IllSingleton.Game.Tier = buffdata[2];
                             }
-                            singleton.earnedLP -= singleton.startLP - bufflp;
-                            singleton.startLP = bufflp;
+                            IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
+                            IllSingleton.Game.StartLP = bufflp;
                         }
                     }
                     IllCommands.SaveGameStats();
@@ -901,7 +899,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 else
                 {
-                    singleton.inAmatch = false;
+                    IllSingleton.State.InMatch = false;
                     TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
@@ -920,7 +918,7 @@ namespace SkillzBot.IllSkillzBot
             long teamid = 0;
             foreach (var champ in champs)
             {
-                if (string.Equals(champ.SummonerName, singleton.SUMMONER_NAME, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(champ.SummonerName, IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
                 {
                     teamid = champ.TeamId;
                     break;
@@ -994,28 +992,28 @@ namespace SkillzBot.IllSkillzBot
                         !buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) &&
                         !buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (buffdata[0] != singleton.elo || buffdata[2] != singleton.tier)
+                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier)
                         {
-                            singleton.earnedLP += LowEloMaxLP - singleton.startLP + bufflp;
-                            singleton.startLP = 0;
-                            singleton.elo = buffdata[0];
-                            singleton.tier = buffdata[2];
+                            IllSingleton.Game.EarnedLP += LowEloMaxLP - IllSingleton.Game.StartLP + bufflp;
+                            IllSingleton.Game.StartLP = 0;
+                            IllSingleton.Game.Elo = buffdata[0];
+                            IllSingleton.Game.Tier = buffdata[2];
                         }
                         else
                         {
-                            singleton.earnedLP += bufflp - singleton.startLP;
-                            singleton.startLP = bufflp;
+                            IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
+                            IllSingleton.Game.StartLP = bufflp;
                         }
                     }
                     else
                     {
-                        if (singleton.tier.Equals("diamond", StringComparison.OrdinalIgnoreCase))
-                            singleton.earnedLP += LowEloMaxLP - singleton.startLP + bufflp;
+                        if (IllSingleton.Game.Tier.Equals("diamond", StringComparison.OrdinalIgnoreCase))
+                            IllSingleton.Game.EarnedLP += LowEloMaxLP - IllSingleton.Game.StartLP + bufflp;
                         else
-                            singleton.earnedLP += bufflp - singleton.startLP;
-                        singleton.startLP = bufflp;
-                        singleton.elo = buffdata[0];
-                        singleton.tier = buffdata[2];
+                            IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
+                        IllSingleton.Game.StartLP = bufflp;
+                        IllSingleton.Game.Elo = buffdata[0];
+                        IllSingleton.Game.Tier = buffdata[2];
                     }
                 }
                 else
@@ -1024,23 +1022,23 @@ namespace SkillzBot.IllSkillzBot
                         !buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) &&
                         !buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (buffdata[0] != singleton.elo || buffdata[2] != singleton.tier)
+                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier)
                         {
-                            singleton.startLP = LowEloMaxLP;
-                            singleton.elo = buffdata[0];
-                            singleton.tier = buffdata[2];
+                            IllSingleton.Game.StartLP = LowEloMaxLP;
+                            IllSingleton.Game.Elo = buffdata[0];
+                            IllSingleton.Game.Tier = buffdata[2];
                         }
-                        singleton.earnedLP -= singleton.startLP - bufflp;
-                        singleton.startLP = bufflp;
+                        IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
+                        IllSingleton.Game.StartLP = bufflp;
                     }
                     else
                     {
-                        singleton.earnedLP -= singleton.startLP - bufflp;
-                        singleton.startLP = bufflp;
+                        IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
+                        IllSingleton.Game.StartLP = bufflp;
                     }
                 }
             else
-                Log.WriteLog(null, $"UpdateDailyStats() -> cant convert to int. buffdata: {string.Join(" ", buffdata)}");
+                _logger.LogError("UpdateDailyStats() -> cant convert to int. buffdata: {data}", string.Join(" ", buffdata));
         }
     }
 }
