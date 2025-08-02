@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\SkillzBot.props" />
-</Project>
