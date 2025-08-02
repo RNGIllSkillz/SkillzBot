@@ -32,15 +32,15 @@ namespace SkillzBot.IllSkillzBot
                         await TtvAPI.DeleteChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
 
                     if (await TtvAPI.AddChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false))
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.AddModSuccess, aUser.Name));
+                        await TtvIRCClient.SendMessage(string.Format(STRINGS.AddModSuccess, aUser.Name));
                     else
-                        TtvIRCClient.SendMessage("Модерытор не добавлен, произошла ошибка.");
+                        await TtvIRCClient.SendMessage("Модерытор не добавлен, произошла ошибка.");
                 }
                 else
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
             }
             else
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
         }
         public static async Task IllDeleteModerator(UserObject user, string[] UserInput)
         {
@@ -51,7 +51,7 @@ namespace SkillzBot.IllSkillzBot
                 if (aUser.dbID != -404)
                 {
                     await TtvAPI.DeleteChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false);
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
                 }
                 else
                 {
@@ -59,14 +59,14 @@ namespace SkillzBot.IllSkillzBot
                     if (uID != null)
                     {
                         await TtvAPI.DeleteChannelModerator(uID).ConfigureAwait(false);
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
+                        await TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
                     }
                     else
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+                        await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
                 }
             }
             else
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
         }
     }
 }

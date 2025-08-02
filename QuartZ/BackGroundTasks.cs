@@ -64,7 +64,7 @@ namespace SkillzBot.QuartZ
         }
         public static async Task CronTest()
         {
-            TtvIRCClient.SendMessage("cron await test. 10s");
+            await TtvIRCClient.SendMessage("cron await test. 10s");
             await Task.Delay(10000);
         }
         public static async Task UserUntimeoutTrigger(string UserName)

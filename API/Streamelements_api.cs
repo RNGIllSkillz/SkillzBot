@@ -59,7 +59,7 @@ namespace SkillzBot.API.StreamElements
                 {
                     if (webEx.Response is HttpWebResponse httpResp)
                     {
-                        TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(httpResp.StatusCode)}");
+                        await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(httpResp.StatusCode)}");
                         _logger.LogError(null, $"SendMediaAsync() {httpResp.StatusCode}");
                     }
                 }
@@ -82,7 +82,7 @@ namespace SkillzBot.API.StreamElements
                 }
                 else
                 {
-                    TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
+                    await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
                     _logger.LogError($"getFirstInHistory() {Convert.ToString(response.StatusCode)}");
                 }
                 return null;
@@ -107,7 +107,7 @@ namespace SkillzBot.API.StreamElements
                 }
                 else
                 {
-                    TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
+                    await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
                     _logger.LogError(null, $"getTrackQueue() {Convert.ToString(response.StatusCode)}");
                 }
                 return null;
@@ -132,7 +132,7 @@ namespace SkillzBot.API.StreamElements
                 }
                 else
                 {
-                    TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
+                    await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
                     _logger.LogError(null, $"GetCurrentSong() {Convert.ToString(response.StatusCode)}");
                 }
                 return null;

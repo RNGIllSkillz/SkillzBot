@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
@@ -14,38 +13,58 @@ using SkillzBot.API.StreamElements;
 using SkillzBot.Discord;
 using SkillzBot.API.Twitch;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
-using SkillzBot.Hosts;
 using SkillzBot.Singleton;
+using SkillzBot.MySQL;
 
 namespace SkillzBot.IRC
 {
-    sealed class TtvIRCClient : IDisposable
+    public interface ITtvIRCClient : IDisposable
+    {
+        // Properties
+        bool IsConnected { get; }
+        bool IsInitialized { get; }
+
+        // Methods
+        Task<bool> InitializeAsync();
+        Task<bool> ReconnectAsync();
+        Task SendMessage(string messageToSend, CancellationToken cancellationToken = default);
+
+        // Stream Events
+        Task OnStreamDown();
+        Task OnStreamUp();
+        Task OnUnban(ChannelUnbanArgs e);
+    }
+
+    sealed class TtvIRCClientService : ITtvIRCClient
     {
         #region Private Fields
-        private static ILogger<TtvIRCClient>? _logger;
+        private ILogger<TtvIRCClientService>? _logger;
+        private IDatabaseService _databaseService;
 
-        private static TwitchClient? _client;
-        private static bool _isInitialized = false;
-        private static bool _isDisposed = false;
-        private static readonly object _lockObject = new object();
-        private static readonly SemaphoreSlim _connectionSemaphore = new SemaphoreSlim(1, 1);
+        private TwitchClient? _client;
+        private bool _isInitialized = false;
+        private bool _isDisposed = false;
+        private readonly object _lockObject = new object();
+        private readonly SemaphoreSlim _connectionSemaphore = new SemaphoreSlim(1, 1);
         
 
         // Connection configuration
         private const int MAX_RETRIES = 3;
         private const int BASE_DELAY_MS = 1000;
+        private const int SMALL_DELAY_MS = 100;
         private const int CONNECTION_TIMEOUT_SECONDS = 10;
         private const int MESSAGE_MAX_LENGTH = 500;
         #endregion
 
         #region Initialization
-        public static void Initialize(IServiceProvider serviceProvider)
+        public TtvIRCClientService(ILogger<TtvIRCClientService> logger, IDatabaseService database)
         {
-            _logger = serviceProvider.GetRequiredService<ILogger<TtvIRCClient>>();
+            _logger = logger;
+            _databaseService = database;
             _logger.LogDebug("TtvIRCClient logger initialized");
         }
 
-        public static async Task<bool> InitializeAsync()
+        public async Task<bool> InitializeAsync()
         {
             if (_isDisposed)
             {
@@ -91,7 +110,7 @@ namespace SkillzBot.IRC
         #endregion
 
         #region Connection Management
-        private static async Task<bool> ConnectToTwitchAsync()
+        private async Task<bool> ConnectToTwitchAsync()
         {
             if (string.IsNullOrWhiteSpace(IllSingleton.Config?.BotTwitchName) ||
                 string.IsNullOrWhiteSpace(IllSingleton.Config?.BotTwitchAuth) ||
@@ -164,7 +183,7 @@ namespace SkillzBot.IRC
             return false;
         }
 
-        public static async Task<bool> ReconnectAsync()
+        public async Task<bool> ReconnectAsync()
         {
             if (_isDisposed)
             {
@@ -196,7 +215,7 @@ namespace SkillzBot.IRC
             }
         }
 
-        private static void RegisterEventHandlers()
+        private void RegisterEventHandlers()
         {
             if (_client == null) return;
 
@@ -208,7 +227,7 @@ namespace SkillzBot.IRC
             _logger?.LogDebug("Event handlers registered");
         }
 
-        private static void DisposeClient()
+        private void DisposeClient()
         {
             if (_client != null)
             {
@@ -234,18 +253,18 @@ namespace SkillzBot.IRC
         #endregion
 
         #region Properties
-        public static bool IsConnected => _client?.IsConnected ?? false;
-        public static bool IsInitialized => _isInitialized && !_isDisposed;
+        public bool IsConnected => _client?.IsConnected ?? false;
+        public bool IsInitialized => _isInitialized && !_isDisposed;
         #endregion
 
         #region Event Handlers
-        private static async void Client_OnConnected(object sender, OnConnectedArgs e)
+        private async void Client_OnConnected(object sender, OnConnectedArgs e)
         {
             _logger?.LogInformation("Twitch IRC client connected to channel: {Channel}", e.AutoJoinChannel);
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        private static async void Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
+        private async void Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
         {
             try
             {
@@ -255,7 +274,7 @@ namespace SkillzBot.IRC
                 var user = await IllChatMessageHandler.MessageHandler(e).ConfigureAwait(false);
                 if (user != null)
                 {
-                    await IllServiceProvider.Database.UpdateUserAsync(user).ConfigureAwait(false);
+                    await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -264,7 +283,7 @@ namespace SkillzBot.IRC
             }
         }
 
-        private static async void Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
+        private async void Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
             try
             {
@@ -275,7 +294,7 @@ namespace SkillzBot.IRC
 
                 if (e.UserTimeout.TimeoutDuration > 50000)
                 {
-                    SendMessage("o7");
+                    await SendMessage("o7").ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -284,7 +303,7 @@ namespace SkillzBot.IRC
             }
         }
 
-        private static void Client_OnDisconnected(object sender, OnDisconnectedEventArgs e)
+        private void Client_OnDisconnected(object sender, OnDisconnectedEventArgs e)
         {
             _logger?.LogWarning("Twitch IRC disconnected. Attempting to reconnect...");
 
@@ -298,7 +317,7 @@ namespace SkillzBot.IRC
             {
                 try
                 {
-                    await Task.Delay(2000).ConfigureAwait(false); // Brief delay before reconnecting
+                    await Task.Delay(BASE_DELAY_MS).ConfigureAwait(false); // Brief delay before reconnecting
                     await ReconnectAsync().ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -310,7 +329,7 @@ namespace SkillzBot.IRC
         #endregion
 
         #region Event Processing
-        private static async Task UserTimedoutEventTask(OnUserTimedoutArgs e)
+        private async Task UserTimedoutEventTask(OnUserTimedoutArgs e)
         {
             if (e?.UserTimeout?.Username == null)
             {
@@ -320,7 +339,7 @@ namespace SkillzBot.IRC
 
             try
             {
-                var user = await IllServiceProvider.Database.GetUserAsync(e.UserTimeout.Username).ConfigureAwait(false);
+                var user = await _databaseService.GetUserAsync(e.UserTimeout.Username).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
                     _logger?.LogWarning("User {Username} not found in database during timeout event",
@@ -330,7 +349,7 @@ namespace SkillzBot.IRC
                 {
                     user.UvalTimer = e.UserTimeout.TimeoutDuration + DateTimeOffset.Now.ToUnixTimeSeconds();
                     user.UvalCon++;
-                    await IllServiceProvider.Database.UpdateUserAsync(user).ConfigureAwait(false);
+                    await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
 
                     _logger?.LogDebug("Updated timeout info for user {Username}", e.UserTimeout.Username);
                 }
@@ -343,7 +362,7 @@ namespace SkillzBot.IRC
         #endregion
 
         #region Stream Events
-        public static async Task OnStreamDown()
+        public async Task OnStreamDown()
         {
             try
             {
@@ -375,7 +394,7 @@ namespace SkillzBot.IRC
                     discordTitle = "";
                 }
 
-                SendMessage(chatMessage);
+                await SendMessage(chatMessage).ConfigureAwait(false);
                 await DiscordClient.SendEmbedMsg(discordTitle, "", IllSingleton.Game.SummonerName,
                     lastStats.RANK, lastStats.LPoints, null, false, msg).ConfigureAwait(false);
             }
@@ -385,14 +404,14 @@ namespace SkillzBot.IRC
             }
         }
 
-        public static async Task OnStreamUp()
+        public async Task OnStreamUp()
         {
             try
             {
                 _logger?.LogInformation("Processing stream up event");
 
                 IllSingleton.State.BroadcasterIsOnline = true;
-                SendMessage(string.Format(STRINGS.OnStreamUP, IllSingleton.Config.ChannelName));
+                await SendMessage(string.Format(STRINGS.OnStreamUP, IllSingleton.Config.ChannelName)).ConfigureAwait(false);
 
                 var info = await TtvAPI.GetStreamInfo().ConfigureAwait(false);
                 var lp = await IllCommands.GetLpAsync().ConfigureAwait(false);
@@ -418,7 +437,7 @@ namespace SkillzBot.IRC
             }
         }
 
-        public static void OnUnban(ChannelUnbanArgs e)
+        public async Task OnUnban(ChannelUnbanArgs e)
         {
             try
             {
@@ -431,9 +450,9 @@ namespace SkillzBot.IRC
                 _logger?.LogInformation("User {Username} unbanned by {Moderator}",
                     e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.ModeratorUserLogin);
 
-                SendMessage(string.Format(STRINGS.OnUnban,
+                await SendMessage(string.Format(STRINGS.OnUnban,
                     e.Notification.Payload.Event.ModeratorUserLogin,
-                    e.Notification.Payload.Event.UserName));
+                    e.Notification.Payload.Event.UserName)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -443,7 +462,7 @@ namespace SkillzBot.IRC
         #endregion
 
         #region Message Sending
-        public static void SendMessage(string messageToSend)
+        public async Task SendMessage(string messageToSend, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(messageToSend))
             {
@@ -467,11 +486,11 @@ namespace SkillzBot.IRC
             {
                 if (messageToSend.Length <= MESSAGE_MAX_LENGTH)
                 {
-                    SendSingleMessage(messageToSend);
+                    await SendSingleMessage(messageToSend, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    SendLongMessage(messageToSend);
+                    await SendLongMessage(messageToSend, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -480,21 +499,21 @@ namespace SkillzBot.IRC
             }
         }
 
-        private static void SendSingleMessage(string message)
+        private async Task SendSingleMessage(string message, CancellationToken cancellationToken = default)
         {
             try
             {
                 _logger?.LogDebug("Sending message: {Message}", message);
-                StreamElementsAPI.SendChatMessage(message).GetAwaiter().GetResult();
+                await StreamElementsAPI.SendChatMessage(message).ConfigureAwait(false);
                 // Alternative: _client.SendMessage(IllSingleton.Config.ChannelName, message);
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Failed to send single message");                
+                _logger?.LogError(ex, "Failed to send single message");
             }
         }
 
-        private static void SendLongMessage(string messageToSend)
+        private async Task SendLongMessage(string messageToSend, CancellationToken cancellationToken = default)
         {
             _logger?.LogDebug("Splitting long message into chunks");
 
@@ -503,6 +522,9 @@ namespace SkillzBot.IRC
 
             while (startIndex < messageToSend.Length)
             {
+                // Check for cancellation
+                cancellationToken.ThrowIfCancellationRequested();
+
                 int length = Math.Min(MESSAGE_MAX_LENGTH, messageToSend.Length - startIndex);
 
                 // Try to break at word boundary
@@ -517,7 +539,7 @@ namespace SkillzBot.IRC
                     {
                         // No word boundary found, send error message instead
                         _logger?.LogWarning("Cannot split message at word boundary, sending error message");
-                        SendSingleMessage(STRINGS.SendMessageERROR);
+                        await SendSingleMessage(STRINGS.SendMessageERROR, cancellationToken).ConfigureAwait(false);
                         return;
                     }
                 }
@@ -527,12 +549,12 @@ namespace SkillzBot.IRC
                 try
                 {
                     _logger?.LogDebug("Sending message chunk {ChunkNumber}: {MessagePart}", messageNumber, messagePart);
-                    StreamElementsAPI.SendChatMessage(messagePart).GetAwaiter().GetResult();
+                    await StreamElementsAPI.SendChatMessage(messagePart).ConfigureAwait(false);
                     messageNumber++;
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogError(ex, "Failed to send message chunk {ChunkNumber}", messageNumber);                    
+                    _logger?.LogError(ex, "Failed to send message chunk {ChunkNumber}", messageNumber);
                 }
 
                 startIndex += length;
@@ -540,14 +562,14 @@ namespace SkillzBot.IRC
                 // Small delay between chunks to avoid rate limiting
                 if (startIndex < messageToSend.Length)
                 {
-                    Task.Delay(100).GetAwaiter().GetResult();
+                    await Task.Delay(SMALL_DELAY_MS, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
         #endregion
 
         #region Disposal
-        public static void Dispose()
+        public void Dispose()
         {
             lock (_lockObject)
             {
@@ -576,5 +598,21 @@ namespace SkillzBot.IRC
             Dispose();
         }
         #endregion
+    }
+
+    //legacy interface for compatability
+    internal static class TtvIRCClient
+    {
+        private static ITtvIRCClient _IrcService;
+
+        public static void Initialize(ITtvIRCClient ircService)
+        {
+            _IrcService = ircService ?? throw new ArgumentNullException(nameof(ircService));
+        }
+
+        public static async Task SendMessage(string messageToSend, CancellationToken cancellationToken = default)
+        {
+            await _IrcService.SendMessage(messageToSend, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

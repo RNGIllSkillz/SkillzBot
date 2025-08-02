@@ -39,7 +39,7 @@ namespace SkillzBot.API.MMR
                 }
                 else
                 {
-                    TtvIRCClient.SendMessage("API call failed with status code " + response.StatusCode);
+                    await TtvIRCClient.SendMessage("API call failed with status code " + response.StatusCode);
                     return null;
                 }
             }

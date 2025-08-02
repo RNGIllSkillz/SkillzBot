@@ -23,15 +23,16 @@ namespace SkillzBot.EventSub
     {
         private static ILogger<TTVEventSub>? _logger;
         private readonly IDatabaseService _databaseService;
+        private readonly ITtvIRCClient _ircClient;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
         private int tryes = 0;
         private readonly Dictionary<string, string> SubscriptionsTypes;
 
-        public TTVEventSub(EventSubWebsocketClient eventSubWebsocketClient, IServiceProvider serviceProvider, IDatabaseService databaseService)
+        public TTVEventSub(EventSubWebsocketClient eventSubWebsocketClient, ILogger<TTVEventSub> logger, IDatabaseService databaseService, ITtvIRCClient ircClient)
         {
-            _logger = serviceProvider.GetRequiredService<ILogger<TTVEventSub>>();
-
+            _logger = logger;
+            _ircClient = ircClient;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _logger.LogDebug("TTVEventSub initialized with injected dependencies");
@@ -162,18 +163,18 @@ namespace SkillzBot.EventSub
         #region Events
         private async Task OnStreamUp(object sender, StreamOnlineArgs e)
         {
-            await TtvIRCClient.OnStreamUp().ConfigureAwait(false);
+            await _ircClient.OnStreamUp().ConfigureAwait(false);
         }
         private async Task OnStreamDown(object sender, StreamOfflineArgs e)
         {
-            await TtvIRCClient.OnStreamDown().ConfigureAwait(false);
+            await _ircClient.OnStreamDown().ConfigureAwait(false);
         }
         private async Task OnChannelBan(object sender, ChannelBanArgs e)
         {
             if (e.Notification.Payload.Event.IsPermanent)
             {
                 //BAN
-                TtvIRCClient.SendMessage($"o7");
+                _ircClient.SendMessage($"o7");
             }
             else
             {
@@ -185,7 +186,7 @@ namespace SkillzBot.EventSub
         private async Task OnPrediction(object sender, ChannelPredictionBeginArgs e)
         {
             if (!IllSingleton.State.isSubActive) return;
-            TtvIRCClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Notification.Payload.Event.Title));
+            _ircClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Notification.Payload.Event.Title));
             await Task.CompletedTask.ConfigureAwait(false);
         }
         private async Task OnUnban(object sender, ChannelUnbanArgs e)

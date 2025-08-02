@@ -10,6 +10,7 @@ using SkillzBot.MySQL;
 using System;
 using System.IO;
 using SkillzBot.Writers;
+using SkillzBot.IRC;
 
 namespace SkillzBot.Hosts
 {
@@ -51,11 +52,13 @@ namespace SkillzBot.Hosts
                 {
                     services.AddDatabaseServices(_configuration ?? context.Configuration);
                     services.AddTwitchLibEventSubWebsockets();
+
+                    services.AddSingleton<ITtvIRCClient, TtvIRCClientService>();
+                    //services.AddHostedService<TwitchIrcHostedService>(); //hosted service after refactoring
+
                     services.AddHostedService<TTVEventSub>();
 
-                    // Add other services
-                    // services.AddSingleton<DiscordClient>();
-                    // services.AddSingleton<TtvIRCClient>();
+                    
                 });        
 
         public IHost BuildMainApplicationHost()

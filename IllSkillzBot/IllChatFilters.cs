@@ -64,7 +64,7 @@ namespace SkillzBot.IllSkillzBot
             if (channelBlack.Contains(channelName)) return true;
             return false;
         }
-        public static bool ZapCheck(string message, string name)
+        public static async Task<bool> ZapCheck(string message, string name)
         {
             var exact = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var CleanMessage = StringUtil.Clean(message);
@@ -76,7 +76,7 @@ namespace SkillzBot.IllSkillzBot
 
             //parallel for exact words
             
-            if(CheckExact(message, name))
+            if(await CheckExact(message, name).ConfigureAwait(false))
                 return true;
 
             //tire for substrings
@@ -85,12 +85,12 @@ namespace SkillzBot.IllSkillzBot
             {
                 FlagWriter.FlagWriterTask($"{name} : {message} : {bannedWord}");
                 if (IllSingleton.State.Debug)
-                    TtvIRCClient.SendMessage("substring trigger");
+                    await TtvIRCClient.SendMessage("substring trigger").ConfigureAwait(false);
                 return true;
             }                        
             return false;
         }
-        private static bool CheckExact(string message, string name)
+        private static async Task<bool> CheckExact(string message, string name)
         {
             var messageWords = message.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Select(word => StringUtil.Clean(word))
@@ -110,7 +110,7 @@ namespace SkillzBot.IllSkillzBot
             {
                 FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {matchedWord}");
                 if (IllSingleton.State.Debug)
-                    TtvIRCClient.SendMessage("exact trigger");
+                    await TtvIRCClient.SendMessage("exact trigger");
                 return true;
             }
             return false;
@@ -145,7 +145,7 @@ namespace SkillzBot.IllSkillzBot
             if (yRes == null) return null;
             if (yRes[0] != "view" && yRes[0] != "duration" && yRes[0] != "age" && yRes[0] != "Embeddable")
             {
-                if (ZapCheck(yRes[0], "YouTube"))
+                if (await ZapCheck(yRes[0], "YouTube").ConfigureAwait(false))
                 {
                     output.Add("ZAP");
                     return output;

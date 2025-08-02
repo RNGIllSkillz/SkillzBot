@@ -116,7 +116,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (result != null)
             {
                 if (IllAccess.Vip(user))                
-                    TtvIRCClient.SendMessage($"@{user.Name}, команда {CommandName} будет доступна через {result.Value.TotalSeconds:F1} сек.");                
+                    await TtvIRCClient.SendMessage($"@{user.Name}, команда {CommandName} будет доступна через {result.Value.TotalSeconds:F1} сек.");                
             }
         }
         public static async Task<UserObject> CommandHandler(UserObject user, string message)

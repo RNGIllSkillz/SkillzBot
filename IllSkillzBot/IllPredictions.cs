@@ -46,7 +46,7 @@ namespace SkillzBot.IllSkillzBot
             if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
             if (currentGame.GameType == GameType.CUSTOM)
             {  
-                //TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
+                //await TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
                 //return;
             }
             //await DisableRewardAsync().ConfigureAwait(false);
@@ -162,7 +162,7 @@ namespace SkillzBot.IllSkillzBot
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
                 {
                     IllSingleton.State.InMatch = false;
-                    TtvIRCClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
+                    await TtvIRCClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
                     _logger.LogWarning("Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}", currentGameID);
                     break;
                 }
@@ -222,7 +222,7 @@ namespace SkillzBot.IllSkillzBot
                     }
                     else
                     {
-                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                        await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                 }
@@ -230,7 +230,7 @@ namespace SkillzBot.IllSkillzBot
                 {
                     IllSingleton.State.AutoPred = false;
                     _logger.LogCritical("(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
-                    TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
+                    await TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
                 }                
             }
         }
@@ -317,18 +317,18 @@ namespace SkillzBot.IllSkillzBot
                     {
                         string output = await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
                         if (output != "OK")
-                            TtvIRCClient.SendMessage(output);
+                            await TtvIRCClient.SendMessage(output);
                     }
                     else
                     {
-                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                 }
                 else
                 {
                     IllSingleton.State.InMatch = false;
-                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
             }
@@ -401,12 +401,12 @@ namespace SkillzBot.IllSkillzBot
                     }
                     if (Players[0].Flag == Players[1].Flag)
                     {
-                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                     else if (Players.Count > 2)
                     {
-                        TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
+                        await TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                     else
@@ -430,7 +430,7 @@ namespace SkillzBot.IllSkillzBot
                 else
                 {
                     IllSingleton.State.InMatch = false;
-                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
             }
@@ -554,14 +554,14 @@ namespace SkillzBot.IllSkillzBot
                         await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
                     else
                     {
-                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                 }
                 else
                 {
                     IllSingleton.State.InMatch = false;
-                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
             }
@@ -680,14 +680,14 @@ namespace SkillzBot.IllSkillzBot
                             await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
                         else
                         {
-                            TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                            await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                             await TtvAPI.CencelePrediction().ConfigureAwait(false);
                         }
                     }
                     else
                     {
                         IllSingleton.State.InMatch = false;
-                        TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                        await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }                
             }
@@ -755,12 +755,12 @@ namespace SkillzBot.IllSkillzBot
                     }
                     if (Players[0].Flag == Players[1].Flag)
                     {
-                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                     else if (Players.Count > 2)
                     {
-                        TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
+                        await TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                     else
@@ -784,7 +784,7 @@ namespace SkillzBot.IllSkillzBot
                 else
                 {
                     IllSingleton.State.InMatch = false;
-                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
 
@@ -893,14 +893,14 @@ namespace SkillzBot.IllSkillzBot
                         await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
                     else
                     {
-                        TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                         await TtvAPI.CencelePrediction().ConfigureAwait(false);
                     }
                 }
                 else
                 {
                     IllSingleton.State.InMatch = false;
-                    TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                     await TtvAPI.CencelePrediction().ConfigureAwait(false);
                 }
             }
@@ -950,7 +950,7 @@ namespace SkillzBot.IllSkillzBot
             enemyElo = numberOfRankedEnemyPlayers > 0 ? (int)Math.Ceiling((double)enemyElo / numberOfRankedEnemyPlayers) : 0;
             string elo = StringUtil.ConvertRank(teamElo.ToString(), false);
             string elo2 = StringUtil.ConvertRank(enemyElo.ToString(), false);
-            TtvIRCClient.SendMessage($"Среднее ило команды союзников: {elo}, средний WR {teamWr}%. Среднее ило команды противников {elo2}, средний WR {enemyWr}%");
+            await TtvIRCClient.SendMessage($"Среднее ило команды союзников: {elo}, средний WR {teamWr}%. Среднее ило команды противников {elo2}, средний WR {enemyWr}%");
         }
         
         private static async Task<int[]> GettInfo(string summonerName)

@@ -2,12 +2,13 @@
 using SkillzBot.MODELS;
 using System;
 using SkillzBot.Singleton;
+using System.Threading.Tasks;
 
 namespace SkillzBot.SubUtils
 {
     internal class SubCall
     {
-        public void PostDataProcess(apiPost model)
+        public async Task PostDataProcess(apiPost model)
         {
             string[] words = model.value.Split(' ');
             int amount;            
@@ -20,12 +21,12 @@ namespace SkillzBot.SubUtils
                 if ((sender.Contains("Владислав", StringComparison.OrdinalIgnoreCase)))
                 {
                     rate = 10000;
-                    PurchaseProcess(amount, rate);
+                    await PurchaseProcess(amount, rate).ConfigureAwait(false);
                 }
                 if ((sender.Contains("Людмила", StringComparison.OrdinalIgnoreCase)))
                 {
                     rate = 500;
-                    PurchaseProcess(amount, rate);
+                    await PurchaseProcess(amount, rate).ConfigureAwait(false);
                 }
             }  
             else
@@ -33,11 +34,11 @@ namespace SkillzBot.SubUtils
                 Console.WriteLine($"Cant unmarshal type int data = {words[5]}");
             }
         }
-        private void PurchaseProcess (int amount, int rate)
+        private async Task PurchaseProcess (int amount, int rate)
         {
             var responce = AddSub.NewPurchase(amount, rate);
             SubCheck.RunChecker();
-            TtvIRCClient.SendMessage($"@{IllSingleton.Config.ChannelName} {responce}");
+            await TtvIRCClient.SendMessage($"@{IllSingleton.Config.ChannelName} {responce}").ConfigureAwait(false);
         }
     }
 }

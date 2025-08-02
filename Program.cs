@@ -118,15 +118,15 @@ namespace IllSkillzBot
             var quartzManager = new QuartzBackgroundTaskManager();
             await quartzManager.ScheduleTasks().ConfigureAwait(false);
 
-            // Start hosts
-            //var eventSubHost = _hostBuilders.EventSubHos();
-            //await eventSubHost.StartAsync().ConfigureAwait(false);
+            //IRC (LEGACY)
+            var IRCClient = _host.Services.GetRequiredService<ITtvIRCClient>();
+            TtvIRCClient.Initialize(IRCClient);
+
 
             // Wait for shutdown signal
             _resetEvent.Wait();
 
             _logger.LogInformation("Shutting down application...");
-            //await eventSubHost.StopAsync().ConfigureAwait(false);
             await _host.StopAsync().ConfigureAwait(false);
             foreach (var service in services.OfType<IDisposable>())
             {
@@ -140,13 +140,12 @@ namespace IllSkillzBot
 
             try
             {
-                var databaseService = _host.Services.GetRequiredService<IDatabaseService>();
-                services.Add(databaseService);
-
                 var discordClient = new DiscordClient();
                 services.Add(discordClient);
 
-                bool ircInitialized = await TtvIRCClient.InitializeAsync().ConfigureAwait(false);
+                //initialise IRC static method (LEGACY)
+                var ircClient = _host.Services.GetRequiredService<ITtvIRCClient>();
+                bool ircInitialized = await ircClient.InitializeAsync().ConfigureAwait(false);
                 if (!ircInitialized)
                 {
                     _logger.LogWarning("Failed to initialize Twitch IRC. Continuing without it...");

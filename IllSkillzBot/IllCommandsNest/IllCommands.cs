@@ -35,7 +35,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public static async Task Help(UserObject user)
         {
-            TtvIRCClient.SendMessage(string.Format(STRINGS.HelpMessage, user.Name));
+            await TtvIRCClient.SendMessage(string.Format(STRINGS.HelpMessage, user.Name));
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task Points(UserObject user)
@@ -43,7 +43,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var pos = await _databaseService.GetUserPositionAsync(user.Name, "Points").ConfigureAwait(false);
             var QPos = await _databaseService.GetUserPositionAsync(user.Name, "QuizPoints").ConfigureAwait(false);
             var QtPos = await _databaseService.GetUserPositionAsync(user.Name, "QuizTotal").ConfigureAwait(false);
-            TtvIRCClient.SendMessage(string.Format(STRINGS.PointsMessage, user.Name, user.Points, pos[0], pos[1], user.QuizPoints, QPos[0], QPos[1], user.QuizTotal, QtPos[0], QtPos[1]));
+            await TtvIRCClient.SendMessage(string.Format(STRINGS.PointsMessage, user.Name, user.Points, pos[0], pos[1], user.QuizPoints, QPos[0], QPos[1], user.QuizTotal, QtPos[0], QtPos[1]));
         }
         public static async Task Prediction(UserObject user, string[] command)
         {
@@ -53,23 +53,23 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 {
                     case "off":
                         IllSingleton.State.AutoPred = false;
-                        TtvIRCClient.SendMessage($"@{user.Name} Автоставки Выключены!");
+                        await TtvIRCClient.SendMessage($"@{user.Name} Автоставки Выключены!");
                         _logger.LogInformation("{Name} Выключил ставки!", user.Name);
                         break;
 
                     case "on":
                         IllSingleton.State.AutoPred = true;
-                        TtvIRCClient.SendMessage($"@{user.Name} Автоставки Включены!");
+                        await TtvIRCClient.SendMessage($"@{user.Name} Автоставки Включены!");
                         _logger.LogInformation("{Name} Включил ставки!", user.Name);
                         break;
 
                     default:
-                        TtvIRCClient.SendMessage($"@{user.Name} Не правильный параметр! (on/off)");
+                        await TtvIRCClient.SendMessage($"@{user.Name} Не правильный параметр! (on/off)");
                         break;
                 }
             }
             else
-                TtvIRCClient.SendMessage($"{user.Name} Не правильная команда! (!prediction on/off)");
+                await TtvIRCClient.SendMessage($"{user.Name} Не правильная команда! (!prediction on/off)");
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task LpCommand(UserObject user, string[] command)
@@ -86,7 +86,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                         case "na":
                             break;
                         default:
-                            TtvIRCClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
+                            await TtvIRCClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
                             return;
                     }
                     //var temp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));                        
@@ -113,12 +113,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     }
                     else
                     {
-                        TtvIRCClient.SendMessage($"ERROR: {result}");
+                        await TtvIRCClient.SendMessage($"ERROR: {result}");
                     }
                 }
                 else
                 {
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.LPInaMatch, user.Name));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.LPInaMatch, user.Name));
                 }
             }
             else
@@ -139,13 +139,13 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 if (aUser.dbID != -404)
                 {
                     await TtvAPI.AddChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.AddVIPSuccess, aUser.Name));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.AddVIPSuccess, aUser.Name));
                 }
                 else
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
             }
             else
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
         }
         public static async Task DeleteVIP(UserObject user, string[] UserInput)
         {
@@ -155,13 +155,13 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 if (aUser.dbID != -404)
                 {
                     await TtvAPI.DeleteChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteVIPSuccess, aUser.Name));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteVIPSuccess, aUser.Name));
                 }
                 else
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
             }
             else
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
         }
 
         public static async Task<TrackUser> TrackUser(UserObject user, string[] UserInput)
@@ -171,22 +171,22 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var result = await _databaseService.TrackUserAsync(UserInput[1].ToLower()).ConfigureAwait(false);
                 if (result != null)
                 {
-                    TtvIRCClient.SendMessage(string.Format(STRINGS.TrackUserSuccess, UserInput[1], result.Count));
+                    await TtvIRCClient.SendMessage(string.Format(STRINGS.TrackUserSuccess, UserInput[1], result.Count));
                     string outDbs = "";
                     foreach (var r in result.DBName)
                     {
                         outDbs += r + ", ";
                         if (outDbs.Length == 450)
                         {
-                            TtvIRCClient.SendMessage(outDbs);
+                            await TtvIRCClient.SendMessage(outDbs);
                             outDbs = "";
                         }
                     }
-                    TtvIRCClient.SendMessage(outDbs);
+                    await TtvIRCClient.SendMessage(outDbs);
                 }
                 else
                 {
-                    TtvIRCClient.SendMessage("ERROR");
+                    await TtvIRCClient.SendMessage("ERROR");
                 }
             }
             return null;
@@ -318,20 +318,20 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                             string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
                             string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                             var promoString = string.Join(" ", promo);
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, IllSingleton.Game.SummonerName, subs[0], promoString));
+                            await TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, IllSingleton.Game.SummonerName, subs[0], promoString));
                         }
                         else
                         {
                             int WR = (int)Math.Ceiling(mType.Wins * 100 / (double)(mType.Wins + mType.Losses));
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, IllSingleton.Game.SummonerName, mType.Tier, mType.Rank, mType.LeaguePoints, WR, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
+                            await TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, IllSingleton.Game.SummonerName, mType.Tier, mType.Rank, mType.LeaguePoints, WR, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
                         }
                     }
                 }
             else
-                TtvIRCClient.SendMessage("Riot API error");
+                await TtvIRCClient.SendMessage("Riot API error");
             if (!ranked)
             {
-                TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, IllSingleton.Game.SummonerName, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
+                await TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, IllSingleton.Game.SummonerName, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
             }
         }
 
@@ -361,13 +361,13 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                                 role = "";
                             else
                                 role = string.Format(STRINGS.role, Participant.TeamPosition);
-                            TtvIRCClient.SendMessage(string.Format(STRINGS.MatchHistoryMessage, user.Name, Champ.Name, Participant.Kills, Participant.Deaths, Participant.Assists, role, type, win));
+                            await TtvIRCClient.SendMessage(string.Format(STRINGS.MatchHistoryMessage, user.Name, Champ.Name, Participant.Kills, Participant.Deaths, Participant.Assists, role, type, win));
                         }
                     }
                 }
             }
             */
-            TtvIRCClient.SendMessage("Команда в разработке. Верим.");
+            await TtvIRCClient.SendMessage("Команда в разработке. Верим.");
             await Task.CompletedTask.ConfigureAwait(false);
         }
        
@@ -376,7 +376,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var result = await _databaseService.GetTopUsersAsync("rtop").ConfigureAwait(false);
             if (result != null && result.Count >= 3)
             {
-                TtvIRCClient.SendMessage(string.Format
+                await TtvIRCClient.SendMessage(string.Format
                  (
                     STRINGS.Top3Roulette,
                     result[0].Name, result[0].roulettCon, IntUtil.RulProbability(result[0].roulettCon, 80),
@@ -394,7 +394,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var result = await _databaseService.GetTopUsersAsync("top").ConfigureAwait(false);
             if (result != null && result.Count >= 3)
             {
-                TtvIRCClient.SendMessage(string.Format
+                await TtvIRCClient.SendMessage(string.Format
                             (
                              STRINGS.Top3Chat,
                              result[0].Name, result[0].messageCon,
@@ -424,7 +424,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             BotConfigWriter.Write();
         }
-        public static void TypeInChat(string message)
+        public static async Task TypeInChat(string message)
         {
             popMessages.Add(message);
             if (popMessages.Count > 10)
@@ -452,7 +452,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             {
                 lock (popMessages)
                     popMessages.Clear();
-                TtvIRCClient.SendMessage(sendMess);
+                await TtvIRCClient.SendMessage(sendMess);
             }
         }
         public static async Task StartQuizz()
@@ -464,11 +464,11 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var result = await MyLOLMMRApi.GetMMR(IllSingleton.Game.SummonerName).ConfigureAwait(false);
             if (result == null) return;
             if (result.Count == 2)
-                TtvIRCClient.SendMessage($"@{user.Name} {result[0]}: mmr:{result[1]}");
+                await TtvIRCClient.SendMessage($"@{user.Name} {result[0]}: mmr:{result[1]}");
         }
         public static async Task OpGG(UserObject user)
         {
-            TtvIRCClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, IllSingleton.Game.SummonerName.Replace('#', '-')));
+            await TtvIRCClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, IllSingleton.Game.SummonerName.Replace('#', '-')));
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task GetTreck(UserObject user)
@@ -489,15 +489,15 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     uUser.Name = "streamelements";
                 output = string.Format(STRINGS.GetTrackShow, user.Name, result.Title, result.VideoId, uUser.Name);
             }
-            TtvIRCClient.SendMessage(output);
+            await TtvIRCClient.SendMessage(output);
         }
         public static async Task GetTrackQueue(UserObject user)
         {
             var result = await StreamElementsAPI.GetQueue().ConfigureAwait(false);
             if (result == null)
-                TtvIRCClient.SendMessage(string.Format(STRINGS.GetTrack404, user.Name));
+                await TtvIRCClient.SendMessage(string.Format(STRINGS.GetTrack404, user.Name));
             else
-                TtvIRCClient.SendMessage(string.Join(", ", result.Select(v => v.Title)));
+                await TtvIRCClient.SendMessage(string.Join(", ", result.Select(v => v.Title)));
         }
         public static async Task CreateClip(UserObject user)
         {
@@ -505,11 +505,11 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (response != null)
             {
                 var clipUrl = response.CreatedClips[0].EditUrl.Remove(response.CreatedClips[0].EditUrl.Length - 5);
-                TtvIRCClient.SendMessage(string.Format(STRINGS.CreateClipSuccess, user.Name, clipUrl));
+                await TtvIRCClient.SendMessage(string.Format(STRINGS.CreateClipSuccess, user.Name, clipUrl));
             }
             else
             {
-                TtvIRCClient.SendMessage(string.Format(STRINGS.CreateClipERROR, user.Name, "ex"));
+                await TtvIRCClient.SendMessage(string.Format(STRINGS.CreateClipERROR, user.Name, "ex"));
             }
         }
         public static async Task FlushChat(UserObject user)
@@ -523,7 +523,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             {
                 if (UserInput.Length < 2)
                 {
-                    TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                    await TtvIRCClient.SendMessage(STRINGS.InputERROR);
                     return user;
                 }
                 if (await RewardsRedemption.ZakazTrekaReward(user.Name, string.Join(" ", UserInput.Skip(1)), null, null).ConfigureAwait(false))
@@ -545,10 +545,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var uUser = await _databaseService.GetUserAsync(userID).ConfigureAwait(false);
                 await TtvAPI.TimeOutUser(uUser, 3600, STRINGS.TimeOutReason_Track).ConfigureAwait(false);
                 UserBlackListWriter.Write(uUser.TwitchID.ToString());
-                TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_chatMessage, user.Name, uUser.Name));
+                await TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_chatMessage, user.Name, uUser.Name));
             }
             else
-                TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_DonatedTrack, user.Name));
+                await TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_DonatedTrack, user.Name));
         }
         public static async Task FindUser(UserObject user, string[] input)
         {
@@ -560,30 +560,30 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     var idFind = await _databaseService.GetUserAsync(Name).ConfigureAwait(false);
                     if (idFind == null)
                     {
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, Name));
+                        await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, Name));
                     }
                     else
                     {
-                        TtvIRCClient.SendMessage($"dbID {idFind.dbID}, ttvID {idFind.TwitchID}, login {idFind.Name}, isSub {idFind.isSub}, isVip {idFind.isVip}, isMod {idFind.isMod}, IsBroadcaster {idFind.IsBroadcaster}, Uval№ {idFind.UvalCon}, messag№ {idFind.messageCon}, roulet_ws {idFind.roulettCon}, Quizz {idFind.QuizPoints}, QuizzT {idFind.QuizTotal}, IsPartner {idFind.isPartner}");
+                        await TtvIRCClient.SendMessage($"dbID {idFind.dbID}, ttvID {idFind.TwitchID}, login {idFind.Name}, isSub {idFind.isSub}, isVip {idFind.isVip}, isMod {idFind.isMod}, IsBroadcaster {idFind.IsBroadcaster}, Uval№ {idFind.UvalCon}, messag№ {idFind.messageCon}, roulet_ws {idFind.roulettCon}, Quizz {idFind.QuizPoints}, QuizzT {idFind.QuizTotal}, IsPartner {idFind.isPartner}");
                     }
                 }
                 else
-                    TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                    await TtvIRCClient.SendMessage(STRINGS.InputERROR);
             }
         }
         public static async Task DisableReward(UserObject user, string[] input)
         {
             if (input.Length == 1)
             {
-                TtvIRCClient.SendMessage("usage - !disablereward|rewardID(string) or !disablereward|Title(string)|text(string)");
+                await TtvIRCClient.SendMessage("usage - !disablereward|rewardID(string) or !disablereward|Title(string)|text(string)");
                 return;
             }
             if (input.Length == 2)
             {
-                TtvIRCClient.SendMessage($"rewardID - {input[1]}");
+                await TtvIRCClient.SendMessage($"rewardID - {input[1]}");
                 var reward = await TtvAPI.GetReward(input[1]).ConfigureAwait(false);
                 if (reward == null)
-                    TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+                    await TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
                 else
                     await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
             }
@@ -602,24 +602,24 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     bool.TryParse(enabledStr, out bool enabled) &&
                     bool.TryParse(userinputStr, out bool userinput))
                 {
-                    TtvIRCClient.SendMessage($"title - {title}, cost - {cost}, prompt - {prompt}, enabled - {enabled}, userinput - {userinput}");
+                    await TtvIRCClient.SendMessage($"title - {title}, cost - {cost}, prompt - {prompt}, enabled - {enabled}, userinput - {userinput}");
                     var response = await TtvAPI.CreateReward(title, cost, prompt, enabled, userinput).ConfigureAwait(false);
                     if (response != null)
-                        TtvIRCClient.SendMessage(response);
+                        await TtvIRCClient.SendMessage(response);
                 }
                 else
                 {
                     if (!int.TryParse(costStr, out _))
-                        TtvIRCClient.SendMessage("Cost must be an integer.");
+                        await TtvIRCClient.SendMessage("Cost must be an integer.");
                     if (!bool.TryParse(enabledStr, out _))
-                        TtvIRCClient.SendMessage("Enabled must be a boolean (true or false).");
+                        await TtvIRCClient.SendMessage("Enabled must be a boolean (true or false).");
                     if (!bool.TryParse(userinputStr, out _))
-                        TtvIRCClient.SendMessage("Userinput must be a boolean (true or false).");
+                        await TtvIRCClient.SendMessage("Userinput must be a boolean (true or false).");
                 }
             }
             else
             {
-                TtvIRCClient.SendMessage("Usage: !createreward \"title\" cost \"prompt\" enabled userinput");
+                await TtvIRCClient.SendMessage("Usage: !createreward \"title\" cost \"prompt\" enabled userinput");
             }
         }
         public static async Task DeleteReward(UserObject user, string[] input)
@@ -634,23 +634,23 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 {
                     if (subs.Length == 2)
                     {
-                        TtvIRCClient.SendMessage($"ID - {subs[1]}");
+                        await TtvIRCClient.SendMessage($"ID - {subs[1]}");
                         var reward = await TtvAPI.getReward(subs[1]).ConfigureAwait(false);
                         await TtvAPI.deleteReward(subs[1]).ConfigureAwait(false);
                     }
                     if (subs.Length == 3)
                     {
-                        TtvIRCClient.SendMessage($"Title - {subs[1]}, flag - {subs[2]}");
+                        await TtvIRCClient.SendMessage($"Title - {subs[1]}, flag - {subs[2]}");
                         var reward = await TtvAPI.getReward(subs[1], subs[2]).ConfigureAwait(false);
                         await TtvAPI.deleteReward(reward[0]).ConfigureAwait(false);
                     }
                 }
                 else
-                    TtvIRCClient.SendMessage("usage - !deletereward|rewardID(string) or !deletereward|Title(string)|anytext(string)");
+                    await TtvIRCClient.SendMessage("usage - !deletereward|rewardID(string) or !deletereward|Title(string)|anytext(string)");
             }
             catch (Exception ex)
             {
-                TtvIRCClient.SendMessage(ex.Message);
+                await TtvIRCClient.SendMessage(ex.Message);
                 Log.WriteLog(ex, "!deletereward");
             }
             */
@@ -675,20 +675,20 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     bool.TryParse(userinputStr, out bool userinput))
                 {
                     // Send confirmation message before updating
-                    TtvIRCClient.SendMessage($"rewardID - {rewardID}, title - {title}, cost - {cost}, promt - {promt}, enabled - {enabled}, userinput - {userinput}");
+                    await TtvIRCClient.SendMessage($"rewardID - {rewardID}, title - {title}, cost - {cost}, promt - {promt}, enabled - {enabled}, userinput - {userinput}");
                     // Call the API to update the reward
                     await TtvAPI.UpdateReward(rewardID, title, cost, promt, enabled, userinput).ConfigureAwait(false);
                 }
                 else
                 {
                     // Inform the user about invalid parameter types
-                    TtvIRCClient.SendMessage("Invalid parameters. Ensure cost is an integer and enabled/userinput are booleans.");
+                    await TtvIRCClient.SendMessage("Invalid parameters. Ensure cost is an integer and enabled/userinput are booleans.");
                 }
             }
             else
             {
                 // Show usage with the new syntax, indicating quotes for multi-word arguments
-                TtvIRCClient.SendMessage("Usage: !updatereward rewardID \"title\" cost \"promt\" enabled userinput");
+                await TtvIRCClient.SendMessage("Usage: !updatereward rewardID \"title\" cost \"promt\" enabled userinput");
             }
         }
         public static async Task EnableReward(UserObject user, string[] args)
@@ -696,10 +696,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (args.Length == 2)
             {
                 string rewardID = args[1];
-                TtvIRCClient.SendMessage($"rewardID - {rewardID}");
+                await TtvIRCClient.SendMessage($"rewardID - {rewardID}");
                 var reward = await TtvAPI.GetReward(rewardID).ConfigureAwait(false);
                 if (reward == null)
-                    TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+                    await TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
                 else
                     await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
             }
@@ -707,16 +707,16 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             {
                 string title = args[1];
                 string text = args[2];
-                TtvIRCClient.SendMessage($"Title - {title}");
+                await TtvIRCClient.SendMessage($"Title - {title}");
                 var reward = await TtvAPI.GetReward(title, text).ConfigureAwait(false);
                 if (reward == null)
-                    TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+                    await TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
                 else
                     await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
             }
             else
             {
-                TtvIRCClient.SendMessage("Usage: !enablereward rewardID or !enablereward \"title\" \"text\"");
+                await TtvIRCClient.SendMessage("Usage: !enablereward rewardID or !enablereward \"title\" \"text\"");
             }
         }
         public static async Task InjectSQL(UserObject user, string[] input)
@@ -737,7 +737,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 //            {
                 //                foreach (var result in results)
                 //                {
-                //                    TtvIRCClient.SendMessage($"dbID {result.dbID} TwitchID {result.TwitchID} Name {result.Name} isSub {result.isSub} isVip {result.isVip} isMod {result.isMod}  IsBroadcaster {result.IsBroadcaster} UvalCon {result.UvalCon} messageCon {result.messageCon} roulettCon {result.roulettCon} roulettCD {result.roulettCD} UvalTimer {result.UvalTimer} banCount {result.banCount} Points {result.Points} IsOnline {result.IsOnline}");
+                //                    await TtvIRCClient.SendMessage($"dbID {result.dbID} TwitchID {result.TwitchID} Name {result.Name} isSub {result.isSub} isVip {result.isVip} isMod {result.isMod}  IsBroadcaster {result.IsBroadcaster} UvalCon {result.UvalCon} messageCon {result.messageCon} roulettCon {result.roulettCon} roulettCD {result.roulettCD} UvalTimer {result.UvalTimer} banCount {result.banCount} Points {result.Points} IsOnline {result.IsOnline}");
                 //                }
                 //            }
                 //            else
@@ -762,7 +762,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 //    client.SendMessage(tChannel, ex.Message);
                 //    Log.WriteLog(ex, "null");
                 //}
-                TtvIRCClient.SendMessage("Команда в разработке ага.");
+                await TtvIRCClient.SendMessage("Команда в разработке ага.");
                 await Task.CompletedTask.ConfigureAwait(false);
             }
         }
@@ -774,23 +774,23 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 {
                     case "0":
                         IllSingleton.State.AntiBotProtectionLvl = 0;
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
+                        await TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
                         break;
                     case "1":
                         IllSingleton.State.AntiBotProtectionLvl = 1;
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
+                        await TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
                         break;
                     case "2":
                         IllSingleton.State.AntiBotProtectionLvl = 2;
-                        TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
+                        await TtvIRCClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
                         break;
                     default:
-                        TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                        await TtvIRCClient.SendMessage(STRINGS.InputERROR);
                         break;
                 }
             }
             else
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task SetChatfilterLvl(UserObject user, string[] input)
@@ -802,40 +802,40 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     case "0":
                         IllSingleton.State.ChatFilterLvl = 0;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
+                        await TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "1":
                         IllSingleton.State.ChatFilterLvl = 1;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
+                        await TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "2":
                         IllSingleton.State.ChatFilterLvl = 2;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
+                        await TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "3":
                         IllSingleton.State.ChatFilterLvl = 3;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
+                        await TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "4":
                         IllSingleton.State.ChatFilterLvl = 4;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
+                        await TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     case "5":
                         IllSingleton.State.ChatFilterLvl = 5;
                         SaveAppConfig();
-                        TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
+                        await TtvIRCClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
                         break;
                     default:
-                        TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                        await TtvIRCClient.SendMessage(STRINGS.InputERROR);
                         break;
                 }
             }
             else
-                TtvIRCClient.SendMessage("Допустимые значения: 0, 1, 2, 3, 4. 0 - бездействие. 1 - удаление сообщения. 2 - удаления и оповещение модераторов. 3 - таймаут на сутки. 4 - таймаут на неделю. 5 - бан. <<!chatfilter 3>>");
+                await TtvIRCClient.SendMessage("Допустимые значения: 0, 1, 2, 3, 4. 0 - бездействие. 1 - удаление сообщения. 2 - удаления и оповещение модераторов. 3 - таймаут на сутки. 4 - таймаут на неделю. 5 - бан. <<!chatfilter 3>>");
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task GetAllRewards(UserObject user)
@@ -845,7 +845,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             int rewardsCount = rewards.Data.Length;
             string rewardsTitle = string.Join(" | ", rewards.Data.Select(r => r.Title));
             string message = string.Format(STRINGS.GetAllReward_chatMessage, rewardsCount, rewardsTitle);
-            TtvIRCClient.SendMessage(message);
+            await TtvIRCClient.SendMessage(message);
         }
         public static async Task StartCronTask(UserObject user, string input)
         {
@@ -853,7 +853,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var inputParts = input.Split(' ');
             if (inputParts.Length <= 4)
             {
-                TtvIRCClient.SendMessage(STRINGS.StartCronTaskERROR);
+                await TtvIRCClient.SendMessage(STRINGS.StartCronTaskERROR);
             }
             else
             {
@@ -862,12 +862,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var cronExpression = string.Join(" ", inputParts.Skip(3));
                 if (!quartzBackgroundTaskManager.IsCronExpressionValid(cronExpression))
                 {
-                    TtvIRCClient.SendMessage(STRINGS.StartCronTaskERROR2);
+                    await TtvIRCClient.SendMessage(STRINGS.StartCronTaskERROR2);
                 }
                 else
                 {
                     await quartzBackgroundTaskManager.UpdateJobSchedule(taskName, triggerName, cronExpression);
-                    TtvIRCClient.SendMessage(STRINGS.StartCronTaskSuccess);
+                    await TtvIRCClient.SendMessage(STRINGS.StartCronTaskSuccess);
                 }
             }
         }
@@ -875,7 +875,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
             var jobs = await quartzBackgroundTaskManager.GetAllJobsNames().ConfigureAwait(false);
-            TtvIRCClient.SendMessage(jobs);
+            await TtvIRCClient.SendMessage(jobs);
         }
         public static async Task ChangeLanguage(UserObject user, string[] input)
         {
@@ -884,27 +884,27 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 case "ru":
                     CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ru-RU");
                     CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("ru-RU");
-                    TtvIRCClient.SendMessage(STRINGS.language);
+                    await TtvIRCClient.SendMessage(STRINGS.language);
                     break;
                 case "eng":
                     CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("en-US");
                     CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("en-US");
-                    TtvIRCClient.SendMessage(STRINGS.language);
+                    await TtvIRCClient.SendMessage(STRINGS.language);
                     break;
                 case "fr":
                     CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("fr-FR");
                     CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("fr-FR");
-                    TtvIRCClient.SendMessage(STRINGS.language);
+                    await TtvIRCClient.SendMessage(STRINGS.language);
                     break;
                 case "ja":
                     CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ja-JP");
                     CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("ja-JP");
-                    TtvIRCClient.SendMessage(STRINGS.language);
+                    await TtvIRCClient.SendMessage(STRINGS.language);
                     break;
                 case "ko":
                     CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("ko_KR");
                     CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("ko_KR");
-                    TtvIRCClient.SendMessage(STRINGS.language);
+                    await TtvIRCClient.SendMessage(STRINGS.language);
                     break;
                 default:
                     break;
@@ -938,14 +938,14 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (IllSingleton.State.Debug) IllSingleton.State.Debug = false;
             else IllSingleton.State.Debug = true;
-            TtvIRCClient.SendMessage($"Debug mode is {IllSingleton.State.Debug}");
+            await TtvIRCClient.SendMessage($"Debug mode is {IllSingleton.State.Debug}");
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task ToggleSilentMode(UserObject user)
         {
             if (IllSingleton.State.IsSilent) IllSingleton.State.IsSilent = false;
             else IllSingleton.State.IsSilent = true;
-            TtvIRCClient.SendMessage($"SilentMode mode is {IllSingleton.State.IsSilent}");
+            await TtvIRCClient.SendMessage($"SilentMode mode is {IllSingleton.State.IsSilent}");
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task Ttvgg(UserObject user)
@@ -964,7 +964,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var roulettCD = user.roulettCD - currentUnixTime;
             roulettCD = roulettCD < 0 ? 0 : roulettCD;
             TimeSpan time = TimeSpan.FromSeconds(roulettCD);
-            TtvIRCClient.SendMessage($"@{user.Name}, твой винстрик в рулетке {user.roulettCon} {IntUtil.CalculateTopPercentage(results[0])}, " +
+            await TtvIRCClient.SendMessage($"@{user.Name}, твой винстрик в рулетке {user.roulettCon} {IntUtil.CalculateTopPercentage(results[0])}, " +
                 $"всего ты отправил {user.messageCon} сообщений {IntUtil.CalculateTopPercentage(results[2])}, " +
                 $"ты был в увале {user.UvalCon} раз {IntUtil.CalculateTopPercentage(results[1])}, " +
                 $"у тебя есть {user.QuizPoints} баллов квиза {IntUtil.CalculateTopPercentage(results[4])}, " +
@@ -977,13 +977,13 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (input.Length != 2)
             {
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
                 return;
             }
             var UserToUnban = await _databaseService.GetUserAsync(input[1]).ConfigureAwait(false);
             if (UserToUnban.dbID == -404)
             {
-                TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
+                await TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
                 return;
             }
             var path = IllSkillzBotMain.GetDataPath().uniquePath;
@@ -991,17 +991,17 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (FileManipulator.DeleteLineFromFile(path, UserToUnban.TwitchID.ToString()))
             {
                 IllChatFilters.EditUserBlackList(UserToUnban.TwitchID.ToString());
-                TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} удален из черного списка");
+                await TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} удален из черного списка");
             }
             else
-                TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} не был найден в черном списке");
+                await TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} не был найден в черном списке");
 
         }
         public static async Task AddTowhiteList(UserObject user, string[] input)
         {
             if (input.Length != 2)
             {
-                TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
                 return;
             }
             var path = IllSkillzBotMain.GetDataPath().sharedPath;
@@ -1012,16 +1012,16 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         }
         public static async Task AddSubscription(UserObject user)
         {
-            TtvIRCClient.SendMessage(AddSub.NewPurchase().ToString());
+            await TtvIRCClient.SendMessage(AddSub.NewPurchase().ToString());
             SubCheck.RunChecker();
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task CheckSubscription(UserObject user)
         {
             if (SubCheck.RunChecker())
-                TtvIRCClient.SendMessage("Valid!");
+                await TtvIRCClient.SendMessage("Valid!");
             else
-                TtvIRCClient.SendMessage("Expired!");
+                await TtvIRCClient.SendMessage("Expired!");
             await Task.CompletedTask.ConfigureAwait(false);
         }
         public static async Task GetMods(UserObject user)
@@ -1030,7 +1030,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             string Moderators = "";
             foreach (var mod in mods)
                 Moderators += mod.UserLogin + ": " + mod.UserId + ". ";
-            TtvIRCClient.SendMessage(Moderators);
+            await TtvIRCClient.SendMessage(Moderators);
         }
         public static async Task Sheptun(UserObject user)
         {
@@ -1043,12 +1043,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         }
         public static async Task getJobs(UserObject user)
         {
-            TtvIRCClient.SendMessage(await QuartzBackgroundTaskManager.GetRunningJobs().ConfigureAwait(false));
+            await TtvIRCClient.SendMessage(await QuartzBackgroundTaskManager.GetRunningJobs().ConfigureAwait(false));
         }
 
         public static async Task Ping()
         {
-            TtvIRCClient.SendMessage("pong");
+            await TtvIRCClient.SendMessage("pong");
             await Task.CompletedTask.ConfigureAwait(false);
         }
     }

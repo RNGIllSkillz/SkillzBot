@@ -80,7 +80,7 @@ namespace SkillzBot.IllSkillzBot
                     await TtvAPI.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutPic).ConfigureAwait(false);
                     fl2 = true;
                 }
-                if (IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName))
+                if (await IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName).ConfigureAwait(false))
                     return await IllCommands.IllFilterTrigger(user, e.ChatMessage.Id).ConfigureAwait(false);
                 if (fl2)
                     return user;
@@ -94,7 +94,7 @@ namespace SkillzBot.IllSkillzBot
                     return user;
                 }
                 if (IllSingleton.State.QuizIsRunning)
-                    user = IllGames.UserGuessAnswer(user, e.ChatMessage.Message);
+                    user = await IllGames.UserGuessAnswer(user, e.ChatMessage.Message).ConfigureAwait(false);
                 else
                     IllGames.QuizzActiveUser(user.TwitchID.ToString());
             }
@@ -105,7 +105,7 @@ namespace SkillzBot.IllSkillzBot
             //if (user.isMod != 1) return user;
             //if (e.ChatMessage.Message.StartsWith("@bot_illskillz", StringComparison.OrdinalIgnoreCase))
             //{                
-                //TtvIRCClient.SendMessage($"@{e.ChatMessage.DisplayName} {await IllCommands.GetGPTResponce(e.ChatMessage.DisplayName, e.ChatMessage.Message).ConfigureAwait(false)}");                
+                //await TtvIRCClient.SendMessage($"@{e.ChatMessage.DisplayName} {await IllCommands.GetGPTResponce(e.ChatMessage.DisplayName, e.ChatMessage.Message).ConfigureAwait(false)}");                
             //}
             return user;
         }
