@@ -16,7 +16,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Linq;
-using SkillzBot.MySQL;
+using SkillzBot.Interfaces;
 using SkillzBot.Singleton;
 
 

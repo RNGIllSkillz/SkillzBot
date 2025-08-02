@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using SkillzBot.MySQL;
+using SkillzBot.Interfaces;
 using System;
 
 namespace SkillzBot.Hosts

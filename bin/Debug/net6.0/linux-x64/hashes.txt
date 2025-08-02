@@ -82,7 +82,7 @@
 /SkillzBotHost/System.Threading.dll|34c937cd
 /SkillzBotHost/System.Xml.XmlSerializer.dll|472d8b5a
 /SkillzBotHost/Microsoft.AspNetCore.Authentication.OAuth.dll|95019ae7
-/SkillzBotHost/hashes.txt|502c311f
+/SkillzBotHost/hashes.txt|a237dd03
 /SkillzBotHost/Microsoft.AspNetCore.Authentication.Core.dll|1d5d9557
 /SkillzBotHost/Microsoft.AspNetCore.Components.Forms.dll|79644758
 /SkillzBotHost/System.Net.Http.dll|3be68845
@@ -223,7 +223,7 @@
 /SkillzBotHost/Microsoft.AspNetCore.DataProtection.Extensions.dll|7bb97481
 /SkillzBotHost/Microsoft.AspNetCore.Mvc.TagHelpers.dll|9376a729
 /SkillzBotHost/System.Diagnostics.EventLog.dll|9a1d6d9c
-/SkillzBotHost/SkillzBot.pdb|5fc8258f
+/SkillzBotHost/SkillzBot.pdb|622ca11b
 /SkillzBotHost/System.Reflection.Emit.ILGeneration.dll|8480f3ce
 /SkillzBotHost/System.Diagnostics.Tracing.dll|7dc97394
 /SkillzBotHost/Microsoft.Extensions.Logging.TraceSource.dll|1b159a42
@@ -320,7 +320,7 @@
 /SkillzBotHost/Microsoft.AspNetCore.Hosting.dll|9815e1fc
 /SkillzBotHost/System.Buffers.dll|0cba9222
 /SkillzBotHost/TwitchLib.Api.Core.dll|f0b7ccd0
-/SkillzBotHost/SkillzBot.dll|ba96191f
+/SkillzBotHost/SkillzBot.dll|dbd7b492
 /SkillzBotHost/System.Runtime.Loader.dll|78879a2c
 /SkillzBotHost/System.ObjectModel.dll|bca248c3
 /SkillzBotHost/System.Transactions.Local.dll|24d3d204
@@ -370,7 +370,7 @@
 /SkillzBotHost/System.Reflection.Emit.Lightweight.dll|adad41ff
 /SkillzBotHost/System.Security.SecureString.dll|5f0c67c6
 /SkillzBotHost/SkillzBot.staticwebassets.endpoints.json|43a3a447
-/SkillzBotHost/fr/SkillzBot.resources.dll|20b8b3b0
-/SkillzBotHost/ja/SkillzBot.resources.dll|a525ff79
-/SkillzBotHost/ru/SkillzBot.resources.dll|62568c82
-/SkillzBotHost/ko/SkillzBot.resources.dll|bb4f5375
+/SkillzBotHost/fr/SkillzBot.resources.dll|5038b38a
+/SkillzBotHost/ja/SkillzBot.resources.dll|5aaeb233
+/SkillzBotHost/ru/SkillzBot.resources.dll|7dee216b
+/SkillzBotHost/ko/SkillzBot.resources.dll|ada05d2f

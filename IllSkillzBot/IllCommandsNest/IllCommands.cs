@@ -20,7 +20,7 @@ using System.IO;
 using SkillzBot.SubUtils;
 using Camille.Enums;
 using SkillzBot.API.RiotGames;
-using SkillzBot.MySQL;
+using SkillzBot.Interfaces;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using SkillzBot.Singleton;

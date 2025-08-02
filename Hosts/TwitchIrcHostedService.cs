@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SkillzBot.IRC;
+using SkillzBot.Interfaces;
 using System.Threading.Tasks;
 using System.Threading;
 using System;

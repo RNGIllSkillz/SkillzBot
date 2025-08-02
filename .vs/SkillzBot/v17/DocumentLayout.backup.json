@@ -3,28 +3,64 @@
   "WorkspaceRootPath": "Z:\\prj\\GitHub\\SkillzBot\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\ttvclient\\ttvircclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:ttvclient\\ttvircclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\hosts\\ihostbuilders.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:hosts\\ihostbuilders.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\ttvclient\\ttveventsub.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:ttvclient\\ttveventsub.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\hosts\\ihostbuilders.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:hosts\\ihostbuilders.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\mysql.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\mysql.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\collectionextension.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\collectionextension.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illcommandsnest\\illcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illcommandsnest\\illcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\hosts\\serviceprovider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:hosts\\serviceprovider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\hosts\\twitchirchostedservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:hosts\\twitchirchostedservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\hosts\\serviceprovider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:hosts\\serviceprovider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\ttvclient\\ttvircclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:ttvclient\\ttvircclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\interfaces\\ircclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:interfaces\\ircclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\interfaces\\database.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:interfaces\\database.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\interface.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\interface.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\dbutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\dbutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\dbmysqlutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\dbmysqlutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\configuration.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\configuration.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\ttvclient\\ttvrewards\\rewardsredemption.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -47,10 +83,6 @@
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:subutils\\subcall.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illcommandsnest\\illcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illcommandsnest\\illcommands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\utils\\triehelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:utils\\triehelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -67,16 +99,8 @@
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:discordclient\\discordclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\mysql.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\mysql.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\api\\getmmr_api.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:api\\getmmr_api.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\interface.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\interface.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illsingleton\\botconfigurationfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -97,10 +121,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\subutils\\subcheck.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:subutils\\subcheck.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\dbutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\dbutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illaccess.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -125,10 +145,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\quartz\\backgroundtasks.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:quartz\\backgroundtasks.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\collectionextension.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\collectionextension.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illpredictions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -173,14 +189,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\illskillzbot\\illenums.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:illskillzbot\\illenums.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\configuration.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\configuration.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\mysql\\dbmysqlutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|solutionrelative:mysql\\dbmysqlutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{B5D9EB9E-BF49-4DCE-B560-D369C5BF85FA}|SkillzBot.csproj|z:\\prj\\github\\skillzbot\\writers\\userblacklistwriter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -242,24 +250,50 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 56,
+          "SelectedChildIndex": 29,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 9,
+              "Title": "IRCClient.cs",
+              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Interfaces\\IRCClient.cs",
+              "RelativeDocumentMoniker": "Interfaces\\IRCClient.cs",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Interfaces\\IRCClient.cs",
+              "RelativeToolTip": "Interfaces\\IRCClient.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAeAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-02T00:43:23.996Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "Database.cs",
+              "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Interfaces\\Database.cs",
+              "RelativeDocumentMoniker": "Interfaces\\Database.cs",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Interfaces\\Database.cs",
+              "RelativeToolTip": "Interfaces\\Database.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAA8AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-02T00:42:23.744Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
               "Title": "TwitchIrcHostedService.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Hosts\\TwitchIrcHostedService.cs",
               "RelativeDocumentMoniker": "Hosts\\TwitchIrcHostedService.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Hosts\\TwitchIrcHostedService.cs",
               "RelativeToolTip": "Hosts\\TwitchIrcHostedService.cs",
-              "ViewState": "AgIAAAYAAAAAAAAAAAAAACcAAAARAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAqwA8AAAAmAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-01T23:48:31.376Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
+              "DocumentIndex": 27,
               "Title": "BotConfigWriter.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Writers\\BotConfigWriter.cs",
               "RelativeDocumentMoniker": "Writers\\BotConfigWriter.cs",
@@ -271,7 +305,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 28,
               "Title": "IntUtil.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\IntUtil.cs",
               "RelativeDocumentMoniker": "Utils\\IntUtil.cs",
@@ -283,7 +317,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 29,
               "Title": "SubCheck.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\SubUtils\\SubCheck.cs",
               "RelativeDocumentMoniker": "SubUtils\\SubCheck.cs",
@@ -295,7 +329,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 19,
               "Title": "SubCall.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\SubUtils\\SubCall.cs",
               "RelativeDocumentMoniker": "SubUtils\\SubCall.cs",
@@ -303,12 +337,11 @@
               "RelativeToolTip": "SubUtils\\SubCall.cs",
               "ViewState": "AgIAABMAAAAAAAAAAAD4vygAAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-28T21:53:58.302Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-28T21:53:58.302Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 25,
+              "DocumentIndex": 30,
               "Title": "IllAccess.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllAccess.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllAccess.cs",
@@ -320,7 +353,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 27,
+              "DocumentIndex": 32,
               "Title": "HttpHandler.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\API\\RiotGames\\HttpHandler.cs",
               "RelativeDocumentMoniker": "API\\RiotGames\\HttpHandler.cs",
@@ -332,7 +365,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 26,
+              "DocumentIndex": 31,
               "Title": "DiscordCommands.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\DiscordClient\\DiscordCommands.cs",
               "RelativeDocumentMoniker": "DiscordClient\\DiscordCommands.cs",
@@ -344,7 +377,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 35,
+              "DocumentIndex": 39,
               "Title": "ChatGPT.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\API\\ChatGPT.cs",
               "RelativeDocumentMoniker": "API\\ChatGPT.cs",
@@ -356,7 +389,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 36,
+              "DocumentIndex": 40,
               "Title": "SingletonService.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSingleton\\SingletonService.cs",
               "RelativeDocumentMoniker": "IllSingleton\\SingletonService.cs",
@@ -368,7 +401,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 38,
+              "DocumentIndex": 42,
               "Title": "GameState.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSingleton\\GameState.cs",
               "RelativeDocumentMoniker": "IllSingleton\\GameState.cs",
@@ -380,7 +413,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 39,
+              "DocumentIndex": 43,
               "Title": "BotState.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSingleton\\BotState.cs",
               "RelativeDocumentMoniker": "IllSingleton\\BotState.cs",
@@ -392,7 +425,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 37,
+              "DocumentIndex": 41,
               "Title": "Records.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSingleton\\Records.cs",
               "RelativeDocumentMoniker": "IllSingleton\\Records.cs",
@@ -404,7 +437,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
+              "DocumentIndex": 25,
               "Title": "BotConfigurationFactory.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSingleton\\BotConfigurationFactory.cs",
               "RelativeDocumentMoniker": "IllSingleton\\BotConfigurationFactory.cs",
@@ -412,12 +445,11 @@
               "RelativeToolTip": "IllSingleton\\BotConfigurationFactory.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAA5AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-28T21:38:33.215Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-28T21:38:33.215Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 40,
+              "DocumentIndex": 44,
               "Title": "BotConfigModel.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSingleton\\BotConfigModel.cs",
               "RelativeDocumentMoniker": "IllSingleton\\BotConfigModel.cs",
@@ -429,7 +461,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 26,
               "Title": "Singleton.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSingleton\\Singleton.cs",
               "RelativeDocumentMoniker": "IllSingleton\\Singleton.cs",
@@ -441,7 +473,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 48,
+              "DocumentIndex": 50,
               "Title": "NetUtil.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\NetUtil.cs",
               "RelativeDocumentMoniker": "Utils\\NetUtil.cs",
@@ -453,7 +485,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 41,
+              "DocumentIndex": 45,
               "Title": "ConfigurationReader.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Readers\\ConfigurationReader.cs",
               "RelativeDocumentMoniker": "Readers\\ConfigurationReader.cs",
@@ -465,7 +497,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 50,
+              "DocumentIndex": 52,
               "Title": "QScheduler.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\QuartZ\\QScheduler.cs",
               "RelativeDocumentMoniker": "QuartZ\\QScheduler.cs",
@@ -477,7 +509,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 32,
+              "DocumentIndex": 36,
               "Title": "IllPredictions.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllPredictions.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllPredictions.cs",
@@ -485,12 +517,11 @@
               "RelativeToolTip": "IllSkillzBot\\IllPredictions.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-28T00:09:57.528Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-28T00:09:57.528Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 28,
+              "DocumentIndex": 33,
               "Title": "Streamelements_api.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\API\\Streamelements_api.cs",
               "RelativeDocumentMoniker": "API\\Streamelements_api.cs",
@@ -498,12 +529,11 @@
               "RelativeToolTip": "API\\Streamelements_api.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-28T00:01:45.072Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-28T00:01:45.072Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 34,
+              "DocumentIndex": 38,
               "Title": "camille_riotapi.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\API\\RiotGames\\camille_riotapi.cs",
               "RelativeDocumentMoniker": "API\\RiotGames\\camille_riotapi.cs",
@@ -515,7 +545,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 29,
+              "DocumentIndex": 34,
               "Title": "YouTube_api.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\API\\YouTube_api.cs",
               "RelativeDocumentMoniker": "API\\YouTube_api.cs",
@@ -527,7 +557,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 33,
+              "DocumentIndex": 37,
               "Title": "TwitchLib_api.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\API\\TwitchLib_api.cs",
               "RelativeDocumentMoniker": "API\\TwitchLib_api.cs",
@@ -539,7 +569,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 17,
+              "DocumentIndex": 24,
               "Title": "GetMMR_api.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\API\\GetMMR_api.cs",
               "RelativeDocumentMoniker": "API\\GetMMR_api.cs",
@@ -547,12 +577,11 @@
               "RelativeToolTip": "API\\GetMMR_api.cs",
               "ViewState": "AgIAAAwAAAAAAAAAAAAAACkAAAAyAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T23:52:12.901Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T23:52:12.901Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 52,
+              "DocumentIndex": 54,
               "Title": "IllLogger.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Writers\\IllLogger.cs",
               "RelativeDocumentMoniker": "Writers\\IllLogger.cs",
@@ -570,27 +599,27 @@
               "RelativeDocumentMoniker": "Hosts\\ServiceProvider.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Hosts\\ServiceProvider.cs",
               "RelativeToolTip": "Hosts\\ServiceProvider.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAqwAsAAAAbAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAbAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-27T23:37:44.308Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 0,
               "Title": "IHostBuilders.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Hosts\\IHostBuilders.cs",
               "RelativeDocumentMoniker": "Hosts\\IHostBuilders.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Hosts\\IHostBuilders.cs",
-              "RelativeToolTip": "Hosts\\IHostBuilders.cs",
-              "ViewState": "AgIAACoAAAAAAAAAAAAowDkAAAAAAAAAAAAAAA==",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Hosts\\IHostBuilders.cs*",
+              "RelativeToolTip": "Hosts\\IHostBuilders.cs*",
+              "ViewState": "AgIAAB8AAAAAAAAAAAAWwD0AAAAUAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-27T23:36:38.66Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 21,
               "Title": "CooldownManager.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\CooldownManager.cs",
               "RelativeDocumentMoniker": "Utils\\CooldownManager.cs",
@@ -598,12 +627,11 @@
               "RelativeToolTip": "Utils\\CooldownManager.cs",
               "ViewState": "AgIAADUAAAAAAAAAAAAwwAYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T23:30:57.439Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T23:30:57.439Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 42,
+              "DocumentIndex": 46,
               "Title": "IllEnums.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllEnums.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllEnums.cs",
@@ -615,7 +643,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 53,
+              "DocumentIndex": 55,
               "Title": "BGs.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\QuartZ\\BGs.cs",
               "RelativeDocumentMoniker": "QuartZ\\BGs.cs",
@@ -627,7 +655,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 23,
               "Title": "DiscordClient.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\DiscordClient\\DiscordClient.cs",
               "RelativeDocumentMoniker": "DiscordClient\\DiscordClient.cs",
@@ -635,12 +663,11 @@
               "RelativeToolTip": "DiscordClient\\DiscordClient.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAoAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T17:44:22.223Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T17:44:22.223Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 22,
               "Title": "IllCommandHandler.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs",
@@ -648,12 +675,11 @@
               "RelativeToolTip": "IllSkillzBot\\IllCommandsNest\\IllCommandHandler.cs",
               "ViewState": "AgIAADIAAAAAAAAAAAAwwAwAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T17:43:53.524Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T17:43:53.524Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 30,
+              "DocumentIndex": 35,
               "Title": "BackGroundTasks.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\QuartZ\\BackGroundTasks.cs",
               "RelativeDocumentMoniker": "QuartZ\\BackGroundTasks.cs",
@@ -661,12 +687,11 @@
               "RelativeToolTip": "QuartZ\\BackGroundTasks.cs",
               "ViewState": "AgIAAAYAAAAAAAAAAAAIwAoAAAAtAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T17:41:16.586Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T17:41:16.586Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 15,
               "Title": "RewardsRedemption.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVRewards\\RewardsRedemption.cs",
               "RelativeDocumentMoniker": "TtvClient\\TTVRewards\\RewardsRedemption.cs",
@@ -674,12 +699,11 @@
               "RelativeToolTip": "TtvClient\\TTVRewards\\RewardsRedemption.cs",
               "ViewState": "AgIAABQAAAAAAAAAAAAxwGEBAAA9AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T17:34:56.293Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T17:34:56.293Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 51,
+              "DocumentIndex": 53,
               "Title": "IllModeratorsInteractions.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllModeratorsInteractions.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllModeratorsInteractions.cs",
@@ -687,12 +711,11 @@
               "RelativeToolTip": "IllSkillzBot\\IllModeratorsInteractions.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAAiAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T17:34:51.503Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T17:34:51.503Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 16,
               "Title": "IllChatMessageHandler.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllChatMessageHandler.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllChatMessageHandler.cs",
@@ -700,12 +723,11 @@
               "RelativeToolTip": "IllSkillzBot\\IllChatMessageHandler.cs",
               "ViewState": "AgIAAGYAAAAAAAAAAAAWwF4AAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T17:32:17.458Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T17:32:17.458Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 17,
               "Title": "IllGames.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllGames.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllGames.cs",
@@ -713,50 +735,50 @@
               "RelativeToolTip": "IllSkillzBot\\IllGames.cs",
               "ViewState": "AgIAAKQAAAAAAAAAAAAtwLkAAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T17:19:58.301Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T17:19:58.301Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "TTVEventSub.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVEventSub.cs",
               "RelativeDocumentMoniker": "TtvClient\\TTVEventSub.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVEventSub.cs",
               "RelativeToolTip": "TtvClient\\TTVEventSub.cs",
-              "ViewState": "AgIAADEAAAAAAAAAAAAgwBsAAABAAAAAAAAAAA==",
+              "ViewState": "AgIAAAEAAAAAAAAAAAD4vw8AAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-27T16:57:34.754Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 8,
               "Title": "TTVIRCClient.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVIRCClient.cs",
               "RelativeDocumentMoniker": "TtvClient\\TTVIRCClient.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\TtvClient\\TTVIRCClient.cs",
               "RelativeToolTip": "TtvClient\\TTVIRCClient.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAAlAAAAAAAAAA==",
+              "ViewState": "AgIAAAkAAAAAAAAAAAAAABkAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-27T16:54:30.859Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 31,
+              "DocumentIndex": 3,
               "Title": "CollectionExtension.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\CollectionExtension.cs",
               "RelativeDocumentMoniker": "MySQL\\CollectionExtension.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\CollectionExtension.cs",
               "RelativeToolTip": "MySQL\\CollectionExtension.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAxAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T16:53:38.235Z"
+              "WhenOpened": "2025-07-27T16:53:38.235Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 54,
+              "DocumentIndex": 56,
               "Title": "TrackUser.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\MODELS\\TrackUser.cs",
               "RelativeDocumentMoniker": "MODELS\\TrackUser.cs",
@@ -768,7 +790,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 43,
+              "DocumentIndex": 14,
               "Title": "Configuration.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\Configuration.cs",
               "RelativeDocumentMoniker": "MySQL\\Configuration.cs",
@@ -776,24 +798,25 @@
               "RelativeToolTip": "MySQL\\Configuration.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T16:41:29.745Z"
+              "WhenOpened": "2025-07-27T16:41:29.745Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 18,
+              "DocumentIndex": 11,
               "Title": "Interface.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\Interface.cs",
               "RelativeDocumentMoniker": "MySQL\\Interface.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\Interface.cs",
               "RelativeToolTip": "MySQL\\Interface.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAVAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-27T16:38:25.548Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 20,
               "Title": "TrieHelper.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\TrieHelper.cs",
               "RelativeDocumentMoniker": "Utils\\TrieHelper.cs",
@@ -801,12 +824,11 @@
               "RelativeToolTip": "Utils\\TrieHelper.cs",
               "ViewState": "AgIAACgAAAAAAAAAAAAUwEEAAAAoAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-27T12:10:26.884Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-27T12:10:26.884Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 55,
+              "DocumentIndex": 57,
               "Title": "StringUtil.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Utils\\StringUtil.cs",
               "RelativeDocumentMoniker": "Utils\\StringUtil.cs",
@@ -818,20 +840,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 4,
               "Title": "IllCommands.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
               "RelativeToolTip": "IllSkillzBot\\IllCommandsNest\\IllCommands.cs",
-              "ViewState": "AgIAAKIBAAAAAAAAAAAtwMYBAAAQAAAAAAAAAA==",
+              "ViewState": "AgIAAAoAAAAAAAAAAAAWwBYAAAAbAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-26T01:06:50.731Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 45,
+              "DocumentIndex": 47,
               "Title": "userBlackListWriter.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Writers\\userBlackListWriter.cs",
               "RelativeDocumentMoniker": "Writers\\userBlackListWriter.cs",
@@ -843,7 +865,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 47,
+              "DocumentIndex": 49,
               "Title": "FlagWriter.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Writers\\FlagWriter.cs",
               "RelativeDocumentMoniker": "Writers\\FlagWriter.cs",
@@ -855,7 +877,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 56,
+              "DocumentIndex": 58,
               "Title": "GameStatsWriter.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Writers\\GameStatsWriter.cs",
               "RelativeDocumentMoniker": "Writers\\GameStatsWriter.cs",
@@ -867,7 +889,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 57,
+              "DocumentIndex": 59,
               "Title": "mediaqueueWriter.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Writers\\mediaqueueWriter.cs",
               "RelativeDocumentMoniker": "Writers\\mediaqueueWriter.cs",
@@ -879,7 +901,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 46,
+              "DocumentIndex": 48,
               "Title": "mediaBlackListWriter.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Writers\\mediaBlackListWriter.cs",
               "RelativeDocumentMoniker": "Writers\\mediaBlackListWriter.cs",
@@ -891,7 +913,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 49,
+              "DocumentIndex": 51,
               "Title": "TempDataReader.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Readers\\TempDataReader.cs",
               "RelativeDocumentMoniker": "Readers\\TempDataReader.cs",
@@ -903,7 +925,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 18,
               "Title": "IllChatFilters.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\IllSkillzBot\\IllChatFilters.cs",
               "RelativeDocumentMoniker": "IllSkillzBot\\IllChatFilters.cs",
@@ -911,12 +933,11 @@
               "RelativeToolTip": "IllSkillzBot\\IllChatFilters.cs",
               "ViewState": "AgIAAJIAAAAAAAAAAAAUwJcAAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-26T00:58:57.879Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-07-26T00:58:57.879Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 44,
+              "DocumentIndex": 13,
               "Title": "DBMySQLUtils.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\DBMySQLUtils.cs",
               "RelativeDocumentMoniker": "MySQL\\DBMySQLUtils.cs",
@@ -924,11 +945,12 @@
               "RelativeToolTip": "MySQL\\DBMySQLUtils.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAB4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-26T00:53:54.714Z"
+              "WhenOpened": "2025-07-26T00:53:54.714Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 24,
+              "DocumentIndex": 12,
               "Title": "DBUtils.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\DBUtils.cs",
               "RelativeDocumentMoniker": "MySQL\\DBUtils.cs",
@@ -936,30 +958,31 @@
               "RelativeToolTip": "MySQL\\DBUtils.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-26T00:53:49.518Z"
+              "WhenOpened": "2025-07-26T00:53:49.518Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 6,
               "Title": "Program.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\Program.cs",
               "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Program.cs*",
-              "RelativeToolTip": "Program.cs*",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAH0AAAAnAAAAAAAAAA==",
+              "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAbAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-17T22:30:04.818Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 2,
               "Title": "MySQL.cs",
               "DocumentMoniker": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\MySQL.cs",
               "RelativeDocumentMoniker": "MySQL\\MySQL.cs",
               "ToolTip": "Z:\\prj\\GitHub\\SkillzBot\\MySQL\\MySQL.cs",
               "RelativeToolTip": "MySQL\\MySQL.cs",
-              "ViewState": "AgIAALgCAAAAAAAAAAAswB4AAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAqwAgAAAAbAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-06-28T07:00:04.867Z",
               "EditorCaption": ""

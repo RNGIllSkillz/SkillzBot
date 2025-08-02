@@ -7,6 +7,7 @@ using TwitchLib.EventSub.Websockets.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SkillzBot.MySQL;
+using SkillzBot.Interfaces;
 using System;
 using System.IO;
 using SkillzBot.Writers;

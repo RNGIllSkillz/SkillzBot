@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using SkillzBot.MODELS;
 using SkillzBot.Utils;
 using System.Linq;
-using SkillzBot.Singleton;
+using SkillzBot.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SkillzBot.MySQL;

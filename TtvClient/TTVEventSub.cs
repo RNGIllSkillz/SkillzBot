@@ -9,12 +9,10 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets;
 using System.Collections.Generic;
 using SkillzBot.TtvClient.TTVRewards;
-using SkillzBot.IRC;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 using SkillzBot.IllSTRINGS;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
-using SkillzBot.MySQL;
+using SkillzBot.Interfaces;
 using SkillzBot.Singleton;
 
 namespace SkillzBot.EventSub
