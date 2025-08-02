@@ -35,15 +35,6 @@
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0" />
   </ItemGroup>
 
-	<ItemGroup>
-		<Reference Include="IllPubSub">
-			<HintPath>dlls\IllPubSub.dll</HintPath>
-		</Reference>
-		<Reference Include="RiotSharp">
-			<HintPath>dlls\RiotSharp.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-
   <ItemGroup>
     <EmbeddedResource Update="STRINGS\STRINGS.ko.resx">
       <LastGenOutput>STRINGS.ko.Designer.cs</LastGenOutput>

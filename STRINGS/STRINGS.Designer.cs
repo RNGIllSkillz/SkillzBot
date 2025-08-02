@@ -241,7 +241,7 @@ namespace SkillzBot.IllSTRINGS {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to @{0} Bot commands⠀available at https://www.twitch.tv/bot_illskillz/about.
+        ///   Looks up a localized string similar to @{0} Bot commands⠀available at https://github.com/RNGIllSkillz/SkillzBot/blob/main/README.md.
         /// </summary>
         internal static string HelpMessage {
             get {

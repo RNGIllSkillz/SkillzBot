@@ -198,7 +198,7 @@
     <comment>ChatMessage</comment>
   </data>
   <data name="HelpMessage" xml:space="preserve">
-    <value>@{0} ボット コマンド⠀ https://www.twitch.tv/bot_illskillz/about で利用可能</value>
+    <value>@{0} ボット コマンド⠀ https://github.com/RNGIllSkillz/SkillzBot/blob/main/README.md で利用可能</value>
     <comment>ChatMessage</comment>
   </data>
   <data name="InputERROR" xml:space="preserve">
