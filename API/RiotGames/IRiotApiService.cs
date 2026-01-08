@@ -1,5 +1,4 @@
-﻿// API/RiotGames/IRiotApiService.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.SummonerV4;
@@ -17,7 +16,7 @@ namespace SkillzBot.API.RiotGames
         Task<LeagueEntry[]> GetLeagueEntriesBySummonerAsync(string SummonerName = null, string sRegion = null);
         Camille.RiotGames.MatchV5.Participant GetParticipantByMatch(Match match);
         Task<string> UpdateSummonerByNameAsync(string gameName, string tagLine, string inRegion);
-        Task<Summoner> GetSummonerByNameAsync(string tagLine, string inRegion); // Adjusted signature
+        Task<Summoner> GetSummonerByNameAsync(string tagLine, string inRegion);
         void UpdateConfig();
     }
 }

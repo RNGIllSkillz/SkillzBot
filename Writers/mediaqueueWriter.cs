@@ -11,7 +11,6 @@ namespace SkillzBot.WRITERS
 {
     internal class MediaqueueWriter
     {
-        // Fix: Use SemaphoreSlim for Async waiting
         private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private static readonly string filePath = Path.Combine(IllSkillzBotMain.GetDataPath().uniquePath, "mediaqueue.txt");
         private static readonly ILogger<MediaqueueWriter> _logger = IllServiceProvider.GetLogger<MediaqueueWriter>();
@@ -21,12 +20,11 @@ namespace SkillzBot.WRITERS
             await _semaphore.WaitAsync();
             try
             {
-                // Simple append is safe inside Semaphore
                 await File.AppendAllTextAsync(filePath, $"{userID} {trackID}{Environment.NewLine}");
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "FlagWriterTask()");
+                _logger.LogError(e, "MediaqueueWriter Write()");
             }
             finally
             {
@@ -36,12 +34,18 @@ namespace SkillzBot.WRITERS
         public static async Task MediaQueueFlush()
         {
             await _semaphore.WaitAsync();
-            var checkqueue = await StreamElementsAPI.GetCurrentSong().ConfigureAwait(false);
-            if (checkqueue == null)
+            try
             {
-                File.WriteAllText(filePath, String.Empty);
+                var checkqueue = await StreamElementsAPI.GetCurrentSong().ConfigureAwait(false);
+                if (checkqueue == null)
+                {
+                    await File.WriteAllTextAsync(filePath, String.Empty);
+                }
             }
-            _semaphore.Release();
+            finally
+            {
+                _semaphore.Release();
+            }
         }
     }
 }

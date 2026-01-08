@@ -2,48 +2,59 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace SkillzBot.Writers
 {
     internal class FileManipulator
     {
-        public static bool DeleteLineFromFile(string filePath, string lineToDelete)
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+
+        public static async Task<bool> DeleteLineFromFileAsync(string filePath, string lineToDelete)
         {
-            string[] lines = File.ReadAllLines(filePath);
-            var updatedLines = new List<string>();
-            bool fileChanged = false;
-            foreach (string line in lines)
+            await _semaphore.WaitAsync().ConfigureAwait(false);
+            try
             {
-                if (line != lineToDelete)
+                if (!File.Exists(filePath)) return false;
+
+                string[] lines = await File.ReadAllLinesAsync(filePath).ConfigureAwait(false);
+                var updatedLines = new List<string>();
+                bool fileChanged = false;
+                foreach (string line in lines)
                 {
-                    updatedLines.Add(line);
+                    if (line != lineToDelete)
+                    {
+                        updatedLines.Add(line);
+                    }
+                    else
+                    {
+                        fileChanged = true;
+                    }
                 }
-                else
+                if (fileChanged)
                 {
-                    fileChanged = true;
+                    await File.WriteAllLinesAsync(filePath, updatedLines.ToArray()).ConfigureAwait(false);
                 }
+                return fileChanged;
             }
-            if (fileChanged)
+            finally
             {
-                File.WriteAllLines(filePath, updatedLines.ToArray());
+                _semaphore.Release();
             }
-            return fileChanged;
         }
-        public static void AddLineToFile(string filePath, string lineToAdd)
+
+        public static async Task AddLineToFileAsync(string filePath, string lineToAdd)
         {
-            string tempFilePath = Path.GetTempFileName();
-            using (StreamWriter writer = new StreamWriter(tempFilePath))
+            await _semaphore.WaitAsync().ConfigureAwait(false);
+            try
             {
-                writer.WriteLine(lineToAdd);
-                string[] existingLines = File.ReadAllLines(filePath);
-                foreach (string existingLine in existingLines)
-                {
-                    writer.WriteLine(existingLine);
-                }
+                await File.AppendAllTextAsync(filePath, lineToAdd + Environment.NewLine).ConfigureAwait(false);
             }
-            // After writing the new content to the temporary file, replace the original file.
-            File.Delete(filePath); // Delete the original file.
-            File.Move(tempFilePath, filePath);
+            finally
+            {
+                _semaphore.Release();
+            }
         }
     }
 }

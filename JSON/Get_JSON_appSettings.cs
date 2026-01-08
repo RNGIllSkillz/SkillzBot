@@ -63,8 +63,8 @@ namespace SkillzBot.JSON.Settings
 
         [JsonProperty("MySQL_password")]
         public string MySQL_password { get; set; }
-        
-        [JsonProperty("StreamElementsApiToken")] 
+
+        [JsonProperty("StreamElementsApiToken")]
         public string StreamElementsApiToken { get; set; }
 
         [JsonProperty("StreamElementsID")]

@@ -1,17 +1,20 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore;
-using Microsoft.Extensions.Hosting;
-using SkillzBot.EventSub;
-using Microsoft.Extensions.DependencyInjection;
-using TwitchLib.EventSub.Websockets.Extensions;
+﻿using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SkillzBot.MySQL;
+using SkillzBot.EventSub;
+using SkillzBot.IllSkillzBot;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Interfaces;
+using SkillzBot.IRC;
+using SkillzBot.MySQL;
+using SkillzBot.TtvClient.TTVRewards;
+using SkillzBot.Writers;
 using System;
 using System.IO;
-using SkillzBot.Writers;
-using SkillzBot.IRC;
+using TwitchLib.EventSub.Websockets.Extensions;
 
 namespace SkillzBot.Hosts
 {
@@ -51,18 +54,32 @@ namespace SkillzBot.Hosts
                 })
                 .ConfigureServices((context, services) =>
                 {
-
                     services.AddDatabaseServices(_configuration ?? context.Configuration);
                     services.AddTwitchLibEventSubWebsockets();
 
+                    // Core Services
                     services.AddSingleton<ITtvIRCClient, TtvIRCClientService>();
-                    //services.AddHostedService<TwitchIrcHostedService>(); //hosted service after refactoring
                     services.AddSingleton<API.RiotGames.IRiotApiService, API.RiotGames.RiotApiService>();
 
+                    // Logic Services (Added specific registrations)
+                    services.AddSingleton<IllChatFilters>();
+                    services.AddSingleton<IllGames>();
+                    services.AddSingleton<RewardsRedemption>();
+                    services.AddSingleton<IllModeratorsInteractions>();
+
+                    // Commands & Handlers
+                    services.AddSingleton<IllCommands>(); // FIX: Registered IllCommands
+                    services.AddSingleton<IllCommandHandler>();
+                    services.AddSingleton<IllChatMessageHandler>();
+
+                    // --- HOSTED SERVICES (Background Tasks) ---
+
+                    // 1. The EventSub (Websockets)
                     services.AddHostedService<TTVEventSub>();
 
-                    
-                });        
+                    // 2. THIS WAS MISSING: The IRC Client (Chat)
+                    services.AddHostedService<TwitchIrcHostedService>();
+                });
 
         public IHost BuildMainApplicationHost()
         {

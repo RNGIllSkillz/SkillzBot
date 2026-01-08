@@ -1,7 +1,6 @@
 ﻿using Quartz;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-using SkillzBot.WRITERS;
 using System;
 using System.Linq;
 using System.Text;
@@ -13,7 +12,7 @@ using SkillzBot.Hosts;
 public class QuartzBackgroundTaskManager
 {
     private static IScheduler _scheduler;
-    private static readonly ILogger<BackGroundTasks> _logger = IllServiceProvider.GetLogger<BackGroundTasks>();
+    private static readonly ILogger<QuartzBackgroundTaskManager> _logger = IllServiceProvider.GetLogger<QuartzBackgroundTaskManager>();
     public QuartzBackgroundTaskManager()
     {
         ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
@@ -21,14 +20,18 @@ public class QuartzBackgroundTaskManager
     }
 
     public async Task ScheduleTasks()
-    {        
+    {
         await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/4 * * * * ?").ConfigureAwait(false);
         await StackBackGroundTask("RunEvery5Min", "TaskGroup", "CalculatePointsTrigger", "TriggerGroup", "0 */5 * * * ?").ConfigureAwait(false);
         await StackBackGroundTask("RunDaily", "TaskGroup", "RunDailyTrigger", "TriggerGroup", "0 0 0 * * ?").ConfigureAwait(false);
         await StackBackGroundTask("TopRuleteTask", "TaskGroup", "TopRuleteTaskTrigger", "TriggerGroup", "0 0 */3 * * ?").ConfigureAwait(false);
         await StackBackGroundTask("MediaQueueFlush", "TaskGroup", "MediaQueueFlushTrigger", "TriggerGroup", "0 */30 * * * ?").ConfigureAwait(false);
         await StackBackGroundTask("Quizz", "TaskGroup", "QuizzTrigger", "TriggerGroup", "0 */30 * * * ?").ConfigureAwait(false);
-       //await StackBackGroundTask("CronTest", "TaskGroup", "CronTestTrigger", "TriggerGroup", "0/2 * * * * ?").ConfigureAwait(false);
+
+        if (!_scheduler.IsStarted)
+        {
+            await _scheduler.Start().ConfigureAwait(false);
+        }
     }
 
     private async Task StackBackGroundTask(string taskName, string taskGroupName, string triggerName, string triggerGroupName, string cronExpression)
@@ -43,10 +46,6 @@ public class QuartzBackgroundTaskManager
             .Build();
 
         await _scheduler.ScheduleJob(job, trigger).ConfigureAwait(false);
-        if (!_scheduler.IsStarted)
-        {
-            await _scheduler.Start().ConfigureAwait(false);
-        }
     }
     public async Task UpdateJobSchedule(string taskName, string triggerName, string cronExpression)
     {
@@ -99,12 +98,11 @@ public class QuartzBackgroundTaskManager
         }
         else
         {
-            return false; // Job with the specified name does not exist
+            return false;
         }
     }
     public async Task<string> GetAllJobsNames()
     {
-        _logger.LogCritical("GetAllJobsNames start");
         var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup()).ConfigureAwait(false);
         if (jobKeys == null || jobKeys.Count == 0)
         {
@@ -129,10 +127,10 @@ public class QuartzBackgroundTaskManager
 
         try
         {
-            new CronExpression(cronExpression);
+            CronExpression.ValidateExpression(cronExpression);
             return true;
         }
-        catch (FormatException)
+        catch (Exception)
         {
             return false;
         }

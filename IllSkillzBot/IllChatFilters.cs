@@ -13,56 +13,71 @@ using System.Linq;
 using urldetector.detection;
 using SkillzBot.Singleton;
 using SkillzBot.IRC;
+using SkillzBot.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace SkillzBot.IllSkillzBot
 {
-    sealed class IllChatFilters
+    public sealed class IllChatFilters
     {
-        private static readonly ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
-        private static readonly AhoCorasick _pichkaMatcher;
-        private static readonly HashSet<string> mediaBlack;
-        private static readonly HashSet<string> channelBlack;
-        private static readonly HashSet<string> dictionary;
-        private static readonly BannedWordsTrie bannedWordsTrie = new BannedWordsTrie();
-        private static HashSet<string> whiteList;
-        private static HashSet<string> userBlackList;
-        private static readonly int[] Arabic2;
-        private static readonly int CharsInRow = 29;
-        private static readonly int ArabCharsInRow = 4;
-        private static readonly int RowsNum = 3;
-        static IllChatFilters()
-        {            
-            mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.MediaListFileName)));
-            channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.ChannelListFileName)));
-            dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.DicFileName)));
-            whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.DicWhiteListFileName)));
-            userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.uniquePath, IllSingleton.Config.FilePaths.UserBlacklistFileName)));
-            Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
-            bannedWordsTrie.BuildTrie(dictionary);
+        private readonly ITtvIRCClient _ircClient;
+        private readonly ILogger<IllChatFilters> _logger;
+        private readonly ConfPathes _dataPaths;
 
-            // 1. Read pichka lines
-            var pichkaLines = File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.PichkaListFileName));
-            // 2. Initialize the optimized matcher
-            _pichkaMatcher = new AhoCorasick();
-            foreach (var line in pichkaLines)
-            {
-                // Trim logic is optional, 
-                // but usually raw lines are best for ASCII art.
-                if (!string.IsNullOrWhiteSpace(line))
-                {
-                    _pichkaMatcher.AddPattern(line);
-                }
-            }
-            _pichkaMatcher.Build(); //compiles the search tree
-        }
-       
+        private AhoCorasick _pichkaMatcher;
+        private HashSet<string> _mediaBlacklist;
+        private HashSet<string> _channelBlacklist;
+        private HashSet<string> _dictionary;
+        private readonly BannedWordsTrie _bannedWordsTrie = new();
+        private HashSet<string> _whitelist;
+        private HashSet<string> _userBlacklist;
 
-        public static bool CheckBooB(string message)
+        private static readonly int[] Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
+        private const int CharsInRow = 29;
+        private const int ArabCharsInRow = 4;
+        private const int RowsNum = 3;
+
+        public IllChatFilters(ITtvIRCClient ircClient, ILogger<IllChatFilters> logger)
         {
-            // Fast fail: If the message doesn't contain Braille or Block elements, 
-            // it's very likely not an ASCII art "pichka".
-            // Braille range: \u2800-\u28FF
-            // Block range: \u2580-\u259F
+            _ircClient = ircClient;
+            _logger = logger;
+            _dataPaths = IllSkillzBotMain.GetDataPath();
+            ReloadFilters();
+        }
+
+        public void ReloadFilters()
+        {
+            _logger.LogInformation("Reloading chat filters from files...");
+            try
+            {
+                _mediaBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.MediaListFileName)));
+                _channelBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.ChannelListFileName)));
+                _dictionary = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.DicFileName)));
+                _whitelist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.DicWhiteListFileName)));
+                _userBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.uniquePath, IllSingleton.Config.FilePaths.UserBlacklistFileName)));
+
+                _bannedWordsTrie.BuildTrie(_dictionary);
+
+                var pichkaLines = File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.PichkaListFileName));
+                _pichkaMatcher = new AhoCorasick();
+                foreach (var line in pichkaLines)
+                {
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        _pichkaMatcher.AddPattern(line);
+                    }
+                }
+                _pichkaMatcher.Build();
+                _logger.LogInformation("Chat filters reloaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reload chat filters.");
+            }
+        }
+
+        public bool CheckBooB(string message)
+        {
             bool hasSuspiciousChars = false;
             foreach (char c in message)
             {
@@ -72,65 +87,48 @@ namespace SkillzBot.IllSkillzBot
                     break;
                 }
             }
-
-            // If no suspicious chars, skip the heavy check (unless you have pichkas made of purely latin text)
             if (!hasSuspiciousChars) return false;
 
-            // Run the optimized Aho-Corasick check
             return _pichkaMatcher.ContainsAny(message);
-        }                                                                  
-        public static bool CheckTreck(string ID)
-        {    
-            if (mediaBlack.Contains(ID)) return true;
-            return false;
-        }                                                                       
-        public static bool CheckChannel(string channelName)
-        {      
-            if (channelBlack.Contains(channelName)) return true;
-            return false;
         }
-        public static async Task<bool> ZapCheck(string message, string name)
+        public bool CheckTreck(string ID)
+        {
+            return _mediaBlacklist.Contains(ID);
+        }
+        public bool CheckChannel(string channelName)
+        {
+            return _channelBlacklist.Contains(channelName);
+        }
+        public async Task<bool> ZapCheck(string message, string name)
         {
             if (string.IsNullOrWhiteSpace(message)) return false;
 
-            // STEP 1: Normalize but keep structure ("h_0_x_0_l word" -> "h o h o l word")
-            // We do this so we can remove whitelisted phrases correctly.
             string processingMsg = StringUtil.Normalize(message);
 
-            // STEP 2: Remove Whitelisted words/phrases
-            // Example: if "bass" is whitelisted, we remove it before checking for "ass"
-            if (whiteList != null)
+            if (_whitelist != null)
             {
-                foreach (var white in whiteList)
+                foreach (var white in _whitelist)
                 {
-                    // Ensure your whitelist items are normalized lower case strings!
                     processingMsg = processingMsg.Replace(white, " ");
                 }
             }
 
-            // STEP 3: Aggressive Squash
-            // Take the remaining string and delete ALL non-letters.
-            // "h o h o l word" -> "hoholword"
-            // "gEGEGgh0x0l" -> "gegegghohol"
             string squashedMsg = StringUtil.GetAggressiveString(processingMsg);
-
-            // STEP 4: Substring Search (Trie)
-            // The Trie will look for "hohol" inside "gegegghohol"
-            var bannedWord = bannedWordsTrie.FindBannedWord(squashedMsg);
+            var bannedWord = _bannedWordsTrie.FindBannedWord(squashedMsg);
 
             if (bannedWord != null)
             {
-                FlagWriter.FlagWriterTask($"{name} : {message} (detected: {bannedWord})");
+                await FlagWriter.FlagWriterTask($"{name} : {message} (detected: {bannedWord})").ConfigureAwait(false);
                 if (IllSingleton.State.Debug)
-                    await TtvIRCClient.SendMessage($"Filter: {bannedWord}").ConfigureAwait(false);
+                    await _ircClient.SendMessage($"Filter: {bannedWord}").ConfigureAwait(false);
                 return true;
             }
             return false;
         }
-        public static async Task<List<string>> YouTubeFilter(string ID)
+        public async Task<List<string>> YouTubeFilter(string ID)
         {
             List<string> output = new List<string>();
-            var yRes = await YouTubeSearch.YouTubeSearchByIDTask(ID);
+            var yRes = await YouTubeSearch.YouTubeSearchByIDTask(ID).ConfigureAwait(false);
             if (yRes == null) return null;
             if (yRes[0] != "view" && yRes[0] != "duration" && yRes[0] != "age" && yRes[0] != "Embeddable")
             {
@@ -142,8 +140,8 @@ namespace SkillzBot.IllSkillzBot
                 else
                 {
                     output.Add("ok");
-                    output.Add(yRes[1]); //chennel title
-                    output.Add(yRes[0]); //title
+                    output.Add(yRes[1]);
+                    output.Add(yRes[0]);
                     return output;
                 }
             }
@@ -153,12 +151,11 @@ namespace SkillzBot.IllSkillzBot
                 return output;
             }
         }
-        public static bool IsUserBlacklisted(string userID)
+        public bool IsUserBlacklisted(string userID)
         {
-            if (userBlackList.Contains(userID)) return true;
-            return false;
+            return _userBlacklist.Contains(userID);
         }
-        public static async Task<bool> DeleteLinks(UserObject user, OnMessageReceivedArgs e)
+        public async Task<bool> DeleteLinks(UserObject user, OnMessageReceivedArgs e)
         {
             if (user.isMod == 1 || user.IsBroadcaster == 1) return false;
             if (!NetUtil.IsValidLink(e.ChatMessage.Message)) return false;
@@ -180,8 +177,8 @@ namespace SkillzBot.IllSkillzBot
             }
             return false;
         }
-        public static bool FilterASCII(OnMessageReceivedArgs e)
-        {            
+        public bool FilterASCII(OnMessageReceivedArgs e)
+        {
             if (e.ChatMessage.CustomRewardId != IllSingleton.Config.ChannelIds.Pi4KaId)
             {
                 int count = StringUtil.CheckASCII(e.ChatMessage.Message);
@@ -195,13 +192,13 @@ namespace SkillzBot.IllSkillzBot
             }
             return false;
         }
-        public static void EditUserBlackList(string UserTtvID)
+        public void EditUserBlackList(string UserTtvID)
         {
-            userBlackList.Remove(UserTtvID);
+            _userBlacklist.Remove(UserTtvID);
         }
-        public static void AddToWhiteList(string WordToAdd)
+        public void AddToWhiteList(string WordToAdd)
         {
-            whiteList.Add(WordToAdd);
+            _whitelist.Add(WordToAdd);
         }
     }
 }

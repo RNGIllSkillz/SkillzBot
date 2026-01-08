@@ -5,12 +5,22 @@ using SkillzBot.IllSTRINGS;
 using System.Threading.Tasks;
 using SkillzBot.MySQL;
 using SkillzBot.Hosts;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal static class IllModeratorsInteractions
+    internal class IllModeratorsInteractions
     {
-        public static async Task IllAllModsNotification(string message)
+        private readonly IDatabaseService _database;
+        private readonly ITtvIRCClient _ircClient;
+
+        public IllModeratorsInteractions(IDatabaseService database, ITtvIRCClient ircClient)
+        {
+            _database = database;
+            _ircClient = ircClient;
+        }
+
+        public async Task IllAllModsNotification(string message)
         {
             var mIds = await TtvAPI.GetAllMods().ConfigureAwait(false);
             if (mIds == null) return;
@@ -20,38 +30,38 @@ namespace SkillzBot.IllSkillzBot
                 await Task.Delay(100).ConfigureAwait(false);
             }
         }
-        public static async Task IllAddModerator(UserObject user, string[] UserInput)
+        public async Task IllAddModerator(UserObject user, string[] UserInput)
         {
             if (!IllAccess.Root(user)) return;
             if (UserInput.Length == 2)
             {
-                var aUser = await IllServiceProvider.Database.GetUserAsync(UserInput[1]).ConfigureAwait(false);
+                var aUser = await _database.GetUserAsync(UserInput[1]).ConfigureAwait(false);
                 if (aUser.dbID != -404)
                 {
                     if (aUser.isVip == 1)
                         await TtvAPI.DeleteChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
 
                     if (await TtvAPI.AddChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false))
-                        await TtvIRCClient.SendMessage(string.Format(STRINGS.AddModSuccess, aUser.Name));
+                        await _ircClient.SendMessage(string.Format(STRINGS.AddModSuccess, aUser.Name));
                     else
-                        await TtvIRCClient.SendMessage("Модерытор не добавлен, произошла ошибка.");
+                        await _ircClient.SendMessage("Модерытор не добавлен, произошла ошибка.");
                 }
                 else
-                    await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+                    await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
             }
             else
-                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await _ircClient.SendMessage(STRINGS.InputERROR);
         }
-        public static async Task IllDeleteModerator(UserObject user, string[] UserInput)
+        public async Task IllDeleteModerator(UserObject user, string[] UserInput)
         {
             if (!IllAccess.Root(user)) return;
             if (UserInput.Length == 2)
             {
-                var aUser = await IllServiceProvider.Database.GetUserAsync(UserInput[1]).ConfigureAwait(false);
+                var aUser = await _database.GetUserAsync(UserInput[1]).ConfigureAwait(false);
                 if (aUser.dbID != -404)
                 {
                     await TtvAPI.DeleteChannelModerator(aUser.TwitchID.ToString()).ConfigureAwait(false);
-                    await TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
+                    await _ircClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
                 }
                 else
                 {
@@ -59,14 +69,14 @@ namespace SkillzBot.IllSkillzBot
                     if (uID != null)
                     {
                         await TtvAPI.DeleteChannelModerator(uID).ConfigureAwait(false);
-                        await TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, aUser.Name));
+                        await _ircClient.SendMessage(string.Format(STRINGS.DeleteModSuccess, UserInput[1]));
                     }
                     else
-                        await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+                        await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
                 }
             }
             else
-                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await _ircClient.SendMessage(STRINGS.InputERROR);
         }
     }
 }

@@ -5,7 +5,7 @@
         public bool GodMode { get; set; }
         public bool WisEnabled { get; set; }
         public bool InMatch { get; set; }
-        public bool Debug { get; set; } 
+        public bool Debug { get; set; }
         public bool AutoPred { get; set; } = true;
         public bool QuizIsRunning { get; set; }
         public bool BroadcasterIsOnline { get; set; }

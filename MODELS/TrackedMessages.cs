@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     internal class TrackedMessages
     {

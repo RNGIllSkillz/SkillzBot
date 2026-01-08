@@ -1,5 +1,4 @@
-﻿
-namespace SkillzBot.JSON.MediaHistory
+﻿namespace SkillzBot.JSON.MediaHistory
 {
     using System;
     using System.Collections.Generic;
@@ -99,7 +98,7 @@ namespace SkillzBot.JSON.MediaHistory
     {
         public static string ToJson(this MediaHistoryJSON self) => JsonConvert.SerializeObject(self, Converter.Settings);
     }
-    
+
     internal class ParseStringConverter : JsonConverter
     {
         public override bool CanConvert(Type t) => t == typeof(long) || t == typeof(long?);
@@ -107,7 +106,7 @@ namespace SkillzBot.JSON.MediaHistory
         public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null) return null;
-            return serializer.Deserialize<string>(reader);            
+            return serializer.Deserialize<string>(reader);
         }
 
         public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)

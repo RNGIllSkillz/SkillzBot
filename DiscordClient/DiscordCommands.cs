@@ -4,12 +4,22 @@ using SkillzBot.Utils;
 using SkillzBot.Singleton;
 using System.Linq;
 using System.Threading.Tasks;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.Discord
 {
     internal class DiscordCommands
     {
-        public static async Task CommandHandler(string UserInput)
+        private readonly ITtvIRCClient _ircClient;
+        private readonly IllCommands _illCommands;
+
+        public DiscordCommands(ITtvIRCClient ircClient, IllCommands illCommands)
+        {
+            _ircClient = ircClient;
+            _illCommands = illCommands;
+        }
+
+        public async Task CommandHandler(string UserInput)
         {
             var command = StringUtil.SplitAllWords(UserInput.ToLower());
             switch (command[0])
@@ -30,15 +40,15 @@ namespace SkillzBot.Discord
                                 return;
                         }
                         var sNameTemp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));
-                        lp = await IllCommands.GetLpAsync(sNameTemp, command.Last()).ConfigureAwait(false);
+                        lp = await _illCommands.GetLpAsync(sNameTemp, command.Last()).ConfigureAwait(false);
                         await DiscordClient.SendMessage($"Призыватель {sNameTemp} - {lp.RANK} {lp.LPoints} LP", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     }
                     else
                     {
-                        lp = await IllCommands.GetLpAsync().ConfigureAwait(false);  
+                        lp = await _illCommands.GetLpAsync().ConfigureAwait(false);
                         await DiscordClient.SendMessage($"Призыватель {IllSingleton.Game.SummonerName} - {lp.RANK} {lp.LPoints} LP", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     }
-                        break;
+                    break;
 
                 case "!8ball":
                     if (command.Length < 2)
@@ -47,29 +57,22 @@ namespace SkillzBot.Discord
                         await DiscordClient.SendMessage(IllGames.GetMagic8BallAnswer(), IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     break;
                 case "!gpt":
-                    //var responce = await ChatGPT.GetGptResponceBasic(StringUtil.GetCommandFromUserInput(command));
+
                     await DiscordClient.SendMessage("в разработке...").ConfigureAwait(false);
                     break;
-                    
+
+                case "!say":
+                    if (command.Length > 1)
+                    {
+                        string message = StringUtil.GetCommandFromUserInput(command);
+                        await _ircClient.SendMessage(message);
+                    }
+                    break;
+
                 default:
                     await DiscordClient.SendMessage("Unknown command.", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
                     break;
-
             }
         }
-        
-        /*
-        [Command("hello")]
-        public async Task HelloCommand()
-        {
-            await DiscordClient.SendMessage ("Hello, this is the response to the hello command!").ConfigureAwait(false);
-        }
-
-        [Command("!test")]
-        public async Task TestCommand()
-        {
-            await DiscordClient.SendMessage("Hello, this is the response to the test command!").ConfigureAwait(false);
-        }
-        */
     }
 }

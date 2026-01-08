@@ -9,7 +9,6 @@ namespace SkillzBot.Infrastructure
         public BotState State { get; }
         public GameState Game { get; }
 
-        // Path helpers previously in IllSkillzBotMain
         public string DataPath { get; }
         public string SharedPath { get; }
 
@@ -25,19 +24,16 @@ namespace SkillzBot.Infrastructure
 
         public async Task LoadStateAsync()
         {
-            // We pass the path explicitly now to avoid static dependency
-            //await State.LoadAsync(DataPath);
-            //await Game.LoadAsync(DataPath, Config.FilePaths.GameStateFileName);
-            await State.LoadAsync();
-            await Game.LoadAsync();
+
+            await State.LoadAsync().ConfigureAwait(false);
+            await Game.LoadAsync().ConfigureAwait(false);
         }
 
         public async Task SaveStateAsync()
         {
-            await State.SaveAsync();
-            await Game.SaveAsync();
-            //await State.SaveAsync(DataPath);
-            //await Game.SaveAsync(DataPath, Config.FilePaths.GameStateFileName);
+            await State.SaveAsync().ConfigureAwait(false);
+            await Game.SaveAsync().ConfigureAwait(false);
+
         }
     }
 }

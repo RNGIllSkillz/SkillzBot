@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 
 namespace SkillzBot.JSON.MediaQueue
-{  
+{
     public partial class MediaQueueJson
     {
         [JsonProperty("duration")]
@@ -78,7 +76,7 @@ namespace SkillzBot.JSON.MediaQueue
         public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null) return null;
-            return serializer.Deserialize<string>(reader);           
+            return serializer.Deserialize<string>(reader);
         }
 
         public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)

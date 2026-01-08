@@ -6,6 +6,9 @@ using SkillzBot.Hosts;
 using System;
 using System.Threading.Tasks;
 using SkillzBot.Singleton;
+using SkillzBot.Interfaces;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SkillzBot.Discord
 {
@@ -16,9 +19,11 @@ namespace SkillzBot.Discord
         private static IServiceProvider _services;
         private static readonly ILogger<DiscordClient> _logger = IllServiceProvider.GetLogger<DiscordClient>();
         private static bool _IsTokenValid = true;
-        public DiscordClient()
+        private readonly ITtvIRCClient _ircClient;
+        public DiscordClient(ITtvIRCClient ircClient, IServiceProvider services)
         {
-
+            _ircClient = ircClient;
+            _services = services;
         }
         public async Task InitializeAsync()
         {
@@ -41,7 +46,7 @@ namespace SkillzBot.Discord
                 DiscordSocketConfig config = new DiscordSocketConfig
                 {
                     GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
-                    AlwaysDownloadUsers = false // Optimization
+                    AlwaysDownloadUsers = false
                 };
                 _client = new DiscordSocketClient(config);
                 _commands = new CommandService();
@@ -61,23 +66,32 @@ namespace SkillzBot.Discord
         }
         private static async Task OnDisconnected(Exception exception)
         {
-            Console.WriteLine("Discord Bot has been disconnected!.");
-            await Task.Delay(1000).ConfigureAwait(false);
+            _logger.LogWarning(exception, "Discord Bot has been disconnected! Attempting to restart...");
+            await Task.Delay(5000).ConfigureAwait(false);
             _client.Dispose();
             await StartUp(IllSingleton.Config.DiscordBotToken).ConfigureAwait(false);
         }
 
         private static Task DisLog(LogMessage arg)
         {
-            Console.WriteLine(arg);
-            _logger.LogError(arg.Message);
+            var severity = arg.Severity switch
+            {
+                LogSeverity.Critical => LogLevel.Critical,
+                LogSeverity.Error => LogLevel.Error,
+                LogSeverity.Warning => LogLevel.Warning,
+                LogSeverity.Info => LogLevel.Information,
+                LogSeverity.Verbose => LogLevel.Trace,
+                LogSeverity.Debug => LogLevel.Debug,
+                _ => LogLevel.Information
+            };
+            _logger.Log(severity, arg.Exception, "[Discord] {Source}: {Message}", arg.Source, arg.Message);
             return Task.CompletedTask;
         }
 
         private static async Task OnReady()
         {
-            Console.WriteLine("Discord Bot is connected and ready.");
-            await Task.Delay(5).ConfigureAwait(false);
+            _logger.LogInformation("Discord Bot is connected and ready.");
+            await Task.CompletedTask;
         }
         public static async Task SendMessage(string message, ulong? DiscordNoteID = null)
         {
@@ -86,9 +100,9 @@ namespace SkillzBot.Discord
             if (_client.GetChannel((ulong)DiscordNoteID) is SocketTextChannel channel)
                 await channel.SendMessageAsync(message).ConfigureAwait(false);
             else
-                Console.WriteLine($"Channel with ID {DiscordNoteID} not found.");
-        }   
-        public static async Task SendEmbedMsg(string Description,string ImageUrl = "", string summoner = "", string rank = "", string lp = "", ulong? DiscordNoteID = null, bool isUp = true, string stats = null)
+                _logger.LogWarning("Discord channel with ID {ChannelId} not found.", DiscordNoteID);
+        }
+        public static async Task SendEmbedMsg(string Description, string ImageUrl = "", string summoner = "", string rank = "", string lp = "", ulong? DiscordNoteID = null, bool isUp = true, string stats = null)
         {
             if (!_IsTokenValid) return;
             EmbedBuilder embedBuilder = new EmbedBuilder();
@@ -112,7 +126,7 @@ namespace SkillzBot.Discord
             embedBuilder.AddField("ЛП", lp);
             if (!isUp)
                 if (stats != null)
-                    embedBuilder.AddField("За сегродня", stats);
+                    embedBuilder.AddField("За сегодня", stats);
             embedBuilder.WithUrl($"https://www.twitch.tv/{IllSingleton.Config.ChannelName}");
 
             var builtEmbed = embedBuilder.Build();
@@ -120,33 +134,29 @@ namespace SkillzBot.Discord
             if (_client.GetChannel((ulong)DiscordNoteID) is SocketTextChannel channel)
                 await channel.SendMessageAsync(embed: builtEmbed).ConfigureAwait(false);
             else
-                Console.WriteLine($"Channel with ID {DiscordNoteID} not found.");            
+                _logger.LogWarning("Discord channel with ID {ChannelId} not found.", DiscordNoteID);
         }
 
         public static async Task RegisterCommandsAsync()
         {
             _client.MessageReceived += HandleCommandAsync;
             await _commands.AddModulesAsync(typeof(DiscordCommands).Assembly, _services);
+            //await Task.CompletedTask;
         }
         private static async Task HandleCommandAsync(SocketMessage arg)
         {
             var message = arg as SocketUserMessage;
+            if (message == null || message.Author.IsBot) return;
             if (message.Channel.Id != IllSingleton.Config.DiscordSpamID) return;
-            if (message.Author.IsBot) return;
+
             if (message.Content.StartsWith("!"))
-                await DiscordCommands.CommandHandler(message.Content).ConfigureAwait(false);
-                      
+            {
+                var ircClient = _services.GetRequiredService<ITtvIRCClient>();
+                var illCommands = _services.GetRequiredService<IllCommands>();
+
+                var discordCommands = new DiscordCommands(ircClient, illCommands);
+                await discordCommands.CommandHandler(message.Content).ConfigureAwait(false);
+            }
         }
-        private static async Task HandleCommandAsync2(SocketMessage arg)
-        {
-            if (!(arg is SocketUserMessage message)) return;
-            if (message.Author.IsBot) return;
-            if (message.Channel.Id != IllSingleton.Config.DiscordSpamID) return;
-            int argPos = 0;
-            if (!(message.HasStringPrefix("!", ref argPos))) return;
-            var context = new SocketCommandContext(_client, message);
-            var result = await _commands.ExecuteAsync(context, argPos, _services).ConfigureAwait(false);
-            if (!result.IsSuccess) Console.WriteLine(result.ErrorReason);
-        }        
     }
 }

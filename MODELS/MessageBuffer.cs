@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     public class MessageBuffer
     {
-            public string Name { get; set; }
-            public string Message { get; set; }
-            public string TtvID { get; set; }
-            public string TimeStamp { get; set; }        
+        public string Name { get; set; }
+        public string Message { get; set; }
+        public string TtvID { get; set; }
+        public string TimeStamp { get; set; }
     }
 }

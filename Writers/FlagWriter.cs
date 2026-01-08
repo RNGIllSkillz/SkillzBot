@@ -11,17 +11,15 @@ namespace SkillzBot.WRITERS
 {
     internal class FlagWriter
     {
-        // Fix: Use SemaphoreSlim for Async waiting
         private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private static readonly string filePath = Path.Combine(IllSkillzBotMain.GetDataPath().uniquePath, "Flags.txt");
         private static readonly ILogger<FlagWriter> _logger = IllServiceProvider.GetLogger<FlagWriter>();
 
         public static async Task FlagWriterTask(string Message)
         {
-            await _semaphore.WaitAsync(); // Async wait
+            await _semaphore.WaitAsync();
             try
             {
-                // Simple append is safe inside Semaphore
                 await File.AppendAllTextAsync(filePath, $"{DateTime.Now} {Message}{Environment.NewLine}");
             }
             catch (Exception e)

@@ -6,7 +6,7 @@ namespace SkillzBot.MODELS
 {
     internal class LP
     {
-        public string RANK {  get; set; }
+        public string RANK { get; set; }
         public string LPoints { get; set; }
     }
 }

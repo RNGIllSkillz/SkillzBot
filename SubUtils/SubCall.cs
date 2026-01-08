@@ -3,18 +3,28 @@ using SkillzBot.MODELS;
 using System;
 using SkillzBot.Singleton;
 using System.Threading.Tasks;
+using SkillzBot.Hosts;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.SubUtils
 {
     internal class SubCall
     {
+        private readonly ITtvIRCClient _ircClient;
+
+        public SubCall()
+        {
+            // Note: Since this is called from a Controller, we might need to resolve this from ServiceProvider
+            // if SubCall isn't registered in DI. Using ServiceProvider for compatibility with Controller instantiation.
+            _ircClient = IllServiceProvider.GetService<ITtvIRCClient>();
+        }
+
         public async Task PostDataProcess(apiPost model)
         {
             if (string.IsNullOrEmpty(model?.value)) return;
 
             string[] words = model.value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            // FIX: Validate length before accessing index 7 or 8
             if (words.Length < 9)
             {
                 Console.WriteLine($"Invalid Post Data: {model.value}");
@@ -48,7 +58,7 @@ namespace SkillzBot.SubUtils
         {
             var responce = AddSub.NewPurchase(amount, rate);
             SubCheck.RunChecker();
-            await TtvIRCClient.SendMessage($"@{IllSingleton.Config.ChannelName} {responce}").ConfigureAwait(false);
+            await _ircClient.SendMessage($"@{IllSingleton.Config.ChannelName} {responce}").ConfigureAwait(false);
         }
     }
 }

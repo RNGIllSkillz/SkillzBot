@@ -14,6 +14,7 @@ using SkillzBot.IRC;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using SkillzBot.Singleton;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.API.StreamElements
 {
@@ -22,7 +23,7 @@ namespace SkillzBot.API.StreamElements
         private static readonly HttpClient httpClient = new HttpClient();
         private static readonly bool ValidToken = false;
         private static readonly ILogger<StreamElementsAPI> _logger = IllServiceProvider.GetLogger<StreamElementsAPI>();
-
+        private static readonly ITtvIRCClient _ircClient = IllServiceProvider.GetService<ITtvIRCClient>();
         static StreamElementsAPI()
         {
             Console.Write("Initializing StreamElements API... ");
@@ -50,7 +51,7 @@ namespace SkillzBot.API.StreamElements
                     Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
                 };
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-                var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -59,7 +60,7 @@ namespace SkillzBot.API.StreamElements
                 {
                     if (webEx.Response is HttpWebResponse httpResp)
                     {
-                        await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(httpResp.StatusCode)}");
+                        await _ircClient.SendMessage($"StreamElements API Error: {Convert.ToString(httpResp.StatusCode)}");
                         _logger.LogError(null, $"SendMediaAsync() {httpResp.StatusCode}");
                     }
                 }
@@ -77,13 +78,13 @@ namespace SkillzBot.API.StreamElements
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    var jsonResponse = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var jsonResponse = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                     return JsonConvert.DeserializeObject<MediaHistoryJSON>(jsonResponse);
                 }
                 else
                 {
-                    await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
-                    _logger.LogError($"getFirstInHistory() {Convert.ToString(response.StatusCode)}");
+                    await _ircClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
+                    _logger.LogError("getFirstInHistory() {StatusCode}", Convert.ToString(response.StatusCode));
                 }
                 return null;
             }
@@ -102,13 +103,13 @@ namespace SkillzBot.API.StreamElements
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    var jsonResponse = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    return JsonConvert.DeserializeObject<List<MediaQueueJson>>(jsonResponse);  
+                    var jsonResponse = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                    return JsonConvert.DeserializeObject<List<MediaQueueJson>>(jsonResponse);
                 }
                 else
                 {
-                    await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
-                    _logger.LogError(null, $"getTrackQueue() {Convert.ToString(response.StatusCode)}");
+                    await _ircClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
+                    _logger.LogError("getTrackQueue() {StatusCode}", Convert.ToString(response.StatusCode));
                 }
                 return null;
             }
@@ -123,17 +124,17 @@ namespace SkillzBot.API.StreamElements
             if (!ValidToken) return null;
             using var request = new HttpRequestMessage(HttpMethod.Get, $"songrequest/{IllSingleton.Config.StreamElementsID}/playing");
             try
-            {                
+            {
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    var jsonResponse = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var jsonResponse = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                     return JsonConvert.DeserializeObject<StreamElementsJSON>(jsonResponse);
                 }
                 else
                 {
-                    await TtvIRCClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
-                    _logger.LogError(null, $"GetCurrentSong() {Convert.ToString(response.StatusCode)}");
+                    await _ircClient.SendMessage($"StreamElements API Error: {Convert.ToString(response.StatusCode)}");
+                    _logger.LogError("GetCurrentSong() {StatusCode}", Convert.ToString(response.StatusCode));
                 }
                 return null;
             }
@@ -141,7 +142,7 @@ namespace SkillzBot.API.StreamElements
             {
                 _logger.LogError(ex, "GetCurrentSong()");
                 return null;
-            }            
+            }
         }
         public static async Task SendChatMessage(string message, CancellationToken cancellationToken = default)
         {
@@ -154,8 +155,8 @@ namespace SkillzBot.API.StreamElements
             try
             {
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode)                
-                    _logger.LogError(null, $"SendChatMessage() {response.StatusCode}");                
+                if (!response.IsSuccessStatusCode)
+                    _logger.LogError("SendChatMessage() {StatusCode}", response.StatusCode);
             }
             catch (Exception ex)
             {

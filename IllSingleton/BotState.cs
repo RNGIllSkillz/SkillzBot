@@ -25,7 +25,6 @@ namespace SkillzBot.Singleton
         private int _chatFilterLvl;
         private int _antiBotProtectionLvl;
         private readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
-        
 
         public bool GodMode { get => Get(_godMode); set => Set(ref _godMode, value); }
         public bool WisEnabled { get => Get(_wisEnabled); set => Set(ref _wisEnabled, value); }
@@ -52,16 +51,26 @@ namespace SkillzBot.Singleton
                     changed = true;
                 }
             }
-            // Fire and forget, but safely queued
+
             if (changed)
             {
-                _ = Task.Run(() => SaveAsync());
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await SaveAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[ERROR] Unobserved exception in BotState.SaveAsync: {ex}");
+                    }
+                });
             }
         }
         public async Task LoadAsync()
         {
             ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
-            var BotStateFilePath = Path.Combine(dataPath.uniquePath, "BotState.txt");
+            var BotStateFilePath = Path.Combine(dataPath.uniquePath, IllSingleton.Config.FilePaths.BotStateFileName);
             await _fileSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -173,7 +182,7 @@ namespace SkillzBot.Singleton
                 BotStateModel State;
                 lock (_lock)
                 {
-                    // Create snapshot of state inside lock
+
                     State = new BotStateModel
                     {
                         GodMode = _godMode,
@@ -196,15 +205,15 @@ namespace SkillzBot.Singleton
                     WriteIndented = true
                 };
                 ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
-                var BotStateFilePath = Path.Combine(dataPath.uniquePath, "BotState.txt");
+                var BotStateFilePath = Path.Combine(dataPath.uniquePath, IllSingleton.Config.FilePaths.BotStateFileName);
                 var json = JsonSerializer.Serialize(State, options);
 
                 await _fileSemaphore.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    // Ensure directory exists
+
                     var dir = Path.GetDirectoryName(BotStateFilePath);
-                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
                     await File.WriteAllTextAsync(BotStateFilePath, json).ConfigureAwait(false);
                 }
@@ -215,7 +224,7 @@ namespace SkillzBot.Singleton
                 finally
                 {
                     _fileSemaphore.Release();
-                }            
+                }
             }
             catch (Exception ex)
             {

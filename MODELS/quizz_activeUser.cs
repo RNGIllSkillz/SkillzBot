@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
-    internal class quizz_activeUser
+    public class QuizzObject
     {
-        public string TwitchID { get; set; }
-        public int MessageCount { get; set; }
+        public string QuizzQuestion { get; set; }
+        public string QuizzAnswer { get; set; }
+        public int QuizzCost { get; set; }
     }
 }

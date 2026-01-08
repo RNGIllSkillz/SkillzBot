@@ -12,7 +12,7 @@ namespace SkillzBot.Singleton
             if (_service == null)
             {
                 var config = await BotConfigurationFactory.CreateAsync(configPath).ConfigureAwait(false);
-                var service = new SingletonService(config);                
+                var service = new SingletonService(config);
                 lock (_lock)
                     _service ??= service;
                 await _service.LoadStateAsync().ConfigureAwait(false);
@@ -47,16 +47,7 @@ namespace SkillzBot.Singleton
             EnsureInitialized();
             await _service.SaveStateAsync();
         }
-        /*
-        public static BotService Service
-        {
-            get
-            {
-                EnsureInitialized();
-                return _service;
-            }
-        }
-        */
+
         private static void EnsureInitialized()
         {
             if (_service == null)
@@ -66,5 +57,5 @@ namespace SkillzBot.Singleton
             }
         }
         public static bool IsInitialized => _service != null;
-    }  
+    }
 }

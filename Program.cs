@@ -19,6 +19,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SkillzBot.IllSkillzBot;
 
 namespace IllSkillzBot
 {
@@ -36,32 +37,41 @@ namespace IllSkillzBot
         {
             try
             {
-                // 1. Initialize Paths & Config
                 InitializePaths();
+                Console.WriteLine("Paths initialized.");
 
-                // 2. Initialize Singleton (Loads Config from file)
+                // 1. Initialize Singleton State
                 await IllSingleton.InitializeAsync(_configPath).ConfigureAwait(false);
 
-                // 3. Build Host (Sets up DI, Logger, DB, etc.)
+                // 2. Ensure Files Exist
+                await EnsureDefaultFilesExistAsync().ConfigureAwait(false);
+                await EnsureConfigurationExistsAsync().ConfigureAwait(false);
+
+                // 3. Build Host
+                Console.WriteLine("Building Host...");
                 var hostBuilders = new IHostBuilders(_dataPath, _channelName);
                 _host = hostBuilders.BuildMainApplicationHost();
 
-                // 4. Initialize Service Provider Helper
+                // 4. Initialize Service Locator
                 IllServiceProvider.Initialize(_host.Services);
                 _logger = _host.Services.GetRequiredService<ILogger<IllSkillzBotMain>>();
 
-                await _host.StartAsync().ConfigureAwait(false);
-
-                // 5. Initialize Application & Static Helpers
+                // 5. Initialize Application Settings (TtvAPI etc)
+                // We run this BEFORE starting the host so basic APIs are ready
                 await InitializeApplicationAsync().ConfigureAwait(false);
 
-                // 6. Run
+                // 6. Start Host (Starts Background Services: EventSub, IRC, Logger)
+                Console.WriteLine("Starting Host (Background Services)...");
+                await _host.StartAsync().ConfigureAwait(false);
+                Console.WriteLine("Host Started.");
+
+                // 7. Run Application Logic (Services init)
                 await RunApplicationAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"CRITICAL ERROR: {ex}");
                 if (_logger != null) _logger.LogCritical(ex, "Critical error in main application");
-                else Console.WriteLine($"Critical error before logger initialization: {ex}");
                 Environment.Exit(1);
             }
             finally
@@ -80,13 +90,11 @@ namespace IllSkillzBot
             CultureInfo.DefaultThreadCurrentCulture = culture;
             CultureInfo.DefaultThreadCurrentUICulture = culture;
 
-            await EnsureDefaultFilesExistAsync().ConfigureAwait(false);
-            await EnsureConfigurationExistsAsync().ConfigureAwait(false);
-
-            // FIX: Initialize Static API Helper here, after config and logging are ready
+            // Initialize Static API Wrappers
             TtvAPI.Initialize(_host.Services.GetRequiredService<ILogger<TtvAPI>>());
 
             _logger.LogInformation("Application initialized successfully for channel: {ChannelName}", _channelName);
+            await Task.CompletedTask;
         }
 
         private static void InitializePaths()
@@ -110,16 +118,17 @@ namespace IllSkillzBot
 
         private static async Task RunApplicationAsync()
         {
+            Console.WriteLine("Initializing External Services (Discord/Riot)...");
             var services = await InitializeServicesAsync().ConfigureAwait(false);
+
+            Console.WriteLine("Configuring Startup settings...");
             await ConfigureStartupAsync().ConfigureAwait(false);
 
+            Console.WriteLine("Scheduling Cron Tasks...");
             var quartzManager = new QuartzBackgroundTaskManager();
             await quartzManager.ScheduleTasks().ConfigureAwait(false);
 
-            var IRCClient = _host.Services.GetRequiredService<ITtvIRCClient>();
-            TtvIRCClient.Initialize(IRCClient);
-
-            // Wait for shutdown signal
+            Console.WriteLine("Bot is fully running. Waiting for exit signal.");
             _resetEvent.Wait();
 
             _logger.LogInformation("Shutting down application...");
@@ -135,19 +144,17 @@ namespace IllSkillzBot
             var services = new List<object>();
             try
             {
-                var discordClient = new DiscordClient();
+                var discordClient = new DiscordClient(
+                    _host.Services.GetRequiredService<ITtvIRCClient>(),
+                    _host.Services 
+                );
+                
                 await discordClient.InitializeAsync().ConfigureAwait(false);
                 services.Add(discordClient);
 
                 var riotService = _host.Services.GetRequiredService<IRiotApiService>();
                 await riotService.InitializeAsync().ConfigureAwait(false);
 
-                var ircClient = _host.Services.GetRequiredService<ITtvIRCClient>();
-                bool ircInitialized = await ircClient.InitializeAsync().ConfigureAwait(false);
-                if (!ircInitialized)
-                {
-                    _logger.LogWarning("Failed to initialize Twitch IRC.");
-                }
                 return services;
             }
             catch (Exception ex)
@@ -182,8 +189,7 @@ namespace IllSkillzBot
                 Path.Combine(_dataPath, "mediaqueue.txt"),
                 Path.Combine(_dataPath, "userblacklist.txt"),
                 Path.Combine(_dataPath, "mediaList.txt"),
-                Path.Combine(_dataPath, "channelList.txt"),
-                Path.Combine(_dataPath, "dailyStats.txt")
+                Path.Combine(_dataPath, "channelList.txt")
             };
 
             foreach (string filePath in filesToCreate)
@@ -214,12 +220,14 @@ namespace IllSkillzBot
         {
             var exception = (Exception)args.ExceptionObject;
             _logger?.LogCritical(exception, "Unhandled exception. IsTerminating: {IsTerminating}", args.IsTerminating);
+            Console.WriteLine($"UNHANDLED EXCEPTION: {exception}");
             if (args.IsTerminating) _resetEvent.Set();
         }
 
         private static void OnCancelKeyPress(object sender, ConsoleCancelEventArgs e)
         {
             _logger?.LogInformation("Shutdown signal received");
+            Console.WriteLine("Shutdown signal received.");
             e.Cancel = true;
             _resetEvent.Set();
         }

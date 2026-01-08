@@ -56,13 +56,20 @@ namespace SkillzBot.API.YouTube
                 _logger.LogError(ex, "YouTubeSearchByIDTask");
                 return null;
             }
+
+            if (searchResponse.Items == null || searchResponse.Items.Count == 0)
+            {
+                _logger.LogWarning("No YouTube video found for ID: {VideoID}", vidID);
+                return null;
+            }
+
             var youTubeVideo = searchResponse.Items[0];
             TimeSpan ts = XmlConvert.ToTimeSpan(youTubeVideo.ContentDetails.Duration);
 
-            if (youTubeVideo.Statistics.ViewCount < 280000) return new List<string> { "view" };      
+            if (youTubeVideo.Statistics.ViewCount < 280000) return new List<string> { "view" };
             if (ts.TotalSeconds >= 375) return new List<string> { "duration" };
             if (youTubeVideo.ContentDetails.ContentRating.YtRating != null) return new List<string> { "age" };
-            if (youTubeVideo.Status.Embeddable != true) return new List<string> { "Embeddable" }; 
+            if (youTubeVideo.Status.Embeddable != true) return new List<string> { "Embeddable" };
 
             return new List<string>
             {
@@ -85,7 +92,7 @@ namespace SkillzBot.API.YouTube
             {
                 _logger.LogError(ex, "YouTubeSearchByKeyWordTask");
                 return null;
-            }           
+            }
             var searchRequest = _YouTubeService.Videos.List(_request);
             foreach (var searchResult in searchListResponse.Items)
             {

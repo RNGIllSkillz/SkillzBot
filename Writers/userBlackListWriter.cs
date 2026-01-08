@@ -5,27 +5,26 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using SkillzBot.Singleton;
 
 namespace SkillzBot.WRITERS
 {
     internal class UserBlackListWriter
     {
-        // Fix: Use SemaphoreSlim for Async waiting
         private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
-        private static readonly string filePath = Path.Combine(IllSkillzBotMain.GetDataPath().uniquePath, "userblacklist.txt");
         private static readonly ILogger<UserBlackListWriter> _logger = IllServiceProvider.GetLogger<UserBlackListWriter>();
 
         public static async Task Write(string Message)
         {
-            await _semaphore.WaitAsync(); // Async wait
+            string filePath = Path.Combine(IllSkillzBotMain.GetDataPath().uniquePath, IllSingleton.Config.FilePaths.UserBlacklistFileName);
+            await _semaphore.WaitAsync();
             try
             {
-                // Simple append is safe inside Semaphore
                 await File.AppendAllTextAsync(filePath, $"{Message}{Environment.NewLine}");
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "FlagWriterTask()");
+                _logger.LogError(e, "UserBlackListWriter Write()");
             }
             finally
             {

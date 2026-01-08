@@ -8,6 +8,7 @@ using SkillzBot.WRITERS;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllSkillzBot;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.API.MMR
 {
@@ -16,6 +17,7 @@ namespace SkillzBot.API.MMR
         private static readonly HttpClient client;
         private static readonly string baseUrl = "https://api.mylolmmr.com/api/mmr/euw1/";
         private static readonly ILogger<MyLOLMMRApi> _logger = Hosts.IllServiceProvider.GetLogger<MyLOLMMRApi>();
+        private static readonly ITtvIRCClient _ircClient = Hosts.IllServiceProvider.GetService<ITtvIRCClient>();
         static MyLOLMMRApi()
         {
             client = new HttpClient();
@@ -39,7 +41,7 @@ namespace SkillzBot.API.MMR
                 }
                 else
                 {
-                    await TtvIRCClient.SendMessage("API call failed with status code " + response.StatusCode);
+                    await _ircClient.SendMessage("API call failed with status code " + response.StatusCode);
                     return null;
                 }
             }

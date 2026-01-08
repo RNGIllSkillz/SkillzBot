@@ -36,7 +36,6 @@ namespace SkillzBot.API.Twitch
         private static string BrodcasterID;
         private static ILogger<TtvAPI> _logger;
 
-        // NEW: Explicit Initialization Method
         public static void Initialize(ILogger<TtvAPI> logger)
         {
             _logger = logger;
@@ -66,12 +65,11 @@ namespace SkillzBot.API.Twitch
             }
         }
 
-        // Helper to check if API is ready
         private static bool IsReady()
         {
             if (!ValidToken || API == null)
             {
-                // Optional: Log verbose warning only if needed to avoid spam
+                _logger?.LogWarning("TTV API was called but it is not ready (invalid token or not initialized).");
                 return false;
             }
             return true;
@@ -137,7 +135,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             if (Champs == null || Champs.Count != 5)
             {
-                _logger?.LogError(null, "Champs list must have exactly 5 items.");
+                _logger?.LogError("Champs list must have exactly 5 items.");
                 return;
             }
 
@@ -192,7 +190,7 @@ namespace SkillzBot.API.Twitch
                 }
                 else
                 {
-                    _logger?.LogError(null, "(Task EndPrediction) currentPredID != PredID");
+                    _logger?.LogError("(Task EndPrediction) currentPredID != PredID");
                 }
             }
             catch (Exception ex)
@@ -239,7 +237,11 @@ namespace SkillzBot.API.Twitch
         public static async Task End_WinLoose_Prediction(bool win, int tryes)
         {
             if (!IsReady()) return;
-            if (tryes > 10) return; // Prevent infinite recursion
+            if (tryes > 10)
+            {
+                _logger.LogError("End_WinLoose_Prediction failed after {Tryes} retries.", tryes);
+                return;
+            }
 
             try
             {
@@ -254,7 +256,7 @@ namespace SkillzBot.API.Twitch
                 }
                 else
                 {
-                    _logger?.LogError(null, "(Task EndPrediction) currentPredID != PredID");
+                    _logger?.LogError("(Task EndPrediction) currentPredID != PredID");
                 }
             }
             catch (Exception ex)
@@ -305,8 +307,8 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var rewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
-                return rewards.Data.FirstOrDefault(r => r.Id == id);
+                var rewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID, new List<string> { id }).ConfigureAwait(false);
+                return rewards.Data.FirstOrDefault();
             }
             catch (Exception ex)
             {
@@ -321,7 +323,7 @@ namespace SkillzBot.API.Twitch
             try
             {
                 var rewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
-                return rewards.Data.FirstOrDefault(r => r.Title == title);
+                return rewards.Data.FirstOrDefault(r => r.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception ex)
             {
@@ -576,7 +578,7 @@ namespace SkillzBot.API.Twitch
                 await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
             }
             else
-                _logger?.LogError(null, $"DisableRewardAsync -> null. Id: {rewardID}");
+                _logger?.LogError("DisableRewardAsync -> null. Id: {RewardID}", rewardID);
         }
 
         public static async Task EnableRewardAsync(string rewardID)
@@ -588,7 +590,7 @@ namespace SkillzBot.API.Twitch
                 await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
             }
             else
-                _logger?.LogError(null, $"EnableRewardAsync -> null. Id: {rewardID}");
+                _logger?.LogError("EnableRewardAsync -> null. Id: {RewardID}", rewardID);
         }
 
         public static async Task DeleteChannelModerator(string UserID)

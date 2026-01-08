@@ -17,7 +17,7 @@ namespace SkillzBot.Controller
             {
                 Console.WriteLine($"RAW MODEL Data: {values.value}");
                 if (isDataValid(values.value))
-                    subCall.PostDataProcess(values);
+                    subCall.PostDataProcess(values).GetAwaiter().GetResult();
                 else
                     return BadRequest(new { Message = "API was called, but data was in incorrect format" });
             }

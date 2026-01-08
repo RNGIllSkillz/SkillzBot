@@ -12,14 +12,17 @@ using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Hosts;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Singleton;
-using SkillzBot.Utils;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.QuartZ
 {
     internal class BackGroundTasks
     {
         private static readonly ILogger<BackGroundTasks> _logger = IllServiceProvider.GetLogger<BackGroundTasks>();
-        private static CooldownManager cooldownManager = new CooldownManager();
+        private static readonly IDatabaseService _database = IllServiceProvider.GetService<IDatabaseService>();
+        private static readonly ITtvIRCClient _ircClient = IllServiceProvider.GetService<ITtvIRCClient>();
+        private static readonly IllChatMessageHandler _chatMessageHandler = IllServiceProvider.GetService<IllChatMessageHandler>();
+        
         public static async Task RunDaily()
         {
             var riotApi = IllServiceProvider.GetService<IRiotApiService>();
@@ -37,29 +40,28 @@ namespace SkillzBot.QuartZ
             IllSingleton.Game.NumLosses = 0;
             IllSingleton.Game.NumGames = 0;
             IllSingleton.Game.NumWins = 0;
-            IllCommands.SaveGameStats();
-            cooldownManager.PruneExpiredCooldowns();
+            
+            await IllSingleton.Game.SaveAsync().ConfigureAwait(false);
         }
         public static async Task StaticRunEvery5Min()
         {
-            //Save MessageBuffer
-            await IllChatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
-
-            //Check Subscription
+            await _chatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
             SubCheck.RunChecker();            
         }
-        
+
         public static async Task TopRuleteTask()
         {
             if (IllSingleton.State.BroadcasterIsOnline)
             {
                 try
                 {
-                    await IllCommands.TopRulete().ConfigureAwait(false);
+                    // FIX: Resolve IllCommands from ServiceProvider instead of manual new()
+                    var commands = IllServiceProvider.GetService<IllCommands>();
+                    await commands.TopRulete().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "");
+                    _logger.LogError(ex, "TopRuleteTask failed");
                 }
             }
         }
@@ -69,15 +71,15 @@ namespace SkillzBot.QuartZ
         }
         public static async Task CronTest()
         {
-            await TtvIRCClient.SendMessage("cron await test. 10s");
+            await _ircClient.SendMessage("cron await test. 10s").ConfigureAwait(false);
             await Task.Delay(10000);
         }
         public static async Task UserUntimeoutTrigger(string UserName)
         {
-            await Task.Delay(2000).ConfigureAwait(false); // wait for PubSub time out event
+            await Task.Delay(2000).ConfigureAwait(false); 
             while (true)
             {
-                var user = await IllServiceProvider.Database.GetUserAsync(UserName).ConfigureAwait(false);
+                var user = await _database.GetUserAsync(UserName).ConfigureAwait(false);
                 if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
                 {
                     while (!await TtvAPI.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))

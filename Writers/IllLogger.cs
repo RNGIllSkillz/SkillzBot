@@ -46,7 +46,7 @@ namespace SkillzBot.Writers
         DateTimeOffset Timestamp,
         LogLevel Level,
         string Message,
-        Exception? Exception,
+        Exception Exception,
         string CategoryName
     );
 
@@ -89,7 +89,7 @@ namespace SkillzBot.Writers
 
         public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
             if (!IsEnabled(logLevel)) return;
 
@@ -274,7 +274,7 @@ namespace SkillzBot.Writers
 
     public static class SkillzLoggingExtensions
     {
-        public static IServiceCollection AddSkillzLogging(this IServiceCollection services, Action<SkillzLoggerOptions>? configure = null)
+        public static IServiceCollection AddSkillzLogging(this IServiceCollection services, Action<SkillzLoggerOptions> configure = null)
         {
             if (configure != null)
             {
@@ -288,7 +288,7 @@ namespace SkillzBot.Writers
             return services;
         }
 
-        public static ILoggingBuilder AddSkillzLogger(this ILoggingBuilder builder, Action<SkillzLoggerOptions>? configure = null)
+        public static ILoggingBuilder AddSkillzLogger(this ILoggingBuilder builder, Action<SkillzLoggerOptions> configure = null)
         {
             if (configure != null)
             {

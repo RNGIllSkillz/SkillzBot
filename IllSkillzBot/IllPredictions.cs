@@ -11,22 +11,24 @@ using SkillzBot.API.RiotGames;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using SkillzBot.Singleton;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.IllSkillzBot
 {
     internal sealed class IllPredictions
-    {        
+    {
         private static string CurrentMatchID;
         private static string PlatformID;
         private static readonly int _maxGameLengthsec = 5400;
         private static readonly ILogger<IllPredictions> _logger = IllServiceProvider.GetLogger<IllPredictions>();
         private static IRiotApiService RiotAPI = IllServiceProvider.GetService<IRiotApiService>();
+        private static ITtvIRCClient IRCClient = IllServiceProvider.GetService<ITtvIRCClient>();
         public static async Task GetCurrentMatchTask()
         {
             if (IllSingleton.State.Debug) _logger.LogDebug("Running GetCurrentMatchTask()");
             if (!IllSingleton.State.isSubActive) return;
             if (IllSingleton.State.InMatch || !IllSingleton.State.AutoPred) return;
-            
+
             PlatformID = IllSingleton.Game.SummonerRegion switch
             {
                 "ru" => "RU_",
@@ -34,16 +36,16 @@ namespace SkillzBot.IllSkillzBot
                 "na" => "NA1_",
                 _ => "EUW1_",
             };
-            //await EnableRewardAsync().ConfigureAwait(false);
+
             var currentGame = await RiotAPI.GetCurrentGameAsync().ConfigureAwait(false);
             if (currentGame == null) return;
             if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength > 30) return;
             if (IllSingleton.State.Debug)
                 _logger.LogDebug("Матч начался!");
-            
+
             CurrentMatchID = PlatformID + Convert.ToString(currentGame.GameId);
             var predictions = await TtvAPI.GetCurrentPredPublic().ConfigureAwait(false);
-            if (predictions == null) return;
+            if (predictions == null || predictions.Data.Length == 0) return;
             if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
             if (currentGame.GameType == GameType.CUSTOM)
             {  
@@ -153,8 +155,8 @@ namespace SkillzBot.IllSkillzBot
             Match onMatch;
             if (IllSingleton.State.Debug)
             {
-                _logger.LogDebug(null, "Ставка запущена");
-                _logger.LogDebug(null, $"currentGameID: {currentGameID}");
+                _logger.LogDebug("Ставка запущена");
+                _logger.LogDebug("currentGameID: {CurrentGameID}", currentGameID);
             }
             int errorThreshHold = 0;
             var maxGameTime = DateTimeOffset.Now.ToUnixTimeSeconds() + _maxGameLengthsec;
@@ -163,12 +165,11 @@ namespace SkillzBot.IllSkillzBot
             {
                 while (IllSingleton.State.InMatch)
                 {
-                    // Safety break 1: Time limit
                     if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
                     {
                         IllSingleton.State.InMatch = false;
-                        await TtvIRCClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
-                        _logger.LogWarning("Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}", currentGameID);
+                        await IRCClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
+                        _logger.LogWarning("Match tracking timed out after 1.5 hours for Match ID: {CurrentGameID}", currentGameID);
                         break;
                     }
 
@@ -180,7 +181,7 @@ namespace SkillzBot.IllSkillzBot
                     {
                         _logger.LogError(ex, "Prediction_WIN_LOOSE_1");
                         errorThreshHold++;
-                        // Safety break 2: Consecutive errors
+
                         if (errorThreshHold > 5)
                         {
                             IllSingleton.State.InMatch = false;
@@ -195,7 +196,7 @@ namespace SkillzBot.IllSkillzBot
 
                     if (errorThreshHold != 0)
                     {
-                        Console.WriteLine($"Rcovered from {errorThreshHold} errorThreshHold");
+                        _logger.LogInformation("Recovered from {ErrorCount} consecutive API errors", errorThreshHold);
                         errorThreshHold = 0;
                     }
 
@@ -204,48 +205,44 @@ namespace SkillzBot.IllSkillzBot
                         await Task.Delay(4000).ConfigureAwait(false);
                         continue;
                     }
+
                     IllSingleton.State.InMatch = false;
-                    var Participant = RiotAPI.GetParticipantByMatch(onMatch);
-                    if (Participant != null)
+                    var participant = RiotAPI.GetParticipantByMatch(onMatch);
+                    if (participant != null)
                     {
                         if (onMatch.Info.GameDuration > 300)
                         {
                             IllSingleton.Game.NumGames++;
-                            if (Participant.Win)
-                            {
-                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
-                                if (IllSingleton.State.Debug)
-                                    _logger.LogDebug("Матч завершен {Win}", Participant.Win);
+                            bool won = participant.Win;
+
+                            await TtvAPI.End_WinLoose_Prediction(won, 0).ConfigureAwait(false);
+                            if (IllSingleton.State.Debug)
+                                _logger.LogDebug("Матч завершен {Win}", won);
+
+                            if (won)
                                 IllSingleton.Game.NumWins++;
-                                await UpdateDailyStats(true).ConfigureAwait(false);
-                            }
                             else
-                            {
-                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
-                                if (IllSingleton.State.Debug)
-                                    _logger.LogDebug("Матч завершен {Win}", Participant.Win);
                                 IllSingleton.Game.NumLosses++;
-                                await UpdateDailyStats(false).ConfigureAwait(false);
-                            }
-                            IllCommandsNest.IllCommands.SaveGameStats();
+
+                            await UpdateDailyStats(won).ConfigureAwait(false);
+                            await IllSingleton.Game.SaveAsync();
                         }
                         else
                         {
-                            await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                            await IRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
                             await TtvAPI.CencelePrediction().ConfigureAwait(false);
                         }
                     }
                     else
                     {
                         IllSingleton.State.AutoPred = false;
-                        _logger.LogCritical("(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
-                        await TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
+                        _logger.LogCritical("Critical error in GetParticipantByMatch. Participant could not be found. Auto-predictions disabled.");
+                        await IRCClient.SendMessage("Критическая ошибка: не удалось найти призывателя в матче. Автоставки выключены.");
                     }
                 }
             }
             finally
             {
-                // Safety break 3: Ensure state is reset even if crash occurs inside
                 IllSingleton.State.InMatch = false;
             }
         }
@@ -993,67 +990,71 @@ namespace SkillzBot.IllSkillzBot
                 data[1] = int.Parse(StringUtil.ConvertRank(sRank, true));
             }
             return data;
-        }    */  
-        
+        }    */
+
         private static async Task UpdateDailyStats(bool won)
         {
             var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
-            int LowEloMaxLP = 100;
+            const int LowEloMaxLP = 100;
             if (buffdata == null) return;
             if (int.TryParse(buffdata[1], out int bufflp))
+            {
+                bool isHighElo = buffdata[2].Equals("master", StringComparison.OrdinalIgnoreCase) ||
+                                 buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) ||
+                                 buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase);
+
                 if (won)
                 {
-                    if (!buffdata[2].Equals("master", StringComparison.OrdinalIgnoreCase) &&
-                        !buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) &&
-                        !buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase))
+                    if (!isHighElo)
                     {
-                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier)
+                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier) // Promoted
                         {
                             IllSingleton.Game.EarnedLP += LowEloMaxLP - IllSingleton.Game.StartLP + bufflp;
-                            IllSingleton.Game.StartLP = 0;
-                            IllSingleton.Game.Elo = buffdata[0];
-                            IllSingleton.Game.Tier = buffdata[2];
+                            IllSingleton.Game.StartLP = bufflp; // StartLP in the new division
                         }
-                        else
+                        else // Regular win
                         {
                             IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
                             IllSingleton.Game.StartLP = bufflp;
                         }
                     }
-                    else
+                    else // High Elo win
                     {
-                        if (IllSingleton.Game.Tier.Equals("diamond", StringComparison.OrdinalIgnoreCase))
+                        if (IllSingleton.Game.Tier.Equals("diamond", StringComparison.OrdinalIgnoreCase)) // Promoted to Master
                             IllSingleton.Game.EarnedLP += LowEloMaxLP - IllSingleton.Game.StartLP + bufflp;
                         else
                             IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
                         IllSingleton.Game.StartLP = bufflp;
-                        IllSingleton.Game.Elo = buffdata[0];
-                        IllSingleton.Game.Tier = buffdata[2];
                     }
                 }
-                else
+                else // Lost
                 {
-                    if (!buffdata[2].Equals("master", StringComparison.OrdinalIgnoreCase) &&
-                        !buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) &&
-                        !buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase))
+                    if (!isHighElo)
                     {
-                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier)
+                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier) // Demoted
                         {
-                            IllSingleton.Game.StartLP = LowEloMaxLP;
-                            IllSingleton.Game.Elo = buffdata[0];
-                            IllSingleton.Game.Tier = buffdata[2];
+                            IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP + (LowEloMaxLP - bufflp);
+                            IllSingleton.Game.StartLP = bufflp;
                         }
-                        IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
-                        IllSingleton.Game.StartLP = bufflp;
+                        else // Regular loss
+                        {
+                            IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
+                            IllSingleton.Game.StartLP = bufflp;
+                        }
                     }
-                    else
+                    else // High Elo loss
                     {
                         IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
                         IllSingleton.Game.StartLP = bufflp;
                     }
                 }
+                IllSingleton.Game.Elo = buffdata[0];
+                IllSingleton.Game.Tier = buffdata[2];
+            }
             else
-                _logger.LogError("UpdateDailyStats() -> cant convert to int. buffdata: {data}", string.Join(" ", buffdata));
+            {
+                _logger.LogError("UpdateDailyStats() -> cant convert LP to int. buffdata: {data}", string.Join(" ", buffdata));
+            }
         }
     }
 }

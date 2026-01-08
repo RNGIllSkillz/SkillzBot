@@ -1,11 +1,9 @@
 ﻿using SkillzBot.JSON.Settings;
-using SkillzBot.WRITERS;
 using Newtonsoft.Json;
 using System;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
-using SkillzBot.QuartZ;
 
 namespace SkillzBot.Readers
 {
@@ -37,4 +35,3 @@ namespace SkillzBot.Readers
         }
     }
 }
-

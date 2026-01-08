@@ -2,8 +2,8 @@
 {
     public class BotGameStateModel
     {
-        public string SummonerName { get; set; } 
-        public string SummonerRegion { get; set; } 
+        public string SummonerName { get; set; }
+        public string SummonerRegion { get; set; }
         public int StartLP { get; set; }
         public string Elo { get; set; }
         public int EarnedLP { get; set; }

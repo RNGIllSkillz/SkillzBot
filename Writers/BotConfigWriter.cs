@@ -16,12 +16,6 @@ namespace SkillzBot.Writers
         private static readonly ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
         private static readonly string filePath = Path.Combine(dataPath.uniquePath, $"{IllSingleton.Config.ChannelName}.ini");
 
-        public static void Write()
-        {
-            // Fire-and-forget safely
-            _ = WriteAsync();
-        }
-
         public static async Task WriteAsync()
         {
             await _fileSemaphore.WaitAsync().ConfigureAwait(false);

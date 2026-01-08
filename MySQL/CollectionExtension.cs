@@ -16,7 +16,7 @@ namespace SkillzBot.MySQL
                 options.Port = IllSingleton.Config.Database.Port;
                 options.Username = IllSingleton.Config.Database.Username;
                 options.Password = IllSingleton.Config.Database.Password;
-                options.DatabaseName = IllSingleton.Config.ChannelName; 
+                options.DatabaseName = IllSingleton.Config.ChannelName;
                 options.ConnectionTimeout = 30;
                 options.CommandTimeout = 30;
                 options.MaxPoolSize = 100;
