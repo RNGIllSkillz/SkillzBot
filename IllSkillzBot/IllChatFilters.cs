@@ -19,11 +19,10 @@ namespace SkillzBot.IllSkillzBot
     sealed class IllChatFilters
     {
         private static readonly ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
-        private static readonly HashSet<string> pichkaBlack;
+        private static readonly AhoCorasick _pichkaMatcher;
         private static readonly HashSet<string> mediaBlack;
         private static readonly HashSet<string> channelBlack;
         private static readonly HashSet<string> dictionary;
-        private static readonly HashSet<string> dictionaryGen;
         private static readonly BannedWordsTrie bannedWordsTrie = new BannedWordsTrie();
         private static HashSet<string> whiteList;
         private static HashSet<string> userBlackList;
@@ -32,27 +31,53 @@ namespace SkillzBot.IllSkillzBot
         private static readonly int ArabCharsInRow = 4;
         private static readonly int RowsNum = 3;
         static IllChatFilters()
-        {
-            pichkaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.PichkaListFileName)));
+        {            
             mediaBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.MediaListFileName)));
             channelBlack = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.ChannelListFileName)));
             dictionary = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.DicFileName)));
             whiteList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.DicWhiteListFileName)));
             userBlackList = new HashSet<string>(File.ReadLines(Path.Combine(dataPath.uniquePath, IllSingleton.Config.FilePaths.UserBlacklistFileName)));
             Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
-            dictionaryGen = StringUtil.GenerateDictionary(dictionary);
-            bannedWordsTrie.BuildTrie(dictionaryGen);
+            bannedWordsTrie.BuildTrie(dictionary);
+
+            // 1. Read pichka lines
+            var pichkaLines = File.ReadLines(Path.Combine(dataPath.sharedPath, IllSingleton.Config.FilePaths.PichkaListFileName));
+            // 2. Initialize the optimized matcher
+            _pichkaMatcher = new AhoCorasick();
+            foreach (var line in pichkaLines)
+            {
+                // Trim logic is optional, 
+                // but usually raw lines are best for ASCII art.
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    _pichkaMatcher.AddPattern(line);
+                }
+            }
+            _pichkaMatcher.Build(); //compiles the search tree
         }
        
 
         public static bool CheckBooB(string message)
-        {            
-            foreach (var pickString in pichkaBlack)
+        {
+            // Fast fail: If the message doesn't contain Braille or Block elements, 
+            // it's very likely not an ASCII art "pichka".
+            // Braille range: \u2800-\u28FF
+            // Block range: \u2580-\u259F
+            bool hasSuspiciousChars = false;
+            foreach (char c in message)
             {
-                if (message.Contains(pickString))
-                    return true;
+                if ((c >= '\u2800' && c <= '\u28FF') || (c >= '\u2580' && c <= '\u259F'))
+                {
+                    hasSuspiciousChars = true;
+                    break;
+                }
             }
-            return false;
+
+            // If no suspicious chars, skip the heavy check (unless you have pichkas made of purely latin text)
+            if (!hasSuspiciousChars) return false;
+
+            // Run the optimized Aho-Corasick check
+            return _pichkaMatcher.ContainsAny(message);
         }                                                                  
         public static bool CheckTreck(string ID)
         {    
@@ -66,78 +91,42 @@ namespace SkillzBot.IllSkillzBot
         }
         public static async Task<bool> ZapCheck(string message, string name)
         {
-            var exact = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var CleanMessage = StringUtil.Clean(message);
-            foreach (var white in whiteList)
+            if (string.IsNullOrWhiteSpace(message)) return false;
+
+            // STEP 1: Normalize but keep structure ("h_0_x_0_l word" -> "h o h o l word")
+            // We do this so we can remove whitelisted phrases correctly.
+            string processingMsg = StringUtil.Normalize(message);
+
+            // STEP 2: Remove Whitelisted words/phrases
+            // Example: if "bass" is whitelisted, we remove it before checking for "ass"
+            if (whiteList != null)
             {
-                CleanMessage = CleanMessage.Replace(white, "");
+                foreach (var white in whiteList)
+                {
+                    // Ensure your whitelist items are normalized lower case strings!
+                    processingMsg = processingMsg.Replace(white, " ");
+                }
             }
-            CleanMessage = StringUtil.Clean(CleanMessage);
 
-            //parallel for exact words
-            
-            if(await CheckExact(message, name).ConfigureAwait(false))
-                return true;
+            // STEP 3: Aggressive Squash
+            // Take the remaining string and delete ALL non-letters.
+            // "h o h o l word" -> "hoholword"
+            // "gEGEGgh0x0l" -> "gegegghohol"
+            string squashedMsg = StringUtil.GetAggressiveString(processingMsg);
 
-            //tire for substrings
-            var bannedWord = bannedWordsTrie.FindBannedWord(CleanMessage);
+            // STEP 4: Substring Search (Trie)
+            // The Trie will look for "hohol" inside "gegegghohol"
+            var bannedWord = bannedWordsTrie.FindBannedWord(squashedMsg);
+
             if (bannedWord != null)
             {
-                FlagWriter.FlagWriterTask($"{name} : {message} : {bannedWord}");
+                FlagWriter.FlagWriterTask($"{name} : {message} (detected: {bannedWord})");
                 if (IllSingleton.State.Debug)
-                    await TtvIRCClient.SendMessage("substring trigger").ConfigureAwait(false);
-                return true;
-            }                        
-            return false;
-        }
-        private static async Task<bool> CheckExact(string message, string name)
-        {
-            var messageWords = message.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Select(word => StringUtil.Clean(word))
-                .Where(word => !string.IsNullOrEmpty(word))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var matchedWord = dictionaryGen.AsParallel()
-                .FirstOrDefault(dictWord =>
-                {
-                    // Check exact word match first (fastest)
-                    if (messageWords.Contains(dictWord))
-                        return true;
-                    return false;
-                });
-
-            if (matchedWord != null)
-            {
-                FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {matchedWord}");
-                if (IllSingleton.State.Debug)
-                    await TtvIRCClient.SendMessage("exact trigger");
+                    await TtvIRCClient.SendMessage($"Filter: {bannedWord}").ConfigureAwait(false);
                 return true;
             }
             return false;
         }
-        /*public static bool ZapCheck(string message, string name)
-        {
-            var exact = message.Split(' ');
-            var CleanMessage = StringUtil.Clean(message);
-            foreach (var white in whiteList)
-            {
-                CleanMessage = CleanMessage.Replace(white, "");
-            }
-            CleanMessage = StringUtil.Clean(CleanMessage);
-            foreach (var word in dictionaryGen)
-                if (CleanMessage.Contains(word, StringComparison.OrdinalIgnoreCase))
-                {
-                    FlagWriter.FlagWriterTask($"{name} : {message} : {word}");
-                    return true;
-                }
-            foreach (var exactWord in exact)
-                if (dictionaryGen.Contains(StringUtil.Clean(exactWord)))
-                {
-                    FlagWriter.FlagWriterTask($"{name} : {message} : exactWord: {exactWord}");
-                    return true;
-                }
-            return false;
-        }*/
         public static async Task<List<string>> YouTubeFilter(string ID)
         {
             List<string> output = new List<string>();

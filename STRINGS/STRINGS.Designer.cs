@@ -8,7 +8,8 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace SkillzBot.IllSTRINGS {
+namespace SkillzBot.IllSTRINGS
+{
     using System;
     
     

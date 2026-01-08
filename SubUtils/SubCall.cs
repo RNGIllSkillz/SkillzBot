@@ -10,8 +10,18 @@ namespace SkillzBot.SubUtils
     {
         public async Task PostDataProcess(apiPost model)
         {
-            string[] words = model.value.Split(' ');
-            int amount;            
+            if (string.IsNullOrEmpty(model?.value)) return;
+
+            string[] words = model.value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            // FIX: Validate length before accessing index 7 or 8
+            if (words.Length < 9)
+            {
+                Console.WriteLine($"Invalid Post Data: {model.value}");
+                return;
+            }
+
+            int amount;
             string sender = words[7] + " " + words[8];
             int rate;
             if (int.TryParse(words[5], out amount))
@@ -28,13 +38,13 @@ namespace SkillzBot.SubUtils
                     rate = 500;
                     await PurchaseProcess(amount, rate).ConfigureAwait(false);
                 }
-            }  
+            }
             else
             {
                 Console.WriteLine($"Cant unmarshal type int data = {words[5]}");
             }
         }
-        private async Task PurchaseProcess (int amount, int rate)
+        private async Task PurchaseProcess(int amount, int rate)
         {
             var responce = AddSub.NewPurchase(amount, rate);
             SubCheck.RunChecker();

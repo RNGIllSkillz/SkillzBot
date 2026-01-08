@@ -1,36 +1,28 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using SkillzBot.Utils;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SkillzBot.WRITERS
 {
     internal class FlagWriter
     {
-        readonly static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
-        readonly static string filePath = Path.Combine(dataPath, "Flags.txt");
+        // Fix: Use SemaphoreSlim for Async waiting
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private static readonly string filePath = Path.Combine(IllSkillzBotMain.GetDataPath().uniquePath, "Flags.txt");
         private static readonly ILogger<FlagWriter> _logger = IllServiceProvider.GetLogger<FlagWriter>();
-        public static void FlagWriterTask(string Message)
+
+        public static async Task FlagWriterTask(string Message)
         {
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException();
-            }
-            mutexObj.WaitOne();
-            FileInfo file = new FileInfo(filePath);
-            while (IsFileLocked(file))
-            {
-                Thread.Sleep(100);
-            }
+            await _semaphore.WaitAsync(); // Async wait
             try
             {
-                using var fileStream = File.Open(filePath, FileMode.Append, FileAccess.Write, FileShare.Read);
-                using var writer = new StreamWriter(fileStream);
-                writer.WriteLine(DateTime.Now + " " + Message);
+                // Simple append is safe inside Semaphore
+                await File.AppendAllTextAsync(filePath, $"{DateTime.Now} {Message}{Environment.NewLine}");
             }
             catch (Exception e)
             {
@@ -38,24 +30,8 @@ namespace SkillzBot.WRITERS
             }
             finally
             {
-                mutexObj.ReleaseMutex();
+                _semaphore.Release();
             }
-        }
-
-        private static bool IsFileLocked(FileInfo file)
-        {
-            try
-            {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
-                {
-                    stream.Close();
-                }
-            }
-            catch (IOException)
-            {
-                return true;
-            }
-            return false;
         }
     }
 }

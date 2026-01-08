@@ -4,7 +4,6 @@ using System.Text;
 using OpenAI;
 using OpenAI.Chat;
 using System.Threading.Tasks;
-using RiotSharp.Endpoints.StaticDataEndpoint.Version;
 using OpenAI.Models;
 using TwitchLib.Api.Helix;
 using SkillzBot.Singleton;

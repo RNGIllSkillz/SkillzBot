@@ -1,67 +1,47 @@
-﻿using System;
+﻿using IllSkillzBot;
+using Microsoft.Extensions.Logging;
+using SkillzBot.API.StreamElements;
+using SkillzBot.Hosts;
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using IllSkillzBot;
-using SkillzBot.API.StreamElements;
 
 namespace SkillzBot.WRITERS
 {
     internal class MediaqueueWriter
     {
-        static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
-        readonly static string filePath = Path.Combine(dataPath, "mediaqueue.txt");
+        // Fix: Use SemaphoreSlim for Async waiting
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private static readonly string filePath = Path.Combine(IllSkillzBotMain.GetDataPath().uniquePath, "mediaqueue.txt");
+        private static readonly ILogger<MediaqueueWriter> _logger = IllServiceProvider.GetLogger<MediaqueueWriter>();
 
-        public static void Write(int userID, string trackID)
+        public static async Task Write(int userID, string trackID)
         {
-            string input = $"{userID} {trackID}" + Environment.NewLine;
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException();
-            }
-            mutexObj.WaitOne();
-            FileInfo file = new FileInfo(filePath);
-            while (IsFileLocked(file))
-            {
-                Thread.Sleep(100);
-            }
+            await _semaphore.WaitAsync();
             try
             {
-                File.AppendAllText(filePath, input);
+                // Simple append is safe inside Semaphore
+                await File.AppendAllTextAsync(filePath, $"{userID} {trackID}{Environment.NewLine}");
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
+                _logger.LogError(e, "FlagWriterTask()");
             }
             finally
             {
-                mutexObj.ReleaseMutex();
+                _semaphore.Release();
             }
         }
         public static async Task MediaQueueFlush()
         {
+            await _semaphore.WaitAsync();
             var checkqueue = await StreamElementsAPI.GetCurrentSong().ConfigureAwait(false);
             if (checkqueue == null)
             {
                 File.WriteAllText(filePath, String.Empty);
             }
-        }
-        private static bool IsFileLocked(FileInfo file)
-        {
-            try
-            {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
-                {
-                    stream.Close();
-                }
-            }
-            catch (IOException)
-            {
-                return true;
-            }
-            return false;
+            _semaphore.Release();
         }
     }
 }

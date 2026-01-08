@@ -6,29 +6,29 @@ using System;
 using System.IO;
 using SkillzBot.Singleton;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace SkillzBot.Writers
 {
     internal class BotConfigWriter
     {
-        private static readonly Mutex mutexObj = new Mutex();
+        private static readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
         private static readonly ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
         private static readonly string filePath = Path.Combine(dataPath.uniquePath, $"{IllSingleton.Config.ChannelName}.ini");
 
         public static void Write()
         {
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException();
-            }
-            mutexObj.WaitOne();
-            FileInfo file = new FileInfo(filePath);
-            while (IsFileLocked(file))
-            {
-                Thread.Sleep(100);
-            }
+            // Fire-and-forget safely
+            _ = WriteAsync();
+        }
+
+        public static async Task WriteAsync()
+        {
+            await _fileSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
                 SettingsJson Settings = new SettingsJson
                 {
                     SummonerName = IllSingleton.Game.SummonerName,
@@ -61,32 +61,18 @@ namespace SkillzBot.Writers
                     DiscordNoteID = IllSingleton.Config.DiscordNoteID,
                     DiscordSpamID = IllSingleton.Config.DiscordSpamID
                 };
-                File.WriteAllText(filePath, JsonConvert.SerializeObject(Settings, Formatting.Indented));               
+
+                string json = JsonConvert.SerializeObject(Settings, Formatting.Indented);
+                await File.WriteAllTextAsync(filePath, json).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
+                Console.WriteLine($"Error writing config: {e.Message}");
             }
             finally
             {
-                mutexObj.ReleaseMutex();
+                _fileSemaphore.Release();
             }
-        }
-        private static bool IsFileLocked(FileInfo file)
-        {
-            try
-            {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
-                {
-                    stream.Close();
-                }
-            }
-            catch (IOException)
-            {
-                return true;
-            }
-            return false;
         }
     }
 }

@@ -9,7 +9,59 @@ namespace SkillzBot.Utils
         public bool IsEndOfWord = false;
         public string Word = null;
     }
+    public class BannedWordsTrie
+    {
+        private readonly TrieNode root = new TrieNode();
 
+        // Only pass the original small list of words here!
+        public void BuildTrie(IEnumerable<string> baseWords)
+        {
+            foreach (var word in baseWords)
+            {
+                // Normalize the dictionary words too, just to be safe
+                InsertWord(StringUtil.Normalize(word));
+            }
+        }
+
+        private void InsertWord(string word)
+        {
+            var current = root;
+            foreach (char c in word)
+            {
+                if (!current.Children.TryGetValue(c, out var node))
+                {
+                    node = new TrieNode();
+                    current.Children[c] = node;
+                }
+                current = node;
+            }
+            current.IsEndOfWord = true;
+            current.Word = word;
+        }
+
+        public string FindBannedWord(string normalizedText)
+        {
+            // No need to ToLower here, input should already be normalized
+            for (int i = 0; i < normalizedText.Length; i++)
+            {
+                var current = root;
+                for (int j = i; j < normalizedText.Length; j++)
+                {
+                    char c = normalizedText[j];
+
+                    if (!current.Children.TryGetValue(c, out var nextNode))
+                        break;
+
+                    current = nextNode;
+
+                    if (current.IsEndOfWord)
+                        return current.Word;
+                }
+            }
+            return null;
+        }
+    }
+    /*
     public class BannedWordsTrie
     {
         private readonly TrieNode root = new TrieNode();
@@ -68,5 +120,5 @@ namespace SkillzBot.Utils
             }
             return null;
         }
-    }
+    } */
 }

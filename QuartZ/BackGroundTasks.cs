@@ -12,15 +12,18 @@ using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Hosts;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Singleton;
+using SkillzBot.Utils;
 
 namespace SkillzBot.QuartZ
 {
     internal class BackGroundTasks
     {
         private static readonly ILogger<BackGroundTasks> _logger = IllServiceProvider.GetLogger<BackGroundTasks>();
+        private static CooldownManager cooldownManager = new CooldownManager();
         public static async Task RunDaily()
         {
-            var t = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+            var riotApi = IllServiceProvider.GetService<IRiotApiService>();
+            var t = await riotApi.GetRankBySummonerAsync().ConfigureAwait(false);
             if (t != null)
             {
                 if (int.TryParse(t[1], out int startLP))
@@ -35,15 +38,17 @@ namespace SkillzBot.QuartZ
             IllSingleton.Game.NumGames = 0;
             IllSingleton.Game.NumWins = 0;
             IllCommands.SaveGameStats();
+            cooldownManager.PruneExpiredCooldowns();
         }
-        public static async Task RunEvery5Min()
+        public static async Task StaticRunEvery5Min()
         {
             //Save MessageBuffer
             await IllChatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
 
             //Check Subscription
-            SubCheck.RunChecker();
+            SubCheck.RunChecker();            
         }
+        
         public static async Task TopRuleteTask()
         {
             if (IllSingleton.State.BroadcasterIsOnline)

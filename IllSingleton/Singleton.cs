@@ -12,10 +12,10 @@ namespace SkillzBot.Singleton
             if (_service == null)
             {
                 var config = await BotConfigurationFactory.CreateAsync(configPath).ConfigureAwait(false);
-                var service = new SingletonService(config);
-                await service.LoadStateAsync().ConfigureAwait(false);
+                var service = new SingletonService(config);                
                 lock (_lock)
                     _service ??= service;
+                await _service.LoadStateAsync().ConfigureAwait(false);
             }
         }
         public static BotConfigModel Config

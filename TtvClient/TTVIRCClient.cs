@@ -168,26 +168,20 @@ namespace SkillzBot.IRC
 
         public async Task<bool> ReconnectAsync()
         {
-            if (_isDisposed)
-            {
-                _logger?.LogWarning("Attempted to reconnect disposed TtvIRCClient");
-                return false;
-            }
-
-            if (_client?.IsConnected == true)
-            {
-                _logger?.LogDebug("Already connected, skipping reconnect");
-                return true;
-            }
-
-            _logger?.LogInformation("Attempting to reconnect to Twitch IRC...");
-
-            await _connectionSemaphore.WaitAsync().ConfigureAwait(false);
+            // FIX: Add Semaphore to prevent overlapping reconnect attempts
+            await _connectionSemaphore.WaitAsync();
             try
             {
-                lock (_lockObject)
+                if (_isDisposed) return false;
+
+                // Dispose the old client explicitly before creating a new one to prevent event handler leaks
+                if (_client != null)
                 {
-                    _isInitialized = false;
+                    _client.OnMessageReceived -= Client_OnMessageReceived;
+                    _client.OnUserTimedout -= Client_OnUserTimedout;
+                    _client.OnDisconnected -= Client_OnDisconnected;
+                    _client.OnConnected -= Client_OnConnected;
+                    // _client.Disconnect(); // Usually not needed if already disconnected event fired
                 }
 
                 return await ConnectToTwitchAsync().ConfigureAwait(false);
@@ -216,6 +210,7 @@ namespace SkillzBot.IRC
             {
                 try
                 {
+                    // Unsubscribe first
                     _client.OnMessageReceived -= Client_OnMessageReceived;
                     _client.OnUserTimedout -= Client_OnUserTimedout;
                     _client.OnDisconnected -= Client_OnDisconnected;
@@ -225,11 +220,15 @@ namespace SkillzBot.IRC
                     {
                         _client.Disconnect();
                     }
-                    _client = null;
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex, "Error disposing previous client");
+                }
+                finally
+                {
+                    // Force null to prevent reuse
+                    _client = null;
                 }
             }
         }
@@ -301,7 +300,10 @@ namespace SkillzBot.IRC
                 try
                 {
                     await Task.Delay(BASE_DELAY_MS).ConfigureAwait(false); // Brief delay before reconnecting
-                    await ReconnectAsync().ConfigureAwait(false);
+                    if (!_isDisposed)
+                    {
+                        await ReconnectAsync().ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {

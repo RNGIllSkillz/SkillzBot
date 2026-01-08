@@ -1,74 +1,92 @@
-﻿using System;
-using TwitchLib.Api;
+﻿using Microsoft.Extensions.Logging;
+using SkillzBot.MODELS;
+using SkillzBot.Singleton;
+using SkillzBot.Utils;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomRewardRedemptionStatus;
-using TwitchLib.Api.Helix.Models.Predictions.CreatePrediction;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
-using TwitchLib.Api.Helix.Models.Clips.CreateClip;
-using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
-using TwitchLib.Api.Helix.Models.Moderation.BanUser;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelVIPs;
-using SkillzBot.MODELS;
-using TwitchLib.Api.Helix.Models.Chat.ChatSettings;
-using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
-using TwitchLib.Api.Helix.Models.Chat.GetChatters;
-using TwitchLib.Api.Helix.Models.Streams.GetStreams;
-using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomRewardRedemption;
+using TwitchLib.Api;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
-using SkillzBot.Utils;
-using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
+using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
+using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
+using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomRewardRedemption;
+using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
+using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomRewardRedemptionStatus;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
-using Microsoft.Extensions.Logging;
-using SkillzBot.Singleton;
+using TwitchLib.Api.Helix.Models.Channels.GetChannelVIPs;
+using TwitchLib.Api.Helix.Models.Chat.ChatSettings;
+using TwitchLib.Api.Helix.Models.Chat.GetChatters;
+using TwitchLib.Api.Helix.Models.Clips.CreateClip;
+using TwitchLib.Api.Helix.Models.Moderation.BanUser;
+using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
+using TwitchLib.Api.Helix.Models.Predictions.CreatePrediction;
+using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
+using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 
 namespace SkillzBot.API.Twitch
 {
     public sealed class TtvAPI
     {
-        private static readonly TwitchAPI API;
+        private static TwitchAPI API;
         private static string PredID;
         private static string winID;
         private static string looseID;
-        private static readonly bool ValidToken = false;
-        private static readonly int NumRecurcieveTryes = 10;
-        private static readonly string BrodcasterID;
-        private static readonly ILogger<TtvAPI> _logger = Hosts.IllServiceProvider.GetLogger<TtvAPI>();
-        static TtvAPI()
+        private static bool ValidToken = false;
+        private static string BrodcasterID;
+        private static ILogger<TtvAPI> _logger;
+
+        // NEW: Explicit Initialization Method
+        public static void Initialize(ILogger<TtvAPI> logger)
         {
-            BrodcasterID = IllSingleton.Config.BroadcasterId;
-            Console.Write("Initializing Ttv API... ");
-            API = new TwitchAPI();
-            API.Settings.ClientId = IllSingleton.Config.TApiClientId;
-            API.Settings.AccessToken = IllSingleton.Config.TApiAccessToken;
-            if (!StringUtil.IsValidApiToken(API.Settings.ClientId) || !StringUtil.IsValidApiToken(API.Settings.AccessToken))
+            _logger = logger;
+            try
             {
-                Console.WriteLine("ERROR.");
-                Console.WriteLine("No valid TTV API access token or client ID. TTV API functionality is offline");
-                return;
+                BrodcasterID = IllSingleton.Config.BroadcasterId;
+                Console.Write("Initializing Ttv API... ");
+
+                API = new TwitchAPI();
+                API.Settings.ClientId = IllSingleton.Config.TApiClientId;
+                API.Settings.AccessToken = IllSingleton.Config.TApiAccessToken;
+
+                if (!StringUtil.IsValidApiToken(API.Settings.ClientId) || !StringUtil.IsValidApiToken(API.Settings.AccessToken))
+                {
+                    Console.WriteLine("ERROR: Invalid Tokens.");
+                    _logger?.LogError("No valid TTV API access token or client ID. TTV API functionality is offline");
+                    ValidToken = false;
+                    return;
+                }
+                ValidToken = true;
+                Console.WriteLine("OK.");
             }
-            ValidToken = true;
-            Console.WriteLine("OK.");
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to initialize TtvAPI");
+                ValidToken = false;
+            }
+        }
+
+        // Helper to check if API is ready
+        private static bool IsReady()
+        {
+            if (!ValidToken || API == null)
+            {
+                // Optional: Log verbose warning only if needed to avoid spam
+                return false;
+            }
+            return true;
         }
 
         public static async ValueTask Start_2_Prediction(string Title, string blue, string red, int windowSec)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             var request = new CreatePredictionRequest
             {
                 Title = Title,
                 Outcomes = new[]
                 {
-                    new Outcome
-                    {
-                        Title = blue
-                    },
-                    new Outcome
-                    {
-                        Title = red
-                    }
+                    new Outcome { Title = blue },
+                    new Outcome { Title = red }
                 },
                 PredictionWindowSeconds = windowSec,
                 BroadcasterId = BrodcasterID
@@ -76,21 +94,21 @@ namespace SkillzBot.API.Twitch
             try
             {
                 await API.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
+                await GetCurrentPred().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Start_2_Prediction");
-                return;
+                _logger?.LogError(ex, "Start_2_Prediction");
             }
-            await GetCurrentPred().ConfigureAwait(false);
-
         }
+
         public static async ValueTask Start_10_Prediction(List<string> Champs, string Title, int windowSec)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             if (Champs == null || Champs.Count != 10)
             {
-                throw new ArgumentException("Champs list must have exactly 10 items.");
+                _logger?.LogError("Champs list must have exactly 10 items.");
+                return;
             }
             var request = new CreatePredictionRequest
             {
@@ -101,28 +119,25 @@ namespace SkillzBot.API.Twitch
             };
             for (int i = 0; i < 10; i++)
             {
-                request.Outcomes[i] = new Outcome
-                {
-                    Title = Champs[i]
-                };
+                request.Outcomes[i] = new Outcome { Title = Champs[i] };
             }
             try
             {
                 await API.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
+                await GetCurrentPred().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Start_10_Prediction");
-                return;
+                _logger?.LogError(ex, "Start_10_Prediction");
             }
-            await GetCurrentPred().ConfigureAwait(false);
         }
+
         public static async ValueTask Start_5_Prediction(List<string> Champs, string Title, int windowSec)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             if (Champs == null || Champs.Count != 5)
             {
-                _logger.LogError(null, "Champs list must have exactly 5 items.");
+                _logger?.LogError(null, "Champs list must have exactly 5 items.");
                 return;
             }
 
@@ -141,224 +156,183 @@ namespace SkillzBot.API.Twitch
             try
             {
                 await API.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
+                await GetCurrentPred().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Start_10_Prediction");
-                return;
+                _logger?.LogError(ex, "Start_5_Prediction");
             }
-            await GetCurrentPred().ConfigureAwait(false);            
         }
+
         public static async Task<string> End_Multy_Prediction(string Champ)
         {
-            if (!ValidToken) return "Invalid AccessToken";
-            GetPredictionsResponse Predictions;
+            if (!IsReady()) return "Invalid AccessToken";
             try
             {
-                Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "End_Multy_Prediction");
-                return "ERR";
-            }
-            string currentPredID = Predictions.Data.First().Id;
-            var predictionStatus = TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED;
-            string OutcomeID = "";
+                var Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
+                if (Predictions.Data.Length == 0) return "ERR";
 
-            var Outcomes = Predictions.Data.First().Outcomes.ToArray();
-            foreach (var Outcom in Outcomes)
-            {
-                if (Outcom.Title == Champ)
+                string currentPredID = Predictions.Data.First().Id;
+                var predictionStatus = TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED;
+                string OutcomeID = "";
+
+                var Outcomes = Predictions.Data.First().Outcomes.ToArray();
+                foreach (var Outcom in Outcomes)
                 {
-                    OutcomeID = Outcom.Id;
+                    if (Outcom.Title == Champ)
+                    {
+                        OutcomeID = Outcom.Id;
+                    }
                 }
-            }
-            if (currentPredID == PredID)
-            {
-                try
+
+                if (currentPredID == PredID)
                 {
                     await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, predictionStatus, OutcomeID).ConfigureAwait(false);
                     return "OK";
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogError(ex, "End_Multy_Prediction");
-                    return "ERR";
+                    _logger?.LogError(null, "(Task EndPrediction) currentPredID != PredID");
                 }
-            }
-            else
-            {
-                _logger.LogError(null, "(Task EndPrediction) currentPredID != PredID");
-            }
-            return "OK";
-        }
-        private static async Task GetCurrentPred()
-        {
-            if (!ValidToken) return;
-            GetPredictionsResponse Predictions;
-            try
-            {
-                Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetCurrentPred");
-                return;
+                _logger?.LogError(ex, "End_Multy_Prediction");
+                return "ERR";
             }
-            PredID = Predictions.Data.First().Id;
-            winID = Predictions.Data.First().Outcomes.First().Id;
-            looseID = Predictions.Data.First().Outcomes.Last().Id;
+            return "OK";
         }
+
+        private static async Task GetCurrentPred()
+        {
+            if (!IsReady()) return;
+            try
+            {
+                var Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
+                if (Predictions.Data.Length > 0)
+                {
+                    PredID = Predictions.Data.First().Id;
+                    winID = Predictions.Data.First().Outcomes.First().Id;
+                    looseID = Predictions.Data.First().Outcomes.Last().Id;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "GetCurrentPred");
+            }
+        }
+
         public static async Task<GetPredictionsResponse> GetCurrentPredPublic()
         {
-            if (!ValidToken) return null;
+            if (!IsReady()) return null;
             try
             {
                 return await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetCurrentPredPublic");
+                _logger?.LogError(ex, "GetCurrentPredPublic");
                 return null;
             }
         }
+
         public static async Task End_WinLoose_Prediction(bool win, int tryes)
         {
-            if (!ValidToken) return;
-            if (tryes > NumRecurcieveTryes) return;
-            GetPredictionsResponse Predictions = null;
+            if (!IsReady()) return;
+            if (tryes > 10) return; // Prevent infinite recursion
+
             try
             {
-                Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
+                var Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
+                if (Predictions.Data.Length == 0) return;
+
+                string currentPredID = Predictions.Data.First().Id;
+                if (currentPredID == PredID)
+                {
+                    var status = TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED;
+                    await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, status, win ? winID : looseID).ConfigureAwait(false);
+                }
+                else
+                {
+                    _logger?.LogError(null, "(Task EndPrediction) currentPredID != PredID");
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "End_WinLoose_Prediction()");
+                _logger?.LogError(ex, "End_WinLoose_Prediction()");
                 await Task.Delay(1000);
-                await End_WinLoose_Prediction(win, tryes++).ConfigureAwait(false);
-            }
-            if (Predictions == null) return;
-            string currentPredID = Predictions.Data.First().Id;
-            if (currentPredID == PredID)
-            {
-                try
-                {
-                    if (win)
-                        await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED, winID).ConfigureAwait(false);
-                    else
-                        await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, TwitchLib.Api.Core.Enums.PredictionEndStatus.RESOLVED, looseID).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "End_WinLoose_Prediction()");
-                    await Task.Delay(1000);
-                    await End_WinLoose_Prediction(win, tryes++).ConfigureAwait(false);
-                }
-            }
-            else
-            {
-                _logger.LogError(null, "(Task EndPrediction) currentPredID != PredID");
+                await End_WinLoose_Prediction(win, tryes + 1).ConfigureAwait(false);
             }
         }
+
         public static async Task CencelePrediction()
-        {            
-            if (!ValidToken) return;
-            GetPredictionsResponse Predictions;
+        {
+            if (!IsReady()) return;
             try
             {
-                Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "CencelePrediction");
-                return;
-            }
-            string currentPredID = Predictions.Data.First().Id;
-            if (currentPredID == PredID)
-            {
-                try
+                var Predictions = await API.Helix.Predictions.GetPredictionsAsync(BrodcasterID).ConfigureAwait(false);
+                if (Predictions.Data.Length == 0) return;
+
+                string currentPredID = Predictions.Data.First().Id;
+                if (currentPredID == PredID)
                 {
                     await API.Helix.Predictions.EndPredictionAsync(BrodcasterID, PredID, TwitchLib.Api.Core.Enums.PredictionEndStatus.CANCELED, null).ConfigureAwait(false);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Start_10_Prediction");
-                    return;
-                }
-            }
-            else
-            {
-                _logger.LogError(null, "(Task EndPrediction) currentPredID != PredID");
-            }
-        }
-        public static async Task<GetCustomRewardsResponse> GetAllRewards()
-        {            
-            if (!ValidToken) return null;
-            GetCustomRewardsResponse AllRewards;
-            try
-            {
-                AllRewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "getAllRewards");
+                _logger?.LogError(ex, "CencelePrediction");
+            }
+        }
+
+        public static async Task<GetCustomRewardsResponse> GetAllRewards()
+        {
+            if (!IsReady()) return null;
+            try
+            {
+                var AllRewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
+                return AllRewards;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "getAllRewards");
                 return null;
             }
-            foreach (var reward in AllRewards.Data)
-            {
-                _logger.LogError(null, $"{reward.Id} - {reward.Title} - {reward.IsEnabled}");
-            }
-            return AllRewards;
         }
+
         public static async Task<CustomReward> GetReward(string id)
         {
-            if (!ValidToken) return null;
-            GetCustomRewardsResponse rewards;
+            if (!IsReady()) return null;
             try
             {
-                rewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
+                var rewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
+                return rewards.Data.FirstOrDefault(r => r.Id == id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetReward");
+                _logger?.LogError(ex, "GetReward");
                 return null;
             }
-            foreach (var reward in rewards.Data)
-            {
-                if (reward.Id == id)
-                {
-                    return reward;                  
-                }
-            }
-            return null;
         }
+
         public static async Task<CustomReward> GetReward(string title, string OverloadParam)
         {
-            if (!ValidToken) return null;
-            GetCustomRewardsResponse rewards;
+            if (!IsReady()) return null;
             try
             {
-                rewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
+                var rewards = await API.Helix.ChannelPoints.GetCustomRewardAsync(BrodcasterID).ConfigureAwait(false);
+                return rewards.Data.FirstOrDefault(r => r.Title == title);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetReward");
+                _logger?.LogError(ex, "GetReward");
                 return null;
             }
-            foreach (var reward in rewards.Data)
-            {
-                if (reward.Title == title)
-                {
-                    return reward;
-                }
-            }
-            return null;
-
         }
-        public static async Task UpdateReward(string rewardID, string title, int cost, string prompt,bool enable, bool isUserInputRequired)
+
+        public static async Task UpdateReward(string rewardID, string title, int cost, string prompt, bool enable, bool isUserInputRequired)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.ChannelPoints.UpdateCustomRewardAsync(BrodcasterID, rewardID, new UpdateCustomRewardRequest
@@ -373,25 +347,26 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "updateReward");
+                _logger?.LogError(ex, "updateReward");
             }
         }
+
         public static async Task DeleteReward(string rewardID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.ChannelPoints.DeleteCustomRewardAsync(BrodcasterID, rewardID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "DeleteReward");
-                return;
+                _logger?.LogError(ex, "DeleteReward");
             }
         }
+
         public static async Task<string> CreateReward(string title, int cost, string promt, bool enabled, bool userinput)
         {
-            if (!ValidToken) return null;
+            if (!IsReady()) return null;
             try
             {
                 var createResp = await API.Helix.ChannelPoints.CreateCustomRewardsAsync(BrodcasterID, new CreateCustomRewardsRequest
@@ -407,13 +382,14 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "DeleteReward");
+                _logger?.LogError(ex, "CreateReward");
                 return null;
-            }            
+            }
         }
+
         public static async Task CencelReward(string rewardID, string RedemID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.ChannelPoints.UpdateRedemptionStatusAsync(BrodcasterID, rewardID, new List<string> { RedemID }, new UpdateCustomRewardRedemptionStatusRequest
@@ -423,12 +399,13 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "CencelReward");
+                _logger?.LogError(ex, "CencelReward");
             }
         }
+
         public static async Task ApproveReward(string rewardID, string RedemID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.ChannelPoints.UpdateRedemptionStatusAsync(BrodcasterID, rewardID, new List<string> { RedemID }, new UpdateCustomRewardRedemptionStatusRequest
@@ -438,78 +415,57 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "ApproveReward");
+                _logger?.LogError(ex, "ApproveReward");
             }
         }
+
         public static async Task<CreatedClipResponse> CreateClip()
         {
-            if (!ValidToken) return null;
+            if (!IsReady()) return null;
             try
             {
                 return await API.Helix.Clips.CreateClipAsync(BrodcasterID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "CreateClip");
+                _logger?.LogError(ex, "CreateClip");
                 return null;
             }
         }
+
         public static async Task<bool> GetStreamStatus()
         {
-            if (!ValidToken) return false;
-            List<string> bID = new List<string>
-                {
-                    BrodcasterID
-                };
-            GetStreamsResponse streams;
+            if (!IsReady()) return false;
             try
             {
-                streams = await API.Helix.Streams.GetStreamsAsync(null, 1, null, null, bID, null, null);
+                var streams = await API.Helix.Streams.GetStreamsAsync(null, 1, null, null, new List<string> { BrodcasterID }, null, null);
+                return streams != null && streams.Streams.Any();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetStreamStatus()");
-                return false;
-            }
-            if (streams != null && streams.Streams.Any())
-            {
-                return true;
-            }
-            else
-            {
+                _logger?.LogError(ex, "GetStreamStatus()");
                 return false;
             }
         }
-        public static async Task GetCustomRewardTest(string rewardID)
+
+        public static async Task<string> GetCustomReward(string rewardID, string userID)
         {
-            if (!ValidToken) return;
-            var redemption = await API.Helix.ChannelPoints.GetCustomRewardRedemptionAsync(BrodcasterID, rewardID).ConfigureAwait(false);
-            foreach (var rew in redemption.Data)
-            {
-                Console.WriteLine(rew.Id);                    
-            }           
-        }
-        public static async Task<string> GetCustomReward(string rewardID,string userID)
-        {
-            if (!ValidToken) return null;
-            GetCustomRewardRedemptionResponse redemption;
+            if (!IsReady()) return null;
             try
             {
-                redemption = await API.Helix.ChannelPoints.GetCustomRewardRedemptionAsync(BrodcasterID, rewardID).ConfigureAwait(false);
+                var redemption = await API.Helix.ChannelPoints.GetCustomRewardRedemptionAsync(BrodcasterID, rewardID).ConfigureAwait(false);
+                return redemption.Data.FirstOrDefault(r => r.UserId == userID)?.Id;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetStreamStatus()");
+                _logger?.LogError(ex, "GetCustomReward");
                 return null;
             }
-            for (int i = 0; i < redemption.Data.Length; i++)            
-                if (redemption.Data[i].UserId == userID)
-                    return redemption.Data[i].Id;            
-            return null;
         }
+
         private static async Task TimeOutUserAsync(string UserID, int Duration, string Reason)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Moderation.BanUserAsync(BrodcasterID, BrodcasterID, new BanUserRequest
@@ -521,12 +477,13 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "TimeOutUserAsync");
+                _logger?.LogError(ex, "TimeOutUserAsync");
             }
         }
+
         public static async Task BanUser(string UserID, string Reason)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Moderation.BanUserAsync(BrodcasterID, BrodcasterID, new BanUserRequest
@@ -537,151 +494,159 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "BanUser");
+                _logger?.LogError(ex, "BanUser");
             }
         }
+
         public static async Task UnBanUser(string UserID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Moderation.UnbanUserAsync(BrodcasterID, BrodcasterID, UserID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "UnBanUser");
+                _logger?.LogError(ex, "UnBanUser");
             }
         }
+
         public static async Task<bool> Announce(string Message)
         {
-            if (!ValidToken) return false;
+            if (!IsReady()) return false;
             try
             {
                 await API.Helix.Chat.SendChatAnnouncementAsync(BrodcasterID, BrodcasterID, Message).ConfigureAwait(false);
+                return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Announce");
+                _logger?.LogError(ex, "Announce");
                 return false;
             }
-            return true;
         }
+
         public static async Task DeleteMessage(string MessageID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
-                await API.Helix.Moderation.DeleteChatMessagesAsync(BrodcasterID,BrodcasterID,MessageID).ConfigureAwait(false);
+                await API.Helix.Moderation.DeleteChatMessagesAsync(BrodcasterID, BrodcasterID, MessageID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "DeleteMessage");
+                _logger?.LogError(ex, "DeleteMessage");
             }
         }
+
         public static async Task DeleteAllMessages()
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Moderation.DeleteChatMessagesAsync(BrodcasterID, BrodcasterID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "DeleteAllMessages");
+                _logger?.LogError(ex, "DeleteAllMessages");
             }
         }
+
         public static async Task<bool> AddChannelModerator(string UserID)
         {
-            if (!ValidToken) return true;
+            if (!IsReady()) return true;
             try
             {
-                await API.Helix.Moderation.AddChannelModeratorAsync(BrodcasterID,UserID).ConfigureAwait(false);
+                await API.Helix.Moderation.AddChannelModeratorAsync(BrodcasterID, UserID).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "AddChannelModerator");
+                _logger?.LogError(ex, "AddChannelModerator");
                 return false;
             }
         }
+
         public static async Task DisableRewardAsync(string rewardID)
         {
-            if (!ValidToken) return;
-            //if (!singleton.wisEnabled) return;
+            if (!IsReady()) return;
             var reward = await GetReward(rewardID).ConfigureAwait(false);
             if (reward != null)
             {
                 await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
-                //singleton.wisEnabled = false;
             }
             else
-                _logger.LogError(null, $"DisableRewardAsync -> null. Id: {rewardID}");
+                _logger?.LogError(null, $"DisableRewardAsync -> null. Id: {rewardID}");
         }
+
         public static async Task EnableRewardAsync(string rewardID)
         {
-            if (!ValidToken) return;
-            //if (singleton.wisEnabled) return;
+            if (!IsReady()) return;
             var reward = await GetReward(rewardID).ConfigureAwait(false);
             if (reward != null)
             {
                 await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
-                //singleton.wisEnabled = true;
             }
             else
-                _logger.LogError(null, $"EnableRewardAsync -> null. Id: {rewardID}");
+                _logger?.LogError(null, $"EnableRewardAsync -> null. Id: {rewardID}");
         }
+
         public static async Task DeleteChannelModerator(string UserID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Moderation.DeleteChannelModeratorAsync(BrodcasterID, UserID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "AddChannelModerator");
+                _logger?.LogError(ex, "DeleteChannelModerator");
             }
         }
+
         public static async Task<GetChannelVIPsResponse> GetVIPs()
         {
-            if (!ValidToken) return null;
+            if (!IsReady()) return null;
             try
             {
-                return await API.Helix.Channels.GetVIPsAsync(BrodcasterID,null,100).ConfigureAwait(false);
+                return await API.Helix.Channels.GetVIPsAsync(BrodcasterID, null, 100).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "AddChannelModerator");
+                _logger?.LogError(ex, "GetVIPs");
                 return null;
             }
         }
+
         public static async Task AddChannelVIP(string UserID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Channels.AddChannelVIPAsync(BrodcasterID, UserID).ConfigureAwait(false);
             }
-            catch (Exception ex) 
-            { 
-                _logger.LogError(ex, "AddChannelVIP"); 
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "AddChannelVIP");
             }
         }
+
         public static async Task DeleteChannelVIP(string UserID)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Channels.RemoveChannelVIPAsync(BrodcasterID, UserID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "DeleteChannelVIP");
+                _logger?.LogError(ex, "DeleteChannelVIP");
             }
         }
+
         public static async Task SetEmoteOnlyMode(bool IsEmoteOnly)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Chat.UpdateChatSettingsAsync(BrodcasterID, BrodcasterID, new ChatSettings
@@ -691,12 +656,13 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SetEmoteOnlyMode");
+                _logger?.LogError(ex, "SetEmoteOnlyMode");
             }
         }
+
         public static async Task TimeOutUser(UserObject user, int Duration, string Reasone)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             if (user.isMod == 1) return;
             try
             {
@@ -704,149 +670,124 @@ namespace SkillzBot.API.Twitch
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "TimeOutUser");
+                _logger?.LogError(ex, "TimeOutUser");
             }
         }
+
         public static async Task TimeOutModerator(UserObject user, int Duration, string Reasone)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await TimeOutUserAsync(user.TwitchID.ToString(), Duration, Reasone).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "TimeOutUser");
+                _logger?.LogError(ex, "TimeOutModerator");
             }
         }
+
         public static async Task SendWhisper(string toUserID, string message, bool newRec = true)
         {
-            if (!ValidToken) return;
+            if (!IsReady()) return;
             try
             {
                 await API.Helix.Whispers.SendWhisperAsync(BrodcasterID, toUserID, message, newRec).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SendWhisper");
+                _logger?.LogError(ex, "SendWhisper");
             }
         }
+
         public static async Task<Moderator[]> GetAllMods()
         {
-            if (!ValidToken) return null;
-            GetModeratorsResponse Responce;
+            if (!IsReady()) return null;
             try
             {
-                Responce = await API.Helix.Moderation.GetModeratorsAsync(BrodcasterID,null,100).ConfigureAwait(false);
+                var Responce = await API.Helix.Moderation.GetModeratorsAsync(BrodcasterID, null, 100).ConfigureAwait(false);
+                return Responce.Data;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetAllModsIds");
-                return null;
-            }
-            return Responce.Data;
-        }
-        public static async Task<Stream> GetStreamInfo()
-        {
-            if (!ValidToken) return null;
-            try
-            {
-                var responce = await API.Helix.Streams.GetStreamsAsync(null,1,null,null,new List<string> { BrodcasterID }).ConfigureAwait(false);
-                if (responce.Streams == null) return null;
-                return responce.Streams[0];
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GetStreamInfo");
-                return null;
-            }
-        }
-        public static async Task<ChannelInformation> GetChannelInformationAsync()
-        {
-            if (!ValidToken) return null;
-            try
-            {
-                var responce = await API.Helix.Channels.GetChannelInformationAsync(BrodcasterID).ConfigureAwait(false);
-                if (responce.Data == null) return null;
-                return responce.Data[0];
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GetStreamInfo");
+                _logger?.LogError(ex, "GetAllMods");
                 return null;
             }
         }
 
-        /*
-        public static async Task<SChatters> GetChattersAsyncDepricated()
+        public static async Task<Stream> GetStreamInfo()
         {
+            if (!IsReady()) return null;
             try
             {
-                String url = $"https://tmi.twitch.tv/group/user/{IllSingleton.GetInstance().ChannelName}/chatters";
-                HttpWebRequest HttpWebRequest = (HttpWebRequest)WebRequest.Create(url);
-                HttpWebRequest.UserAgent = "<Linux>:<IllSkillz_bot>:<v1.5>";
-                using HttpWebResponse HttpWebResponse = (HttpWebResponse)HttpWebRequest.GetResponse();
-                Stream streamResponse = HttpWebResponse.GetResponseStream();
-                using StreamReader streamRead = new StreamReader(streamResponse);
-                Char[] readBuff = new Char[256];
-                string JSONResponse = "";
-                int count = await streamRead.ReadAsync(readBuff, 0, 256).ConfigureAwait(false);
-                while (count > 0)
-                {
-                    String outputData = new String(readBuff, 0, count);
-                    JSONResponse += outputData;
-                    count = await streamRead.ReadAsync(readBuff, 0, 256).ConfigureAwait(false);
-                }
-                return JsonConvert.DeserializeObject<SChatters>(JSONResponse);
+                var responce = await API.Helix.Streams.GetStreamsAsync(null, 1, null, null, new List<string> { BrodcasterID }).ConfigureAwait(false);
+                return responce.Streams?.FirstOrDefault();
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                _logger.LogError(e, "getChateers()");
+                _logger?.LogError(ex, "GetStreamInfo");
                 return null;
             }
-        }*/
+        }
+
+        public static async Task<ChannelInformation> GetChannelInformationAsync()
+        {
+            if (!IsReady()) return null;
+            try
+            {
+                var responce = await API.Helix.Channels.GetChannelInformationAsync(BrodcasterID).ConfigureAwait(false);
+                return responce.Data?.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "GetChannelInformationAsync");
+                return null;
+            }
+        }
+
         public static async Task<GetChattersResponse> GetChattersAsync()
         {
-            if (!ValidToken) return null;
+            if (!IsReady()) return null;
             try
             {
                 return await API.Helix.Chat.GetChattersAsync(BrodcasterID, BrodcasterID);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetChattersAsync");
+                _logger?.LogError(ex, "GetChattersAsync");
                 return null;
             }
         }
+
         public static async Task<bool> CheckClipExistence(string clipID)
         {
-            if (!ValidToken) return false;
+            if (!IsReady()) return false;
             try
             {
                 var clips = await API.Helix.Clips.GetClipsAsync(new List<string> { clipID }).ConfigureAwait(false);
-                if (clips.Clips.Count() == 0 || clips.Clips[0].BroadcasterId != BrodcasterID)
+                if (clips.Clips.Length == 0 || clips.Clips[0].BroadcasterId != BrodcasterID)
                     return false;
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetClipByID");
+                _logger?.LogError(ex, "CheckClipExistence");
                 return false;
             }
         }
+
         public static async Task<string> GetUsetIDByName(string UserLogin)
         {
-            if (!ValidToken) return null;
+            if (!IsReady()) return null;
             try
             {
                 List<string> list = new List<string> { UserLogin };
                 var Responce = await API.Helix.Users.GetUsersAsync(null, list).ConfigureAwait(false);
-                if (Responce.Users == null) return null;
-                return Responce.Users[0].Id;
+                return Responce.Users?.FirstOrDefault()?.Id;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GetUsetIDByName");
+                _logger?.LogError(ex, "GetUsetIDByName");
                 return null;
             }
         }

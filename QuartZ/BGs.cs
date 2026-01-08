@@ -19,7 +19,7 @@ namespace SkillzBot.QuartZ
                     await IllPredictions.GetCurrentMatchTask().ConfigureAwait(false);
                     break;
                 case "RunEvery5Min":
-                    await BackGroundTasks.RunEvery5Min().ConfigureAwait(false);
+                    await BackGroundTasks.StaticRunEvery5Min().ConfigureAwait(false);
                     break;
                 case "RunDaily":
                     await BackGroundTasks.RunDaily().ConfigureAwait(false);

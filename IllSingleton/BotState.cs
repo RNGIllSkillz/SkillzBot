@@ -1,10 +1,11 @@
 ﻿using IllSkillzBot;
 using SkillzBot.MODELS;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
-using System;
 
 namespace SkillzBot.Singleton
 {
@@ -23,6 +24,8 @@ namespace SkillzBot.Singleton
         private bool _isSubActive = true;
         private int _chatFilterLvl;
         private int _antiBotProtectionLvl;
+        private readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
+        
 
         public bool GodMode { get => Get(_godMode); set => Set(ref _godMode, value); }
         public bool WisEnabled { get => Get(_wisEnabled); set => Set(ref _wisEnabled, value); }
@@ -38,25 +41,30 @@ namespace SkillzBot.Singleton
         public int AntiBotProtectionLvl { get => Get(_antiBotProtectionLvl); set => Set(ref _antiBotProtectionLvl, value); }
 
         private T Get<T>(T field) { lock (_lock) return field; }
-        private void Set<T>(ref T field, T value, string propertyName = null)
+        private void Set<T>(ref T field, T value)
         {
+            bool changed = false;
             lock (_lock)
             {
                 if (!EqualityComparer<T>.Default.Equals(field, value))
                 {
                     field = value;
-                    _ = Task.Run(() => SaveAsync());
+                    changed = true;
                 }
+            }
+            // Fire and forget, but safely queued
+            if (changed)
+            {
+                _ = Task.Run(() => SaveAsync());
             }
         }
         public async Task LoadAsync()
         {
             ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
             var BotStateFilePath = Path.Combine(dataPath.uniquePath, "BotState.txt");
-
+            await _fileSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-
                 if (File.Exists(BotStateFilePath))
                 {
                     var json = await File.ReadAllTextAsync(BotStateFilePath);
@@ -107,6 +115,10 @@ namespace SkillzBot.Singleton
                 {
                     Console.WriteLine($"Failed to create default bot state file: {createEx.Message}");
                 }
+            }
+            finally
+            {
+                _fileSemaphore.Release();
             }
         }
         private async Task CreateDefaultBotStateFileAsync(string filePath)
@@ -161,6 +173,7 @@ namespace SkillzBot.Singleton
                 BotStateModel State;
                 lock (_lock)
                 {
+                    // Create snapshot of state inside lock
                     State = new BotStateModel
                     {
                         GodMode = _godMode,
@@ -185,9 +198,24 @@ namespace SkillzBot.Singleton
                 ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
                 var BotStateFilePath = Path.Combine(dataPath.uniquePath, "BotState.txt");
                 var json = JsonSerializer.Serialize(State, options);
-                if (!File.Exists(BotStateFilePath))
-                    File.Create(BotStateFilePath);
-                await File.WriteAllTextAsync(BotStateFilePath, json);
+
+                await _fileSemaphore.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    // Ensure directory exists
+                    var dir = Path.GetDirectoryName(BotStateFilePath);
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                    await File.WriteAllTextAsync(BotStateFilePath, json).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to save bot state: {ex.Message}");
+                }
+                finally
+                {
+                    _fileSemaphore.Release();
+                }            
             }
             catch (Exception ex)
             {

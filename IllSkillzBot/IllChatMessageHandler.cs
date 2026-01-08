@@ -1,275 +1,274 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using TwitchLib.Client.Events;
+using TwitchLib.Client.Models;
 using SkillzBot.API.Twitch;
 using SkillzBot.MODELS;
-using TwitchLib.Client.Models;
-using F23.StringSimilarity;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
-using Microsoft.Extensions.Logging;
 using SkillzBot.Singleton;
 using SkillzBot.Hosts;
+using SkillzBot.Utils; // Ensure StringUtil is accessible
+using F23.StringSimilarity;
+using SkillzBot.IRC;
 
 namespace SkillzBot.IllSkillzBot
 {
     internal class IllChatMessageHandler
     {
-        private readonly static DataTable Messages = new DataTable("Messages");
-        private readonly static List<MessageBuffer> messagesBuffer = new List<MessageBuffer>();
-        private readonly static object _LockMessagesObject = new object();
-        private readonly static object _LockBufferObject = new object();
-        private static readonly int TimeoutSec = 600;
-        private static readonly int LightTimeoutSec = 300;
-        private static readonly int SaveBufferCount = 100; //number of messages to wrap up for bulk save in db
+        // REPLACEMENT: ConcurrentDictionary is thread-safe and instant O(1) lookup
+        private static readonly ConcurrentDictionary<string, UserChatTracker> _userTrackers =
+            new ConcurrentDictionary<string, UserChatTracker>(StringComparer.OrdinalIgnoreCase);
+
+        // REPLACEMENT: ConcurrentQueue is better for producer-consumer buffers than List+Lock
+        private static readonly ConcurrentQueue<MessageBuffer> _messagesBuffer = new ConcurrentQueue<MessageBuffer>();
+
+        // STATIC TOOLS
+        private static readonly NormalizedLevenshtein _levenshtein = new NormalizedLevenshtein();
         private static readonly ILogger<IllChatMessageHandler> _logger = IllServiceProvider.GetLogger<IllChatMessageHandler>();
 
-        static IllChatMessageHandler()
-        {
+        // CONFIG
+        private const int HardTimeoutSec = 600;
+        private const int TimeoutSec = 300;
+        private const int LightTimeoutSec = 10;
+        private const int SaveBufferCount = 100;
 
-            DataColumn idColumnMess = new DataColumn("Id", Type.GetType("System.Int32"))
-            {
-                Unique = true,
-                AllowDBNull = false,
-                AutoIncrement = true,
-                AutoIncrementSeed = 0,
-                AutoIncrementStep = 1
-            };
-            DataColumn nameMessColumn = new DataColumn("Name", Type.GetType("System.String"));
-            DataColumn Message1 = new DataColumn("Message1", Type.GetType("System.String"));
-            DataColumn Message2 = new DataColumn("Message2", Type.GetType("System.String"));
-            DataColumn Message3 = new DataColumn("Message3", Type.GetType("System.String"));
-            DataColumn Message4 = new DataColumn("Message4", Type.GetType("System.String"));
-            DataColumn MessTime = new DataColumn("UvalTimer", Type.GetType("System.Double"));
-            nameMessColumn.Unique = true;
-            Message1.DefaultValue = "";
-            Message2.DefaultValue = "";
-            Message3.DefaultValue = "";
-            Message4.DefaultValue = "";
-            MessTime.DefaultValue = 0;
-            Messages.Columns.Add(idColumnMess);
-            Messages.Columns.Add(nameMessColumn);
-            Messages.Columns.Add(Message1);
-            Messages.Columns.Add(Message2);
-            Messages.Columns.Add(Message3);
-            Messages.Columns.Add(Message4);
-            Messages.Columns.Add(MessTime);
-            Messages.PrimaryKey = new DataColumn[] { Messages.Columns["Id"] };            
-        }
         public static async Task<UserObject> MessageHandler(OnMessageReceivedArgs e)
         {
-            SaveToBuffer(e);
+            // 1. Fast fail / Ignore specific bots
             if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return null;
-            var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
-            AddMessage(e.ChatMessage.Username, e.ChatMessage.Message);
-            user.messageCon++;
-            await SaveBuffer(false).ConfigureAwait(false);            
 
+            // 2. Buffer to DB (Non-blocking)
+            SaveToBuffer(e);
+
+            // 3. Update internal tracker (Memory)
+            var tracker = AddToTracker(e.ChatMessage.Username, e.ChatMessage.Message);
+
+            // 4. Get/Update User (Database)
+            var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
+            if (user == null) return null; // Handle error case
+
+            user.messageCon++;
+
+            // 5. Async Buffer Save
+            // Fire and forget usually, or await if critical. 
+            // Ideally, this should be a background service.
+            SaveBuffer(false);
+
+            // 6. Active Protection Checks
             if (IllSingleton.State.isSubActive)
             {
-                bool fl2 = false;
+                // A. Bad Pictures (ASCII Art checks)
                 if (IllChatFilters.CheckBooB(e.ChatMessage.Message))
                 {
-                    await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutBadPic).ConfigureAwait(false);
+                    await TtvAPI.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic).ConfigureAwait(false);
                     return user;
                 }
+
                 if (IllChatFilters.FilterASCII(e))
                 {
-                    await TtvAPI.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutPic).ConfigureAwait(false);
-                    fl2 = true;
+                    await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutPic).ConfigureAwait(false);
+                    // Don't return here, flag it but continue checking other things? 
+                    // Original code set fl2=true but continued.
                 }
+
+                // B. Profanity Filter (The Optimized ZapCheck)
                 if (await IllChatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName).ConfigureAwait(false))
+                {
                     return await IllCommands.IllFilterTrigger(user, e.ChatMessage.Id).ConfigureAwait(false);
-                if (fl2)
-                    return user;
+                }
+
+                // C. Link Deletion
                 await IllChatFilters.DeleteLinks(user, e).ConfigureAwait(false);
 
-                //if (await CheckSpam(e.ChatMessage.Username, e.ChatMessage.Message))
-                //return await TtvAPI.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam).ConfigureAwait(false);
-                if (e.ChatMessage.Message.Contains("хохол", StringComparison.OrdinalIgnoreCase) || e.ChatMessage.Message.Contains("хахол", StringComparison.OrdinalIgnoreCase))
+                // D. Spam Check
+                 if (CheckSpam(tracker, e.ChatMessage.Message)) 
+                 {
+                    await TtvAPI.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam).ConfigureAwait(false);
+                    return user; 
+                 }
+
+                // E. Hardcoded Slur Check (Consider moving to ZapCheck/Filter file)
+                // Using StringUtil.Normalize to catch variations like "xaxol" if x maps to h
+                string normalizedMsg = StringUtil.Normalize(e.ChatMessage.Message);
+                if (normalizedMsg.Contains("хохол") || normalizedMsg.Contains("хахол"))
                 {
                     await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason).ConfigureAwait(false);
                     return user;
                 }
+
+                // F. Game Logic
                 if (IllSingleton.State.QuizIsRunning)
                     user = await IllGames.UserGuessAnswer(user, e.ChatMessage.Message).ConfigureAwait(false);
                 else
                     IllGames.QuizzActiveUser(user.TwitchID.ToString());
             }
+
+            // 7. Command Handling
             if (e.ChatMessage.Message.StartsWith("!"))
+            {
                 user = await IllCommandHandler.CommandHandler(user, e.ChatMessage.Message).ConfigureAwait(false);
-            //if (!e.ChatMessage.Message.StartsWith("!") & !e.ChatMessage.Message.StartsWith("/"))
-                //IllCommands.TypeInChat(e.ChatMessage.Message);
-            //if (user.isMod != 1) return user;
-            //if (e.ChatMessage.Message.StartsWith("@bot_illskillz", StringComparison.OrdinalIgnoreCase))
-            //{                
-                //await TtvIRCClient.SendMessage($"@{e.ChatMessage.DisplayName} {await IllCommands.GetGPTResponce(e.ChatMessage.DisplayName, e.ChatMessage.Message).ConfigureAwait(false)}");                
-            //}
+            }
+
             return user;
         }
-        public static async Task SaveBuffer(bool IsForced)
-        {
-            if (messagesBuffer.Count < SaveBufferCount && !IsForced) return;
-            if (messagesBuffer.Count == 0) return;
-            List<MessageBuffer> temp;
-            lock (_LockBufferObject)
-            {
-                temp = new List<MessageBuffer>(messagesBuffer);
-                messagesBuffer.Clear();
-            }
-            await IllServiceProvider.Database.SaveMessagesAsync(temp).ConfigureAwait(false);
-        }
+
+        // ==========================================
+        //  BUFFER LOGIC
+        // ==========================================
+
         private static void SaveToBuffer(OnMessageReceivedArgs e)
         {
-            lock (_LockBufferObject)
+            _messagesBuffer.Enqueue(new MessageBuffer()
             {
-                messagesBuffer.Add(new MessageBuffer()
-                {
-                    Message = e.ChatMessage.Message,
-                    TtvID = e.ChatMessage.UserId,
-                    Name = e.ChatMessage.Username,
-                    TimeStamp = DateTimeOffset.Now.ToUnixTimeSeconds().ToString()
-                });
-            }
+                Message = e.ChatMessage.Message,
+                TtvID = e.ChatMessage.UserId,
+                Name = e.ChatMessage.Username,
+                TimeStamp = DateTimeOffset.Now.ToUnixTimeSeconds().ToString()
+            });
         }
-        static void AddMessage(string Sender, string Message)
+
+        public static async Task SaveBuffer(bool IsForced)
         {
-            int id = FindUser2(Sender);
-            if (id != -1)
+            if (_messagesBuffer.IsEmpty) return;
+            if (_messagesBuffer.Count < SaveBufferCount && !IsForced) return;
+
+            // Dequeue all current items
+            List<MessageBuffer> temp = new List<MessageBuffer>();
+            while (_messagesBuffer.TryDequeue(out var msg))
             {
-                lock (_LockMessagesObject)
-                {
-                    Messages.Rows[id][5] = Messages.Rows[id][4];
-                    Messages.Rows[id][4] = Messages.Rows[id][3];
-                    Messages.Rows[id][3] = Messages.Rows[id][2];
-                    Messages.Rows[id][2] = Message;
-                    Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds() - Convert.ToDouble(Messages.Rows[id][6]);
-                    Messages.AcceptChanges();
-                }
+                temp.Add(msg);
             }
-            else
+
+            if (temp.Count > 0)
             {
-                lock (_LockMessagesObject)
-                {
-                    DataRow NewRow = Messages.NewRow();
-                    NewRow[1] = Sender;
-                    NewRow[2] = Message;
-                    NewRow[3] = "1";
-                    NewRow[4] = "2";
-                    NewRow[5] = "3";
-                    NewRow[6] = DateTimeOffset.Now.ToUnixTimeSeconds();
-                    Messages.Rows.Add(NewRow);
-                    Messages.AcceptChanges();
-                }
+                await IllServiceProvider.Database.SaveMessagesAsync(temp).ConfigureAwait(false);
             }
         }
-        static int FindUser2(string Name)
+
+        // ==========================================
+        //  TRACKER LOGIC
+        // ==========================================
+
+        private static UserChatTracker AddToTracker(string username, string message)
         {
-            try
+            var tracker = _userTrackers.GetOrAdd(username, key => new UserChatTracker { Username = key });
+
+            // Lock only this specific user instance to ensure message order
+            lock (tracker)
             {
-                string expression = $"Name = '{Name.ToLower()}'";
-                lock (_LockMessagesObject)
-                {
-                    var dRows = Messages.Select(expression);
-                    if (dRows.Length > 1)
-                    {
-                        _logger.LogError($"findUser2() Douplicates detected - {Name}");
-                        return -1;
-                    }
-                    if (dRows.Length == 0) return -1;                    
-                    return Convert.ToInt32(dRows[0][0]);
-                }
+                tracker.AddMessage(message);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "findUser2()");
-            }
-            return -1;
+            return tracker;
         }
+
+        // ==========================================
+        //  USER DB LOGIC
+        // ==========================================
+
         private static async Task<UserObject> GetAddUser(ChatMessage chatmessage)
         {
-            if (int.TryParse(chatmessage.UserId, out int ttvid))
-            {
-                UserObject user = await IllServiceProvider.Database.GetUserAsync(ttvid).ConfigureAwait(false);
-                if (user.dbID == -404)
-                {
-                    user.TwitchID = ttvid;
-                    user.Name = chatmessage.Username;
-                    user.isSub = Convert.ToInt32(chatmessage.IsSubscriber);
-                    user.isVip = chatmessage.IsVip ? 1 : 0;
-                    user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
-                    user.isMod = chatmessage.IsModerator ? 1 : 0;
-                    user.isPartner = chatmessage.IsPartner ? 1 : 0;
-                    await IllServiceProvider.Database.AddOrUpdateUserAsync(user).ConfigureAwait(false);
-                    return user;
-                }
-                else
-                {
-                    user.Name = chatmessage.Username;
-                    user.isSub = chatmessage.IsSubscriber ? 1 : 0;
-                    user.isVip = chatmessage.IsVip ? 1 : 0;
-                    user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
-                    user.isMod = chatmessage.IsModerator ? 1 : 0;
-                    user.isPartner = chatmessage.IsPartner ? 1 : 0;
-                    return user;
-                }
-            }
-            else
+            if (!int.TryParse(chatmessage.UserId, out int ttvid))
             {
                 _logger.LogError("GetAddUser(): TtvID Conversion Error");
                 return null;
             }
-        }
-        static async Task<bool> CheckSpam(string Sender, string Message)
-        {
-            var jw = new NormalizedLevenshtein();            
-                int id = await Task.FromResult(FindUser2(Sender)).ConfigureAwait(false);
-            lock (_LockMessagesObject)
+
+            // Optimization: If IllServiceProvider has a memory cache, this is fine.
+            // If it hits SQL every time, consider adding a MemoryCache layer here.
+            UserObject user = await IllServiceProvider.Database.GetUserAsync(ttvid).ConfigureAwait(false);
+
+            // Update volatile fields
+            bool needsUpdate = false;
+
+            if (user.dbID == -404)
             {
-                var sim1 = (jw.Distance(Messages.Rows[id][2].ToString(), Messages.Rows[id][3].ToString()));
-                if (sim1 < 0.4)
+                // New User
+                user.TwitchID = ttvid;
+                needsUpdate = true;
+            }
+
+            // Check for changes (Basic optimization to avoid DB writes if nothing changed)
+            if (user.Name != chatmessage.Username ||
+                user.isSub != (chatmessage.IsSubscriber ? 1 : 0) ||
+                user.isMod != (chatmessage.IsModerator ? 1 : 0) ||
+                user.isVip != (chatmessage.IsVip ? 1 : 0))
+            {
+                needsUpdate = true;
+            }
+
+            user.Name = chatmessage.Username;
+            user.isSub = chatmessage.IsSubscriber ? 1 : 0;
+            user.isVip = chatmessage.IsVip ? 1 : 0;
+            user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
+            user.isMod = chatmessage.IsModerator ? 1 : 0;
+            user.isPartner = chatmessage.IsPartner ? 1 : 0;
+
+            if (needsUpdate)
+            {
+                await IllServiceProvider.Database.AddOrUpdateUserAsync(user).ConfigureAwait(false);
+            }
+
+            return user;
+        }
+
+        // ==========================================
+        //  SPAM CHECK
+        // ==========================================
+
+        static bool CheckSpam(UserChatTracker tracker, string currentMessage)
+        {
+            lock (tracker)
+            {
+                // Logic: 
+                // 1. Check similarity between Msg 0 and 1
+                // 2. Check similarity between Msg 1 and 2
+                // 3. Check similarity between Msg 2 and 3
+                // 4. Check time frequency
+
+                // Note: Messages[0] is current, [1] is previous, etc.
+
+                double sim1 = _levenshtein.Distance(tracker.RecentMessages[0], tracker.RecentMessages[1]);
+                if (sim1 >= 0.4) return false; // Not similar enough
+
+                double sim2 = _levenshtein.Distance(tracker.RecentMessages[1], tracker.RecentMessages[2]);
+                if (sim2 >= 0.4) return false;
+
+                // Thresholds based on message length
+                double sim3 = _levenshtein.Distance(tracker.RecentMessages[2], tracker.RecentMessages[3]);
+
+                bool isSpam = false;
+
+                if (currentMessage.Length < 118)
                 {
-                    var sim2 = (jw.Distance(Messages.Rows[id][3].ToString(), Messages.Rows[id][4].ToString()));
-                    if (sim2 < 0.4)
+                    if (sim3 < 0.4 && tracker.SecondsSinceLastMessage < 5)
                     {
-                        if (Message.Length < 118)
-                        {
-                            var sim3 = (jw.Distance(Messages.Rows[id][4].ToString(), Messages.Rows[id][5].ToString()));
-                            if (sim3 < 0.4)
-                            {
-                                if (Convert.ToDouble(Messages.Rows[id][6]) < 5)
-                                {
-                                    Messages.Rows[id][2] = "0";
-                                    Messages.Rows[id][3] = "1";
-                                    Messages.Rows[id][4] = "2";
-                                    Messages.Rows[id][5] = "3";
-                                    Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds();
-                                    Messages.AcceptChanges();
-                                    return true;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (Convert.ToDouble(Messages.Rows[id][6]) < 10)
-                            {
-                                Messages.Rows[id][2] = "0";
-                                Messages.Rows[id][3] = "1";
-                                Messages.Rows[id][4] = "2";
-                                Messages.Rows[id][5] = "3";
-                                Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds();
-                                Messages.AcceptChanges();
-                                return true;
-                            }
-                        }
+                        isSpam = true;
                     }
                 }
-                Messages.Rows[id][6] = DateTimeOffset.Now.ToUnixTimeSeconds();
-                Messages.AcceptChanges();
+                else
+                {
+                    // Longer messages: don't need to check 4th message deep, just 3 messages fast
+                    if (tracker.SecondsSinceLastMessage < 10)
+                    {
+                        isSpam = true;
+                    }
+                }
+
+                if (isSpam)
+                {
+                    // Reset buffer so they don't get banned instantly again for the next message
+                    tracker.RecentMessages[0] = "0";
+                    tracker.RecentMessages[1] = "1";
+                    tracker.RecentMessages[2] = "2";
+                    tracker.RecentMessages[3] = "3";
+                    return true;
+                }
             }
             return false;
-        }        
+        }
     }
 }

@@ -71,6 +71,8 @@ namespace SkillzBot.Utils
 
         public static Task InvokeDelegate(Delegate del, UserObject? user, string[]? command)
         {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
             return del switch
             {
                 Func<UserObject, Task> func1 => func1(user),
@@ -78,6 +80,27 @@ namespace SkillzBot.Utils
                 Func<Task> func3 => func3(),
                 _ => throw new ArgumentException("Unsupported delegate signature or missing command.")
             };
+        }
+        public void PruneExpiredCooldowns()
+        {
+            var now = DateTime.UtcNow;
+            var keysToRemove = new List<CooldownKey>();
+
+            foreach (var kvp in _cooldowns)
+            {
+                if (_cooldownDurations.TryGetValue(kvp.Key.CommandName, out var duration))
+                {
+                    if ((now - kvp.Value) > duration)
+                    {
+                        keysToRemove.Add(kvp.Key);
+                    }
+                }
+            }
+
+            foreach (var key in keysToRemove)
+            {
+                _cooldowns.Remove(key);
+            }
         }
     }
 }

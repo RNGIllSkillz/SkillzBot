@@ -15,37 +15,49 @@ namespace SkillzBot.Discord
         private static CommandService _commands;
         private static IServiceProvider _services;
         private static readonly ILogger<DiscordClient> _logger = IllServiceProvider.GetLogger<DiscordClient>();
-
         private static bool _IsTokenValid = true;
         public DiscordClient()
         {
-            Init().GetAwaiter().GetResult();
+
         }
-        private static async Task Init()
+        public async Task InitializeAsync()
         {
-            if (IllSingleton.Config.DiscordNoteID == 0 || IllSingleton.Config.DiscordBotToken == null)
+            if (IllSingleton.Config.DiscordNoteID == 0 || string.IsNullOrEmpty(IllSingleton.Config.DiscordBotToken))
             {
-                Console.WriteLine("Discord config is invalid! Discord bot is disabled");
+                _logger.LogWarning("Discord config is invalid! Discord bot is disabled");
                 _IsTokenValid = false;
+                return;
             }
+
             if (_IsTokenValid)
+            {
                 await StartUp(IllSingleton.Config.DiscordBotToken).ConfigureAwait(false);
+            }
         }
         private static async Task StartUp(string token)
         {
-            DiscordSocketConfig config = new DiscordSocketConfig
+            try
             {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
-            };
-            _client = new DiscordSocketClient(config);
-            _commands = new CommandService();
-            await RegisterCommandsAsync().ConfigureAwait(false);
-            _client.Log += DisLog;
-            _client.Ready += OnReady;
-            _client.Disconnected += OnDisconnected;
+                DiscordSocketConfig config = new DiscordSocketConfig
+                {
+                    GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
+                    AlwaysDownloadUsers = false // Optimization
+                };
+                _client = new DiscordSocketClient(config);
+                _commands = new CommandService();
 
-            await _client.LoginAsync(TokenType.Bot, token).ConfigureAwait(false);
-            await _client.StartAsync().ConfigureAwait(false);   
+                await RegisterCommandsAsync().ConfigureAwait(false);
+                _client.Log += DisLog;
+                _client.Ready += OnReady;
+                _client.Disconnected += OnDisconnected;
+
+                await _client.LoginAsync(TokenType.Bot, token).ConfigureAwait(false);
+                await _client.StartAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start Discord Client");
+            }
         }
         private static async Task OnDisconnected(Exception exception)
         {

@@ -12,6 +12,9 @@ namespace SkillzBot.Singleton
     {
         private readonly object _lock = new object();
 
+        // SAFETY FLAG: Prevents SaveAsync from running before data is loaded
+        private bool _isLoaded = false;
+
         private string _summonerName;
         private string _summonerRegion;
         private int _startLP;
@@ -33,121 +36,130 @@ namespace SkillzBot.Singleton
         public string Tier { get => Get(_tier); set => Set(ref _tier, value); }
 
         private T Get<T>(T field) { lock (_lock) return field; }
+
         private void Set<T>(ref T field, T value)
         {
+            bool changed = false;
             lock (_lock)
             {
                 if (!EqualityComparer<T>.Default.Equals(field, value))
                 {
                     field = value;
-                    _ = Task.Run(() => SaveAsync());
+                    changed = true;
                 }
             }
+
+            // CRITICAL FIX: 
+            // Only trigger a save if the value changed AND we have finished loading.
+            // This prevents startup initialization from wiping the file.
+            if (changed && _isLoaded)
+            {
+                _ = Task.Run(() => SaveAsync());
+            }
         }
+
         public async Task LoadAsync()
         {
-            ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
-            var GameStateFilePath = Path.Combine(dataPath.uniquePath, "BotGameState.txt");
-
             try
             {
-                if (File.Exists(GameStateFilePath))
+                // Temporarily disable saving while we load
+                _isLoaded = false;
+
+                ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
+                var fileName = IllSingleton.Config.FilePaths.GameStateFileName;
+
+                var filePath = Path.Combine(dataPath.uniquePath, fileName);
+
+                // DEBUG: Verify where the code is actually looking
+                Console.WriteLine($"Looking for GameState at: {filePath}");
+
+                if (!File.Exists(filePath))
                 {
-                    var json = await File.ReadAllTextAsync(GameStateFilePath);
+                    Console.WriteLine("File not found, creating default.");
+                    await CreateDefaultGameStateFileAsync(filePath);
+                    _isLoaded = true; // Enable saving now
+                    return;
+                }
 
-                    // Check if file is empty or contains only whitespace
-                    if (string.IsNullOrWhiteSpace(json))
-                    {
-                        await CreateDefaultGameStateFileAsync(GameStateFilePath);
-                        return;
-                    }
+                var json = await File.ReadAllTextAsync(filePath);
 
-                    var data = JsonSerializer.Deserialize<GameState>(json);
-                    if (data != null)
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    Console.WriteLine("File was empty, creating default.");
+                    await CreateDefaultGameStateFileAsync(filePath);
+                    _isLoaded = true;
+                    return;
+                }
+
+                // Deserialize into the Model (POCO) to keep it clean
+                var data = JsonSerializer.Deserialize<BotGameStateModel>(json);
+
+                if (data != null)
+                {
+                    lock (_lock)
                     {
-                        lock (_lock)
-                        {
-                            _summonerName = data.SummonerName;
-                            _summonerRegion = data.SummonerRegion;
-                            _startLP = data.StartLP;
-                            _elo = data.Elo;
-                            _earnedLP = data.EarnedLP;
-                            _numLosses = data.NumLosses;
-                            _numWins = data.NumWins;
-                            _tier = data.Tier;
-                            _numGames = data.NumGames;
-                        }
+                        // Set PRIVATE fields directly. 
+                        // Even if we used public properties, _isLoaded=false would protect us now.
+                        _summonerName = data.SummonerName;
+                        _summonerRegion = data.SummonerRegion;
+                        _startLP = data.StartLP;
+                        _elo = data.Elo;
+                        _earnedLP = data.EarnedLP;
+                        _numLosses = data.NumLosses;
+                        _numWins = data.NumWins;
+                        _tier = data.Tier;
+                        _numGames = data.NumGames;
                     }
-                    else
-                    {
-                        await CreateDefaultGameStateFileAsync(GameStateFilePath);
-                    }
+                    Console.WriteLine("GameState loaded successfully!");
+                    Console.WriteLine($"Name: {data.SummonerName}");
                 }
                 else
                 {
-                    await CreateDefaultGameStateFileAsync(GameStateFilePath);
+                    await CreateDefaultGameStateFileAsync(filePath);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to load game state: {ex.Message}");
-                try
-                {
-                    await CreateDefaultGameStateFileAsync(GameStateFilePath);
-                }
-                catch (Exception createEx)
-                {
-                    Console.WriteLine($"Failed to create default game state file: {createEx.Message}");
-                }
+            }
+            finally
+            {
+                // ALWAYS enable saving after load attempts finish
+                _isLoaded = true;
             }
         }
 
         private async Task CreateDefaultGameStateFileAsync(string filePath)
         {
-            var defaultGameState = new GameState
-            {
-                SummonerName = string.Empty,
-                SummonerRegion = string.Empty,
-                StartLP = 0,
-                Elo = string.Empty,
-                EarnedLP = 0,
-                NumLosses = 0,
-                NumWins = 0,
-                Tier = string.Empty,
-                NumGames = 0
-            };
-
-            var json = JsonSerializer.Serialize(defaultGameState, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-            var directory = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await File.WriteAllTextAsync(filePath, json);
-
             lock (_lock)
             {
-                _summonerName = defaultGameState.SummonerName;
-                _summonerRegion = defaultGameState.SummonerRegion;
-                _startLP = defaultGameState.StartLP;
-                _elo = defaultGameState.Elo;
-                _earnedLP = defaultGameState.EarnedLP;
-                _numLosses = defaultGameState.NumLosses;
-                _numWins = defaultGameState.NumWins;
-                _tier = defaultGameState.Tier;
-                _numGames = defaultGameState.NumGames;
+                _summonerName = "";
+                _summonerRegion = "euw";
+                _startLP = 0;
+                _elo = "";
+                _earnedLP = 0;
+                _numLosses = 0;
+                _numWins = 0;
+                _tier = "";
+                _numGames = 0;
             }
+
+            // We deliberately want to save here to create the file
+            await SaveInternalAsync(filePath);
         }
 
         public async Task SaveAsync()
         {
+            // Just a wrapper to get path logic
             ConfPathes dataPath = IllSkillzBotMain.GetDataPath();
-            var GameStateFilePath = Path.Combine(dataPath.uniquePath, IllSingleton.Config.FilePaths.GameStateFileName);
+            var fileName = IllSingleton.Config.FilePaths.GameStateFileName;
+            var filePath = Path.Combine(dataPath.uniquePath, fileName);
+
+            await SaveInternalAsync(filePath);
+        }
+
+        private async Task SaveInternalAsync(string filePath)
+        {
             try
             {
                 BotGameStateModel data;
@@ -167,15 +179,17 @@ namespace SkillzBot.Singleton
                     };
                 }
 
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                };
-
+                var options = new JsonSerializerOptions { WriteIndented = true };
                 var json = JsonSerializer.Serialize(data, options);
-                if (!File.Exists(GameStateFilePath))
-                    File.Create(GameStateFilePath);
-                await File.WriteAllTextAsync(GameStateFilePath, json);
+
+                // Ensure directory exists
+                var directory = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                await File.WriteAllTextAsync(filePath, json);
             }
             catch (Exception ex)
             {

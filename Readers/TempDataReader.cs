@@ -18,6 +18,7 @@ namespace SkillzBot.Readers
         static readonly string mediaQueueDir = Path.Combine(dataPath, "mediaqueue.txt");
         readonly private static string dailyStatsDir = Path.Combine(dataPath, "dailyStats.txt");
         private static readonly ILogger<TempDataReader> _logger = IllServiceProvider.GetLogger<TempDataReader>();
+        private static IRiotApiService RiotAPI = IllServiceProvider.GetService<IRiotApiService>();
         public static int GetUserIDByTreckID(string treckID)
         {
             IEnumerable<String> QueueList;

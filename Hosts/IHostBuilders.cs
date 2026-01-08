@@ -51,11 +51,13 @@ namespace SkillzBot.Hosts
                 })
                 .ConfigureServices((context, services) =>
                 {
+
                     services.AddDatabaseServices(_configuration ?? context.Configuration);
                     services.AddTwitchLibEventSubWebsockets();
 
                     services.AddSingleton<ITtvIRCClient, TtvIRCClientService>();
                     //services.AddHostedService<TwitchIrcHostedService>(); //hosted service after refactoring
+                    services.AddSingleton<API.RiotGames.IRiotApiService, API.RiotGames.RiotApiService>();
 
                     services.AddHostedService<TTVEventSub>();
 

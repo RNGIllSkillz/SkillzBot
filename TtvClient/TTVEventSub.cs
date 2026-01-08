@@ -59,7 +59,8 @@ namespace SkillzBot.EventSub
                 { "channel.ban", "1"},
                 { "channel.prediction.begin", "1"}
             };
-        }        
+        }
+
         #region EventSub stuff
         private async Task OnErrorOccurred(object sender, ErrorOccuredArgs e)
         {

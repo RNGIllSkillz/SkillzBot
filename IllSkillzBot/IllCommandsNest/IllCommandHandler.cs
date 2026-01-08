@@ -81,13 +81,14 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         new("!ртоп", IllCommands.RouletteTop, RequiresCooldown: true, 4800, BypassCooldown: false),
         new("!топ", IllCommands.GetTopChat, RequiresCooldown: true, 4800, BypassCooldown: false),
         new("!quizz", IllCommands.StartQuizz, RequiresCooldown: true, 4800, BypassCooldown: false, IsGlobal: true),
-        new("!song", IllCommands.GetTreck, RequiresCooldown: true, 60, Aliases: new[] { "!трек", "!песня" }),
+        //new("!song", IllCommands.GetTreck, RequiresCooldown: true, 60, Aliases: new[] { "!трек", "!песня" }),
         new("!sr", IllCommands.QuizzMediaReward, RequiresCooldown: true, 60),
         new("!help", IllCommands.Help, RequiresCooldown: true, 120, BypassCooldown: false),
         new("!points", IllCommands.Points, RequiresCooldown: true, 600),
         new("!mmr", IllCommands.GetMMR, RequiresCooldown: true, 4800, BypassCooldown: false, Aliases: new[] { "!ммр" }),
         new("!история", IllCommands.GetMatchHistory, RequiresCooldown: true, 1800),
-        new("!очередь", IllCommands.GetTrackQueue, RequiresCooldown: true, 240),
+        //new("!очередь", IllCommands.GetTrackQueue, RequiresCooldown: true, 240, IsGlobal: true, RequiredAccessLevel: AccessLevel.Vip),
+        new("!ставки", IllCommands.Ludka, RequiresCooldown: true, 120, Aliases: new[] { "!лудка", "!kelrf", "!cnfdrb" }),
 
         // Special internal cooldown logic
         new("!рулетка", IllGames.Rulette, Aliases: new[] { "!hektnrf" }),

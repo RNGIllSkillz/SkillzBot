@@ -1,58 +1,36 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SkillzBot.WRITERS
 {
     internal class UserBlackListWriter
     {
-        readonly static Mutex mutexObj = new Mutex();
-        #region Getting Directories
-
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
-        readonly static string filePath = Path.Combine(dataPath, "userblacklist.txt");
+        // Fix: Use SemaphoreSlim for Async waiting
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private static readonly string filePath = Path.Combine(IllSkillzBotMain.GetDataPath().uniquePath, "userblacklist.txt");
         private static readonly ILogger<UserBlackListWriter> _logger = IllServiceProvider.GetLogger<UserBlackListWriter>();
-        #endregion
 
-        public static void Write(string Message)
+        public static async Task Write(string Message)
         {
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException();
-            }
-            mutexObj.WaitOne();
-            FileInfo file = new FileInfo(filePath);
-            while (IsFileLocked(file))
-            {
-                Thread.Sleep(100);
-            }
+            await _semaphore.WaitAsync(); // Async wait
             try
             {
-                File.AppendAllText(filePath, Message + Environment.NewLine);
+                // Simple append is safe inside Semaphore
+                await File.AppendAllTextAsync(filePath, $"{Message}{Environment.NewLine}");
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "UserBlackListWriter");
+                _logger.LogError(e, "FlagWriterTask()");
             }
-            mutexObj.ReleaseMutex();
-        }
-        private static bool IsFileLocked(FileInfo file)
-        {
-            try
+            finally
             {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
-                {
-                    stream.Close();
-                }
+                _semaphore.Release();
             }
-            catch (IOException)
-            {
-                return true;
-            }
-            return false;
         }
     }
 }

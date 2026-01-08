@@ -16,82 +16,90 @@ using SkillzBot.Singleton;
 
 namespace SkillzBot.API.RiotGames
 {
-    internal class RiotAPI
+    public class RiotApiService : IRiotApiService
     {
-        private static readonly RiotGamesApi riotApi;
+        private RiotGamesApi _riotApi;
+        private readonly ILogger<RiotApiService> _logger;
+        private PlatformRoute _platformRoute;
+        private Summoner _summoner;
+        private string _gameName;
+        private string _tagLine;
+        private bool _isValidToken;
         private static string lastErrorMessage = null;
-        private static readonly bool IsValidToken;
-        private static Summoner summoner;
-        private static Exception tempEx = null;
-        private static PlatformRoute platformRout;
-        private static string gameName;
-        private static string tagLine;
-        private static Account account;
-        private static readonly ILogger<RiotAPI> _logger = IllServiceProvider.GetLogger<RiotAPI>();
+        private Account account;
 
-        static RiotAPI()
+        public RiotApiService(ILogger<RiotApiService> logger)
         {
-            IsValidToken = StringUtil.IsValidApiToken(IllSingleton.Config.RiotApiToken);
-            if (!IsValidToken)
+            _logger = logger;
+        }
+
+        public async Task<bool> InitializeAsync()
+        {
+            _isValidToken = StringUtil.IsValidApiToken(IllSingleton.Config.RiotApiToken);
+            if (!_isValidToken)
             {
-                Console.WriteLine("No valid RiotAPI token. RiotAPI functionality is offline");
-                return;
+                _logger.LogWarning("No valid _riotApi token. Functionality offline.");
+                return false;
             }
-            Console.Write("Initializing Camille... ");      
-            platformRout = IllSingleton.Game.SummonerRegion switch
+
+            _platformRoute = IllSingleton.Game.SummonerRegion switch
             {
                 "ru" => PlatformRoute.RU,
-                //"euw" => Region.Euw,
-                //"na" => Region.Na,
                 _ => PlatformRoute.EUW1,
             };
+
             var name = IllSingleton.Game.SummonerName.Split('#');
-            gameName = name[0];
-            tagLine = name[1];
-            riotApi = RiotGamesApi.NewInstance(
+            if (name.Length < 2)
+            {
+                _logger.LogError("Invalid Summoner Name format (Name#Tag)");
+                return false;
+            }
+
+            _gameName = name[0];
+            _tagLine = name[1];
+
+            _riotApi = RiotGamesApi.NewInstance(
                 new RiotGamesApiConfig.Builder(IllSingleton.Config.RiotApiToken)
                 {
                     MaxConcurrentRequests = 200,
-                    Retries = 10,
+                    Retries = 3, // Reduced from 10 to prevent long hangs
                 }.Build()
             );
-            for (int i = 0; i <= 5; i++)
+
+            // Async initialization
+            _summoner = await GetSummonerInternalAsync();
+
+            if (_summoner == null)
             {
-                summoner = InitAsync().GetAwaiter().GetResult();
-                if (summoner != null) break;
-                Thread.Sleep(2000);
+                _isValidToken = false;
+                _logger.LogError("Failed to fetch initial Summoner data.");
+                return false;
             }
-            if (summoner == null)
-            {
-                IsValidToken = false;
-                Console.WriteLine("Error at initializing RiotAPI class. RiotAPI functionality is offline.");
-            }
-            else
-                Console.WriteLine("OK.");
+
+            _logger.LogInformation("Riot API Initialized successfully.");
+            return true;
         }
-        private static async Task<Summoner> InitAsync()
+
+        private async Task<Summoner> GetSummonerInternalAsync()
         {
             try
             {
-                account = riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, gameName, tagLine).Result;
-                return await riotApi.SummonerV4().GetByPUUIDAsync(platformRout, account.Puuid);
+                var account = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, _gameName, _tagLine);
+                if (account == null) return null;
+                return await _riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid);
             }
             catch (Exception ex)
             {
-                if (tempEx == null || tempEx != ex)
-                {
-                    _logger.LogError(ex, "RiotApi InitAsync");
-                    tempEx = ex;
-                }
+                _logger.LogError(ex, "_riotApi Init Failed");
                 return null;
             }
         }
-        public static async Task<CurrentGameInfo> GetCurrentGameAsync()
+        public async Task<CurrentGameInfo> GetCurrentGameAsync()
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
-                var currentGame = await riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(platformRout, summoner.Puuid).ConfigureAwait(false);
+                var currentGame = await _riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
                 lastErrorMessage = null;
                 return currentGame;
             }
@@ -123,13 +131,13 @@ namespace SkillzBot.API.RiotGames
             return null;
         }
         
-        public static async Task<List<string>> GetRankBySummonerAsync()
+        public async Task<List<string>> GetRankBySummonerAsync()
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             LeagueEntry[] rank;
             try
             {
-                rank = await HttpHandler.GetLeagueEntriesByPUUIDAsync(platformRout, summoner.Puuid).ConfigureAwait(false);
+                rank = await HttpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -152,12 +160,12 @@ namespace SkillzBot.API.RiotGames
         }
         /* public static async Task<List<string>> GetRankBySummonerAsync()
          {
-             if (!IsValidToken) return null;
+             if (!_isValidToken) return null;
              LeagueEntry[] rank; //= null
              try
              {
-                 //rank = await riotApi.LeagueV4().GetLeagueEntriesForSummonerAsync(platformRout, summoner.Id).ConfigureAwait(false);
-                 rank = await GetLeagueEntriesByPUUIDAsync("euw1", summoner.Puuid, singleton.RiotApiToken).ConfigureAwait(false);
+                 //rank = await _riotApi.LeagueV4().GetLeagueEntriesForSummonerAsync(platformRout, summoner.Id).ConfigureAwait(false);
+                 rank = await GetLeagueEntriesByPUUIDAsync("euw1", summoner.Puuid, singleton._riotApiToken).ConfigureAwait(false);
              }
              catch (Exception ex)
              {
@@ -178,12 +186,12 @@ namespace SkillzBot.API.RiotGames
              }
              return null;
          }*/
-        public static async Task<Match> GetMatchAsync(string matchID)
+        public async Task<Match> GetMatchAsync(string matchID)
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
-                return await riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID).ConfigureAwait(false);
+                return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -199,11 +207,11 @@ namespace SkillzBot.API.RiotGames
         /*
         public static async Task<Match> GetMatchAsync(string matchID)
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
-                return await riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE,matchID).ConfigureAwait(false);
-                //return await riotApi.Match.GetMatchAsync(Region.Europe, matchID).ConfigureAwait(false);
+                return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE,matchID).ConfigureAwait(false);
+                //return await _riotApi.Match.GetMatchAsync(Region.Europe, matchID).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -233,13 +241,13 @@ namespace SkillzBot.API.RiotGames
                 }
             }
         }*/
-        public static async Task<LeagueEntry[]> GetLeagueEntriesBySummonerAsync(string SummonerName = null, string sRegion = null)
+        public async Task<LeagueEntry[]> GetLeagueEntriesBySummonerAsync(string SummonerName = null, string sRegion = null)
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
                 if (SummonerName == null || sRegion == null)                
-                    return await HttpHandler.GetLeagueEntriesByPUUIDAsync(platformRout, summoner.Puuid).ConfigureAwait(false); 
+                    return await HttpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false); 
                 else
                 {
                     var tPlatform = sRegion switch
@@ -249,7 +257,7 @@ namespace SkillzBot.API.RiotGames
                         //"na" => Region.Na,
                         _ => PlatformRoute.EUW1,
                     };
-                    return await HttpHandler.GetLeagueEntriesByPUUIDAsync(platformRout, summoner.Puuid).ConfigureAwait(false);
+                    return await HttpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -261,7 +269,7 @@ namespace SkillzBot.API.RiotGames
         /*
         public static async Task<ChampionStatic> GetChampByIdAsync(int ChampionId)
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             CultureInfo culture = CultureInfo.CurrentCulture;
             var lang = culture.TwoLetterISOLanguageName.ToLower() switch
             {
@@ -274,8 +282,8 @@ namespace SkillzBot.API.RiotGames
             };
             try
             {
-                var test = await riotApi.
-                //return await riotApi.DataDragon.Champions.GetByIdAsync(ChampionId, "13.6.1", lang).ConfigureAwait(false);
+                var test = await _riotApi.
+                //return await _riotApi.DataDragon.Champions.GetByIdAsync(ChampionId, "13.6.1", lang).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -283,7 +291,7 @@ namespace SkillzBot.API.RiotGames
                 return null;
             }
         } */
-        public static Camille.RiotGames.MatchV5.Participant GetParticipantByMatch(Match match)
+        public Camille.RiotGames.MatchV5.Participant GetParticipantByMatch(Match match)
         {
             foreach (var Participant in match.Info.Participants)
             {
@@ -296,10 +304,10 @@ namespace SkillzBot.API.RiotGames
         /*
         public static async Task<List<string>> GetMatchListAsync()
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
-                return await riotApi.Match.GetMatchListAsync(Region.Europe, summoner.Puuid, 0, 1).ConfigureAwait(false);
+                return await _riotApi.Match.GetMatchListAsync(Region.Europe, summoner.Puuid, 0, 1).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -307,9 +315,9 @@ namespace SkillzBot.API.RiotGames
                 return null;
             }
         }*/
-        public static async Task<string> UpdateSummonerByNameAsync(string gameName, string tagLine, string inRegion)
+        public async Task<string> UpdateSummonerByNameAsync(string gameName, string tagLine, string inRegion)
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
                 var newRegion = inRegion switch
@@ -319,10 +327,10 @@ namespace SkillzBot.API.RiotGames
                     //"na" => Region.Na,
                     _ => PlatformRoute.EUW1,
                 };
-                account = await riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, gameName, tagLine).ConfigureAwait(false);
+                account = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, gameName, tagLine).ConfigureAwait(false);
                 if (account == null)
                     throw new InvalidOperationException("Account not found for the given gameName and tagLine.");
-                summoner = await riotApi.SummonerV4().GetByPUUIDAsync(newRegion, account.Puuid).ConfigureAwait(false);
+                _summoner = await _riotApi.SummonerV4().GetByPUUIDAsync(newRegion, account.Puuid).ConfigureAwait(false);
                 return null;
             }
             catch (Exception ex)
@@ -331,12 +339,12 @@ namespace SkillzBot.API.RiotGames
                 return ex.Message;
             }
         }
-        public static async Task<Summoner> GetSummonerByNameAsync(string tagLine, string inRegion)
+        public async Task<Summoner> GetSummonerByNameAsync(string tagLine, string inRegion)
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
-                return await riotApi.SummonerV4().GetByPUUIDAsync(platformRout, account.Puuid).ConfigureAwait(false);
+                return await _riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -344,13 +352,13 @@ namespace SkillzBot.API.RiotGames
                 return null;
             }
         }
-        public static async Task<LeagueEntry[]> GetLeagueEntriesBySummonerAsync(string summonerId)
+        public async Task<LeagueEntry[]> GetLeagueEntriesBySummonerAsync(string summonerId)
         {
-            if (!IsValidToken) return null;
+            if (!_isValidToken) return null;
             try
             {
-                return await riotApi.LeagueV4().GetLeagueEntriesForSummonerAsync(platformRout, summonerId).ConfigureAwait(false);
-                //return await riotApi.League.GetLeagueEntriesBySummonerAsync(region, summonerId).ConfigureAwait(false);
+                return await _riotApi.LeagueV4().GetLeagueEntriesForSummonerAsync(_platformRoute, summonerId).ConfigureAwait(false);
+                //return await _riotApi.League.GetLeagueEntriesBySummonerAsync(region, summonerId).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -358,9 +366,9 @@ namespace SkillzBot.API.RiotGames
                 return null;
             }
         }
-        public static void UpdateConfig()
+        public void UpdateConfig()
         {
-            platformRout = IllSingleton.Game.SummonerRegion switch
+            _platformRoute = IllSingleton.Game.SummonerRegion switch
             {
                 //"ru" => Region.Ru,
                 //"euw" => Region.Euw,
@@ -368,8 +376,8 @@ namespace SkillzBot.API.RiotGames
                 _ => PlatformRoute.EUW1,
             };
             var name = IllSingleton.Game.SummonerName.Split('#');
-            gameName = name[0];
-            tagLine = name[1];
+            _gameName = name[0];
+            _tagLine = name[1];
         }
     }
 }

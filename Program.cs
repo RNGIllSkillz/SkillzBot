@@ -1,24 +1,24 @@
-﻿using System.Text;
-using System;
-using System.IO;
-using SkillzBot.IRC;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using System.Threading.Tasks;
+using SkillzBot.API.RiotGames;
 using SkillzBot.API.Twitch;
-using System.Globalization;
-using System.Threading;
-using SkillzBot.JSON.Settings;
-using SkillzBot.MODELS;
 using SkillzBot.Discord;
 using SkillzBot.Hosts;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Generic;
-using System.Linq;
 using SkillzBot.Interfaces;
+using SkillzBot.IRC;
+using SkillzBot.JSON.Settings;
+using SkillzBot.MODELS;
 using SkillzBot.Singleton;
-
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IllSkillzBot
 {
@@ -26,9 +26,7 @@ namespace IllSkillzBot
     {
         private static ILogger<IllSkillzBotMain> _logger;
         private static IHost _host;
-
         private static readonly ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
-
         private static string _dataPath;
         private static string _sharedPath;
         private static string _configPath;
@@ -38,20 +36,32 @@ namespace IllSkillzBot
         {
             try
             {
-                await InitializeHostAsync().ConfigureAwait(false);
+                // 1. Initialize Paths & Config
+                InitializePaths();
+
+                // 2. Initialize Singleton (Loads Config from file)
+                await IllSingleton.InitializeAsync(_configPath).ConfigureAwait(false);
+
+                // 3. Build Host (Sets up DI, Logger, DB, etc.)
+                var hostBuilders = new IHostBuilders(_dataPath, _channelName);
+                _host = hostBuilders.BuildMainApplicationHost();
+
+                // 4. Initialize Service Provider Helper
+                IllServiceProvider.Initialize(_host.Services);
+                _logger = _host.Services.GetRequiredService<ILogger<IllSkillzBotMain>>();
+
+                await _host.StartAsync().ConfigureAwait(false);
+
+                // 5. Initialize Application & Static Helpers
                 await InitializeApplicationAsync().ConfigureAwait(false);
+
+                // 6. Run
                 await RunApplicationAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                if (_logger != null)
-                {
-                    _logger.LogCritical(ex, "Critical error in main application");
-                }
-                else
-                {
-                    Console.WriteLine($"Critical error before logger initialization: {ex}");
-                }
+                if (_logger != null) _logger.LogCritical(ex, "Critical error in main application");
+                else Console.WriteLine($"Critical error before logger initialization: {ex}");
                 Environment.Exit(1);
             }
             finally
@@ -59,20 +69,6 @@ namespace IllSkillzBot
                 _resetEvent?.Dispose();
                 _host?.Dispose();
             }
-        }
-        
-        private static async Task InitializeHostAsync()
-        {
-            // Initialize paths first (needed for log file path)
-            InitializePaths();
-            await IllSingleton.InitializeAsync(_configPath).ConfigureAwait(false);
-
-            var hostBuilders = new IHostBuilders(_dataPath, _channelName);
-            _host = hostBuilders.BuildMainApplicationHost();
-
-            _logger = _host.Services.GetRequiredService<ILogger<IllSkillzBotMain>>();
-            IllServiceProvider.Initialize(_host.Services);
-            await _host.StartAsync().ConfigureAwait(false);
         }
 
         private static async Task InitializeApplicationAsync()
@@ -83,8 +79,12 @@ namespace IllSkillzBot
             var culture = new CultureInfo("ru-RU");
             CultureInfo.DefaultThreadCurrentCulture = culture;
             CultureInfo.DefaultThreadCurrentUICulture = culture;
+
             await EnsureDefaultFilesExistAsync().ConfigureAwait(false);
-            await EnsureConfigurationExistsAsync().ConfigureAwait(false);            
+            await EnsureConfigurationExistsAsync().ConfigureAwait(false);
+
+            // FIX: Initialize Static API Helper here, after config and logging are ready
+            TtvAPI.Initialize(_host.Services.GetRequiredService<ILogger<TtvAPI>>());
 
             _logger.LogInformation("Application initialized successfully for channel: {ChannelName}", _channelName);
         }
@@ -111,17 +111,13 @@ namespace IllSkillzBot
         private static async Task RunApplicationAsync()
         {
             var services = await InitializeServicesAsync().ConfigureAwait(false);
-            // Configure startup settings
             await ConfigureStartupAsync().ConfigureAwait(false);
 
-            // Start background tasks
             var quartzManager = new QuartzBackgroundTaskManager();
             await quartzManager.ScheduleTasks().ConfigureAwait(false);
 
-            //IRC (LEGACY)
             var IRCClient = _host.Services.GetRequiredService<ITtvIRCClient>();
             TtvIRCClient.Initialize(IRCClient);
-
 
             // Wait for shutdown signal
             _resetEvent.Wait();
@@ -137,20 +133,21 @@ namespace IllSkillzBot
         private static async Task<IList<object>> InitializeServicesAsync()
         {
             var services = new List<object>();
-
             try
             {
                 var discordClient = new DiscordClient();
+                await discordClient.InitializeAsync().ConfigureAwait(false);
                 services.Add(discordClient);
 
-                //initialise IRC static method (LEGACY)
+                var riotService = _host.Services.GetRequiredService<IRiotApiService>();
+                await riotService.InitializeAsync().ConfigureAwait(false);
+
                 var ircClient = _host.Services.GetRequiredService<ITtvIRCClient>();
                 bool ircInitialized = await ircClient.InitializeAsync().ConfigureAwait(false);
                 if (!ircInitialized)
                 {
-                    _logger.LogWarning("Failed to initialize Twitch IRC. Continuing without it...");
+                    _logger.LogWarning("Failed to initialize Twitch IRC.");
                 }
-
                 return services;
             }
             catch (Exception ex)
@@ -166,14 +163,12 @@ namespace IllSkillzBot
             {
                 bool isStreamLive = await TtvAPI.GetStreamStatus().ConfigureAwait(false);
                 IllSingleton.State.BroadcasterIsOnline = isStreamLive;
-
                 string status = isStreamLive ? "LIVE" : "Offline";
                 _logger.LogInformation("{ChannelName} is {Status}!", IllSingleton.Config.ChannelName, status);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to configure startup settings");
-                throw;
             }
         }
 
@@ -195,64 +190,37 @@ namespace IllSkillzBot
             {
                 await EnsureFileExistsAsync(filePath);
             }
-
-            _logger.LogInformation("Default files verified/created successfully");
         }
 
         private static async Task EnsureFileExistsAsync(string filePath)
         {
-            try
+            if (!File.Exists(filePath))
             {
-                if (!File.Exists(filePath))
-                {
-                    await File.WriteAllTextAsync(filePath, string.Empty);
-                    _logger.LogDebug("Created file: {FilePath}", filePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to create file: {FilePath}", filePath);
-                throw;
+                await File.WriteAllTextAsync(filePath, string.Empty);
             }
         }
 
         private static async Task EnsureConfigurationExistsAsync()
         {
-            try
+            if (!File.Exists(_configPath))
             {
-                if (!File.Exists(_configPath))
-                {
-                    var defaultSettings = new SettingsJson();
-                    string jsonContent = JsonConvert.SerializeObject(defaultSettings, Formatting.Indented);
-                    await File.WriteAllTextAsync(_configPath, jsonContent);
-                    _logger.LogInformation("Created default configuration file: {ConfigPath}", _configPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to create configuration file: {ConfigPath}", _configPath);
-                throw;
+                var defaultSettings = new SettingsJson();
+                string jsonContent = JsonConvert.SerializeObject(defaultSettings, Formatting.Indented);
+                await File.WriteAllTextAsync(_configPath, jsonContent);
             }
         }
 
         private static void UnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs args)
         {
             var exception = (Exception)args.ExceptionObject;
-            _logger.LogCritical(exception, "Unhandled exception occurred. IsTerminating: {IsTerminating}",
-                args.IsTerminating);
-
-            _logger.LogCritical(exception, "MainHandler caught : ");
-
-            if (args.IsTerminating)
-            {
-                _resetEvent.Set();
-            }
+            _logger?.LogCritical(exception, "Unhandled exception. IsTerminating: {IsTerminating}", args.IsTerminating);
+            if (args.IsTerminating) _resetEvent.Set();
         }
 
         private static void OnCancelKeyPress(object sender, ConsoleCancelEventArgs e)
         {
-            _logger.LogInformation("Shutdown signal received");
-            e.Cancel = true; // Prevent immediate termination
+            _logger?.LogInformation("Shutdown signal received");
+            e.Cancel = true;
             _resetEvent.Set();
         }
 

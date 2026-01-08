@@ -32,6 +32,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         readonly static List<string> popMessages = new List<string>();
         private static IDatabaseService _databaseService = IllServiceProvider.Database;
         private static readonly ILogger<IllCommands> _logger = IllServiceProvider.GetLogger<IllCommands>();
+        private static string _ludka = "";
+        private static IRiotApiService RiotAPI = IllServiceProvider.GetService<IRiotApiService>();
 
         public static async Task Help(UserObject user)
         {
@@ -539,12 +541,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (history == null) return;
             
             int userID = TempDataReader.GetUserIDByTreckID(history.History[0].Song.VideoId);
-            MediaBlackListWriter.Write(history.History[0].Song.VideoId);
+            await MediaBlackListWriter.Write(history.History[0].Song.VideoId).ConfigureAwait(false);
             if (userID != -1)
             {
                 var uUser = await _databaseService.GetUserAsync(userID).ConfigureAwait(false);
                 await TtvAPI.TimeOutUser(uUser, 3600, STRINGS.TimeOutReason_Track).ConfigureAwait(false);
-                UserBlackListWriter.Write(uUser.TwitchID.ToString());
+                await UserBlackListWriter.Write(uUser.TwitchID.ToString()).ConfigureAwait(false);
                 await TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_chatMessage, user.Name, uUser.Name));
             }
             else
@@ -1001,7 +1003,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (input.Length != 2)
             {
-                await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+                await TtvIRCClient.SendMessage(STRINGS.InputERROR).ConfigureAwait(false);
                 return;
             }
             var path = IllSkillzBotMain.GetDataPath().sharedPath;
@@ -1046,6 +1048,16 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             await TtvIRCClient.SendMessage(await QuartzBackgroundTaskManager.GetRunningJobs().ConfigureAwait(false));
         }
 
+        public static async Task Ludka (UserObject user, string[] input)
+        {
+            if (user.isMod == 1 || user.IsBroadcaster == 1)            
+                if (input.Length > 1)
+                {
+                    _ludka = input[1];
+                    return;
+                }            
+            await TtvIRCClient.SendMessage(_ludka).ConfigureAwait(false);
+        }
         public static async Task Ping()
         {
             await TtvIRCClient.SendMessage("pong");

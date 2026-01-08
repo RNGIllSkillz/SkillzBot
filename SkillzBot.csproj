@@ -10,6 +10,18 @@
 	<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
 	<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
   </PropertyGroup>
+
+  
+  <ItemGroup>
+    <None Remove="IllSkillzBot\IllChatMessageHandler.csBe" />
+    <None Remove="Utils\StringUtil.csBe" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <None Include="IllSkillzBot\IllCommandsNest\IllCommands.cs" />
+    <None Include="IllSkillzBot\IllCommandsNest\IllCommands_WIP.cs" />
+  </ItemGroup>
   
   <ItemGroup>
     <PackageReference Include="Camille.RiotGames" Version="3.0.0-nightly-2024-04-20-4d8da4ce47" />

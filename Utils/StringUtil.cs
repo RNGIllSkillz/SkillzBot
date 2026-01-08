@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,33 +8,49 @@ namespace SkillzBot.Utils
 {
     internal sealed class StringUtil
     {
-        private readonly static Dictionary<string, double> rankValues;
-        private readonly static char[] a;
-        private readonly static char[] b;
-        private readonly static char[] o;
-        private readonly static char[] i;
-        private readonly static char[] r;
-        private readonly static char[] p;
-        private readonly static char[] h;
-        private readonly static char[] g;
-        private readonly static char[] m;
-        private readonly static char[] c;
-        private readonly static char[] y;
-        private readonly static char[] x;
-        private readonly static char[] k;
-        private readonly static char[] t;
-        private readonly static char[] e;
-        private const string urlPattern = @"https?:\/\/clips\.twitch\.tv\/[A-Za-z0-9_-]+";
-        private const string YouTubeIDPattern = @"(?<=v=|\/)([a-zA-Z0-9_-]{11})(?=\&|\?|$)";
+        // ==========================================
+        // DATA SOURCES
+        // ==========================================
+        private static readonly Dictionary<string, double> rankValues;
+
+        // Compiled Regex is much faster for repeated use
+        private static readonly Regex _youTubeRegex = new Regex(@"(?<=v=|\/)([a-zA-Z0-9_-]{11})(?=\&|\?|$)", RegexOptions.Compiled);
+        private static readonly Regex _twitchClipRegex = new Regex(@"https?:\/\/clips\.twitch\.tv\/[A-Za-z0-9_-]+", RegexOptions.Compiled);
+        private static readonly Regex _apiTokenRegex = new Regex(@"^(oauth:|RGAPI-|)[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
+
         private static readonly HashSet<char> CharsToRemove = new HashSet<char> { ' ', '.', ',', '!', '_', '-' };
+
+        // Lookup Tables
+        private static readonly char[] _normalizationMap = new char[char.MaxValue + 1];
+        private static readonly char[][] _obfuscationMap = new char[char.MaxValue + 1][];
+
+        private static readonly Dictionary<char, char[]> Mappings = new Dictionary<char, char[]>
+        {
+            { 'a', new[] { 'a','а', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ', 'ã', 'æ', 'å', 'ā', 'ă', 'ǎ', 'ą', 'ȁ', 'ȃ', 'ǡ', 'ǟ', 'ǻ', 'ȧ', 'ȁ' } },
+            { 'b', new[] { 'в', 'B', '฿', 'ᛒ', 'Ɓ', 'Ḅ', 'Ƃ', 'Ḇ', 'Ḃ', 'Ꞗ', 'Ƀ', 'ᛔ', 'v', 'ദ', '൫', 'ℬ', 'Ḇ' } },
+            { 'o', new[] { 'о', 'o', '0', 'ó', 'ô', 'õ', 'ò', 'ó', 'ø', 'ö', 'ō', 'ŏ', 'ő', 'ȯ', 'ȫ', 'ȭ', 'ơ', 'ờ', 'ớ', 'ở', 'ỡ', 'ợ', 'ọ', 'ø', 'ǫ', 'ǭ', 'ǿ', 'ȍ', 'ȏ', 'ⓞ', '⒪', '○', '◯', '◎', '◌', '◍', '◐', '◑', '⚪', 'ꝋ', 'Ꝍ' } },
+            { 'i', new[] { 'и', 'i', 'u', 'ⓤ', '⒰', 'υ', 'ṳ', 'ṵ', 'ṷ', 'ὓ', 'ὔ', 'ὕ', 'ὖ', 'ὗ', '1', '!' } },
+            { 'r', new[] { 'р', 'p', 'r', 'ρ', 'ℛ', 'ℙ', 'ℜ', 'ℝ', 'Ⓟ', 'Ⓡ', 'Ɽ', 'ᖇ', '℞', '℟', 'Ṙ', 'Ṗ', 'Ṕ', 'Ṛ', 'Ṝ', 'Ṟ', 'ᴘ', '☈' } },
+            { 'p', new[] { 'п', 'π', 'n', 'ń', 'ǹ', 'ṅ', 'ň', 'ñ', 'ņ', 'ƞ', 'ṇ', 'ṋ', 'p', 'ρ', 'ℙ', 'Ⓟ', 'Ṗ', 'Ṕ', 'ᴘ', '♫' } },
+            { 'h', new[] { 'н', 'H', 'ℋ', 'ℍ', 'Ḥ', 'Ḧ', 'Ḩ', 'Ἢ', 'Ἡ', 'Ἦ', 'Ἠ', 'Ḫ', 'Ἤ', 'Ἥ', 'Ἧ', 'ᾘ', 'ᾙ', 'ᾟ', 'ᾞ', 'ᾝ', 'H', 'ᾜ', 'ᾛ', 'ᾚ' } },
+            { 'd', new[] { 'д', 'g', 'D' } },
+            { 'm', new[] { 'м', 'm', 'ⓜ', '⒨', 'ṃ', 'ḿ', 'ṁ', 'm', '♏', 'Ḿ', 'Ṁ', 'Ṃ', 'ന' } },
+            { 'c', new[] { 'с', 'c', 'ⓒ', '⒞', 'ḉ', 'c', 'ℂ', '℃', '₡', '∁', 'C' } },
+            { 'y', new[] { 'у', 'y', 'ⓨ', 'ẙ', 'ỳ', 'ỵ', 'ỷ', 'ỹ', 'ẏ', 'y' } },
+            { 'x', new[] { 'х', 'x', 'ⓧ', '⒳', '✖', '✗', '✘', 'ẋ', 'ẍ', 'x', 'Ẍ', 'Ẋ', 'X', 'ⅹ', '乂', '×', '✕', '⨯', '⤫', '⤬' } },
+            { 'k', new[] { 'k', 'к', 'ⓚ', '⒦', 'к', 'ḱ', 'ḳ', 'ḵ', 'k', '₭', 'Ḱ', 'Ḳ', 'Ḵ', 'K' } },
+            { 't', new[] { 'T', 'Ṫ', 'Ṭ', 'Ť', 'Ţ', 'Ț', 'Ⱦ', 'Ƭ', 'ᴛ', 'Ｔ', 'т', '₮', 'Ṱ', 'Ṯ' } },
+            { 'e', new[] { 'е', 'e', 'ⓔ', '⒠', 'ℯ', '∊', 'ḕ', '€', 'ḗ', 'ḙ', 'ḛ', 'ḝ', 'ẹ', 'ẻ', 'ẽ', 'ế', 'ề', 'ể', 'ễ', 'ệ', 'e', 'Ẹ', 'Ḝ', 'Ḛ', 'Ḙ', 'Ḗ', 'Ḕ', 'Ẽ', 'Ế', 'Ề', 'Ể', 'Ễ', 'Ἑ', 'Ἒ', 'Ἐ', 'Έ', 'Ὲ' } }
+        };
 
         static StringUtil()
         {
+            // Initialize Ranks
             rankValues = new Dictionary<string, double>
             {
                 { "challenger i", 31 }, { "grandmaster i", 30 }, { "master i", 29 }, { "diamond i", 28 },
                 { "diamond ii", 27 }, { "diamond iii", 26 }, { "diamond iv", 25 },
-                { "emerald i", 24 }, { "emerald ii", 23 }, { "emerald iii", 22 }, { "emerald iv", 21 }, 
+                { "emerald i", 24 }, { "emerald ii", 23 }, { "emerald iii", 22 }, { "emerald iv", 21 },
                 { "platinum i", 20 }, { "platinum ii", 19 }, { "platinum iii", 18 }, { "platinum iv", 17 },
                 { "gold i", 16 }, { "gold ii", 15 }, { "gold iii", 14 }, { "gold iv", 13 },
                 { "silver i", 12 }, { "silver ii", 11 }, { "silver iii", 10 }, { "silver iv", 9 },
@@ -43,92 +58,240 @@ namespace SkillzBot.Utils
                 { "iron i", 4 }, { "iron ii", 3 }, { "iron iii", 2 }, { "iron iv", 1 },
                 { "unranked", 0 }
             };
-            a = new char[] { 'a','а', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ', 'ã', 'æ', 'å', 'ā', 'ă', 'ǎ', 'ą', 'ȁ', 'ȃ', 'ǡ', 'ǟ', 'ǻ', 'ȧ', 'ȁ' };
-            b = new char[] { 'в', 'B', '฿', 'ᛒ', 'Ɓ', 'Ḅ', 'Ƃ', 'Ḇ', 'Ḃ', 'Ꞗ', 'Ƀ', 'ᛔ', 'v', 'ദ', '൫', 'ℬ', 'Ḇ' };
-            o = new char[] { 'о', 'o', '0', 'ó', 'ô', 'õ', 'ò', 'ó', 'ø', 'ö', 'ō', 'ŏ', 'ő', 'ȯ', 'ȫ', 'ȭ', 'ơ', 'ờ', 'ớ', 'ở', 'ỡ', 'ợ', 'ọ', 'ø', 'ǫ', 'ǭ', 'ǿ', 'ȍ', 'ȏ', 'ⓞ', '⒪', '○', '◯', '◎', '◌', '◍', '◐', '◑', '⚪', 'ꝋ', 'Ꝍ' };
-            i = new char[] { 'и', 'i', 'u', 'ⓤ', '⒰', 'υ', 'ṳ', 'ṵ', 'ṷ', 'ὓ', 'ὔ', 'ὕ', 'ὖ', 'ὗ' };
-            r = new char[] { 'р', 'p', 'r', 'ρ', 'ℛ', 'ℙ', 'ℜ', 'ℝ', 'Ⓟ', 'Ⓡ', 'Ɽ', 'ᖇ', '℞', '℟', 'Ṙ', 'Ṗ', 'Ṕ', 'Ṛ', 'Ṝ', 'Ṟ', 'ᴘ', '☈' };
-            p = new char[] { 'п', 'π', 'n', 'ń', 'ǹ', 'ṅ', 'ň', 'ñ', 'ņ', 'ƞ', 'ṇ', 'ṋ', 'p', 'ρ', 'ℙ', 'Ⓟ', 'Ṗ', 'Ṕ', 'ᴘ', '♫' };
-            h = new char[] { 'н', 'H', 'ℋ', 'ℍ', 'Ḥ', 'Ḧ', 'Ḩ', 'Ἢ', 'Ἡ', 'Ἦ', 'Ἠ', 'Ḫ', 'Ἤ', 'Ἥ', 'Ἧ', 'ᾘ', 'ᾙ', 'ᾟ', 'ᾞ', 'ᾝ', 'H', 'ᾜ', 'ᾛ', 'ᾚ' };
-            g = new char[] { 'д', 'g', 'D'};
-            m = new char[] { 'м', 'm', 'ⓜ', '⒨', 'ṃ', 'ḿ', 'ṁ', 'm', '♏', 'Ḿ', 'Ṁ', 'Ṃ', 'ന' };
-            c = new char[] { 'с', 'c', 'ⓒ', '⒞', 'ḉ', 'c', 'ℂ', '℃', '₡', '∁', 'C' };
-            y = new char[] { 'у', 'y', 'ⓨ', 'ẙ', 'ỳ', 'ỵ', 'ỷ', 'ỹ', 'ẏ', 'y' };
-            x = new char[] { 'х', 'x', 'ⓧ', '⒳', '✖', '✗', '✘', 'ẋ', 'ẍ', 'x', 'Ẍ', 'Ẋ', 'X', 'ⅹ', '乂','×','✕', '⨯', '⤫', '⤬'};            
-            k = new char[] { 'k', 'к', 'ⓚ', '⒦', 'к', 'ḱ', 'ḳ', 'ḵ', 'k', '₭', 'Ḱ', 'Ḳ', 'Ḵ', 'K' };
-            t = new char[] { 'T', 'Ṫ', 'Ṭ', 'Ť', 'Ţ', 'Ț', 'Ⱦ', 'Ƭ', 'ᴛ', 'Ｔ', 'т', '₮', 'Ṱ', 'Ṯ'};
-            e = new char[] { 'е', 'e', 'ⓔ', '⒠', 'ℯ', '∊', 'ḕ', '€', 'ḗ', 'ḙ', 'ḛ', 'ḝ', 'ẹ', 'ẻ', 'ẽ', 'ế', 'ề', 'ể', 'ễ', 'ệ', 'e', 'Ẹ', 'Ḝ', 'Ḛ', 'Ḙ', 'Ḗ', 'Ḕ', 'Ẽ', 'Ế', 'Ề', 'Ể', 'Ễ', 'Ἑ', 'Ἒ', 'Ἐ', 'Έ', 'Ὲ' };
+
+            // Initialize Normalization Map (Default 1:1)
+            for (int i = 0; i < _normalizationMap.Length; i++)
+                _normalizationMap[i] = (char)i;
+
+            // Fill Maps from Source of Truth
+            foreach (var entry in Mappings)
+            {
+                char targetBase = entry.Key;
+
+                // 1. Populate Obfuscation (Shuffle)
+                _obfuscationMap[targetBase] = entry.Value;
+
+                // 2. Populate Normalization (Filter)
+                foreach (char variant in entry.Value)
+                {
+                    _normalizationMap[variant] = targetBase;
+                }
+            }
         }
+
+        // ==========================================
+        // NORMALIZATION & OBFUSCATION
+        // ==========================================
+
+        /// <summary>
+        /// Converts obfuscated chars to base chars, but preserves structure.
+        /// "H0x0l is bad" -> "hohol is bad"
+        /// </summary>
+        public static string Normalize(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+            char[] result = new char[input.Length];
+            for (int i = 0; i < input.Length; i++)
+            {
+                result[i] = char.ToLowerInvariant(_normalizationMap[input[i]]);
+            }
+            return new string(result);
+        }
+
+        public static string GetAggressiveString(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+
+            // Stack allocation for speed
+            Span<char> result = input.Length <= 1024
+                ? stackalloc char[input.Length]
+                : new char[input.Length];
+
+            int pos = 0;
+            char lastChar = '\0'; // Tracker for deduplication
+
+            for (int i = 0; i < input.Length; i++)
+            {
+                char c = input[i];
+
+                // 1. Normalize the char (get base version, e.g. '0' -> 'o')
+                char normalizedChar = _normalizationMap[c];
+
+                // 2. Filter: Only keep Letters and Digits.
+                if (char.IsLetterOrDigit(normalizedChar))
+                {
+                    char lower = char.ToLowerInvariant(normalizedChar);
+
+                    // 3. Deduplicate: Only add if different from the previous char
+                    if (lower != lastChar)
+                    {
+                        result[pos++] = lower;
+                        lastChar = lower;
+                    }
+                }
+            }
+            return result.Slice(0, pos).ToString();
+        }
+
+        public static string Shuffle(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+
+            char[] result = new char[input.Length];
+            Random rng = Random.Shared;
+
+            for (int i = 0; i < input.Length; i++)
+            {
+                char current = char.ToLowerInvariant(input[i]);
+                char[] variants = _obfuscationMap[current];
+
+                if (variants != null && variants.Length > 0)
+                {
+                    result[i] = variants[rng.Next(variants.Length)];
+                }
+                else
+                {
+                    result[i] = current;
+                }
+            }
+            return new string(result);
+        }
+
+        // ==========================================
+        // PARSING & EXTRACTION
+        // ==========================================
+
         public static string GetUserNameFromInput(string userInput)
         {
             if (string.IsNullOrEmpty(userInput)) return null;
-            string gName = userInput[(userInput.LastIndexOf('@') + 1)..];
+
+            // Safer parsing
+            int atIndex = userInput.LastIndexOf('@');
+            if (atIndex == -1 && userInput.Length > 0)
+            {
+                // Fallback if no @ symbol, assume first word is name
+                string[] parts = userInput.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                return parts.Length > 0 ? parts[0].ToLower() : null;
+            }
+
+            string gName = userInput.Substring(atIndex + 1);
             string[] subs2 = gName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            return subs2.First().ToLower();
+
+            return subs2.Length > 0 ? subs2[0].ToLower() : null;
         }
+
         public static string[] SplitAllWords(string input)
         {
-            string[] words = input.Split(' ', '|');
-            return words;
+            if (string.IsNullOrEmpty(input)) return Array.Empty<string>();
+            return input.Split(new[] { ' ', '|' }, StringSplitOptions.RemoveEmptyEntries);
         }
+
         public static string[] SplitAllWordsDiffSep(string input)
         {
-            string[] words = input.Split('|');
-            return words;
+            if (string.IsNullOrEmpty(input)) return Array.Empty<string>();
+            return input.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
         }
+
         public static string[] SplitTwoWords(string inputString)
         {
-            string[] words = inputString.Split(' ');
-            string[] result = new string[2];
-            result[0] = words[0];
-            result[1] = string.Join(" ", words.Skip(1));
-            return result;
+            if (string.IsNullOrEmpty(inputString)) return Array.Empty<string>();
+
+            // Optimized to not scan the whole string
+            int firstSpace = inputString.IndexOf(' ');
+            if (firstSpace == -1) return new string[] { inputString, "" };
+
+            return new string[]
+            {
+                inputString.Substring(0, firstSpace),
+                inputString.Substring(firstSpace + 1)
+            };
         }
+
         public static string GetCommandFromUserInput(string[] wordsArray)
         {
-            string[] wordsList = wordsArray.Skip(1).ToArray();
-            string Command = string.Join(" ", wordsList);
-            return Command;
+            if (wordsArray == null || wordsArray.Length <= 1) return string.Empty;
+
+            // Re-joining an array is slow, but assuming wordsArray was created via Split,
+            // we can't easily get the original substring without the original string.
+            // Using StringBuilder is slightly better than string.Join for strict control, 
+            // but string.Join is optimized internally. Kept strict Join here.
+            return string.Join(" ", wordsArray.Skip(1));
         }
+
         public static string ExtractYouTubeVideoId(string input)
         {
-            string videoId = null;
-            Match match = Regex.Match(input, YouTubeIDPattern);
-            if (match.Success)
-            {
-                videoId = match.Groups[1].Value;
-            }
-            return videoId;
+            if (string.IsNullOrEmpty(input)) return null;
+            Match match = _youTubeRegex.Match(input);
+            return match.Success ? match.Groups[1].Value : null;
         }
-        public static int CheckASCII(string message)
+
+        public static string ExtractClipId(string input)
         {
-            int i = 0;
-            foreach (char ch in message)
+            if (string.IsNullOrEmpty(input)) return null;
+            Match match = _twitchClipRegex.Match(input);
+
+            if (match.Success && match.Value == input) // Your original strict equality check
             {
-                if (!((int)ch >= 32 && (int)ch <= 173) && !((int)ch >= 1024 && (int)ch <= 1279))
+                if (Uri.TryCreate(match.Value, UriKind.Absolute, out Uri uri) && uri.Host == "clips.twitch.tv")
                 {
-                    i++;
+                    string[] segments = uri.Segments;
+                    if (segments.Length > 1)
+                    {
+                        return segments[1].Trim('/');
+                    }
                 }
             }
-            return i;
+            return null;
         }
+
+        public static bool IsValidApiToken(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return false;
+            return _apiTokenRegex.IsMatch(token);
+        }
+
+        // ==========================================
+        // TEXT CLEANING & ANALYSIS
+        // ==========================================
+
+        public static int CheckASCII(string message)
+        {
+            int count = 0;
+            foreach (char ch in message)
+            {
+                int val = (int)ch;
+                // Allow Standard ASCII (32-173) OR Cyrillic (1024-1279)
+                // Note: Standard ASCII is usually 0-127. 128-173 are extended/symbols.
+                if (!((val >= 32 && val <= 173) || (val >= 1024 && val <= 1279)))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
         public static string Clean(string str)
         {
-            if (string.IsNullOrEmpty(str))
-                return string.Empty;
+            if (string.IsNullOrEmpty(str)) return string.Empty;
 
             var sb = new StringBuilder(str.Length);
-            var lowerStr = str.ToLower();
+            string lowerStr = str.ToLower();
 
-            if (lowerStr.Length > 0)
+            // Add first char manually to safely start the loop
+            // But check if it's a char to remove
+            if (lowerStr.Length > 0 && !CharsToRemove.Contains(lowerStr[0]))
             {
                 sb.Append(lowerStr[0]);
+            }
 
-                for (int i = 1; i < lowerStr.Length; i++)
+            for (int i = 1; i < lowerStr.Length; i++)
+            {
+                char currentChar = lowerStr[i];
+
+                if (!CharsToRemove.Contains(currentChar))
                 {
-                    var currentChar = lowerStr[i];
-
-                    if (!CharsToRemove.Contains(currentChar) && sb[sb.Length - 1] != currentChar)
+                    // FIXED: Check Length > 0 before accessing index [Length-1]
+                    if (sb.Length == 0 || sb[sb.Length - 1] != currentChar)
                     {
                         sb.Append(currentChar);
                     }
@@ -136,212 +299,65 @@ namespace SkillzBot.Utils
             }
             return sb.ToString();
         }
-        /*public static string Clean(string str)
-        {
-            if (str.Length > 0)
-            {
-                var set = new HashSet<char>(new char[] { ' ', '.', ',', '!', '_', '-' });
-                str = str.ToLower();
-                var chars = str.ToCharArray();
-                var res = new char[chars.Length];
-                var index = 0;
-                res[0] = str[0];
-                for (var i = 1; i < chars.Length; i++)
-                {
-                    if (!set.Contains(chars[i]) && res[index] != chars[i])
-                    {
-                        res[++index] = chars[i];
-                    }
-                }
-                return new string(res, 0, index + 1);
-            }
-            else
-                return string.Empty;
-        }*/
+
         public static string RemoveWhitespace(string input)
         {
-            return new string(input.ToCharArray()
-                .Where(c => !Char.IsWhiteSpace(c))
-                .ToArray());
-        }
-        public static string Shuffle(string input)
-        {
-            input = input.ToLower();
-            string strOutput = "";
-            foreach (var letter in input)
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+
+            // Optimized: No LINQ allocation
+            int len = input.Length;
+            char[] src = input.ToCharArray(); // Or use unsafe/fixed for zero-alloc
+            int dstIdx = 0;
+
+            for (int i = 0; i < len; i++)
             {
-                switch (letter)
+                char c = src[i];
+                if (!char.IsWhiteSpace(c))
                 {
-                    case 'а':
-                        strOutput += a[IntUtil.Random(0, a.Length - 1)];
-                        continue;
-                    case 'в':
-                        strOutput += b[IntUtil.Random(0, b.Length - 1)];
-                        continue;
-                    case 'о':
-                        strOutput += o[IntUtil.Random(0, o.Length - 1)];
-                        continue;
-                    case 'и':
-                        strOutput += i[IntUtil.Random(0, i.Length - 1)];
-                        continue;
-                    case 'р':
-                        strOutput += r[IntUtil.Random(0, r.Length - 1)];
-                        continue;
-                    case 'п':
-                        strOutput += p[IntUtil.Random(0, p.Length - 1)];
-                        continue;
-                    case 'н':
-                        strOutput += h[IntUtil.Random(0, h.Length - 1)];
-                        continue;
-                    case 'д':
-                        strOutput += g[IntUtil.Random(0, g.Length - 1)];
-                        continue;
-                    case 'м':
-                        strOutput += m[IntUtil.Random(0, m.Length - 1)];
-                        continue;
-                    case 'с':
-                        strOutput += c[IntUtil.Random(0, c.Length - 1)];
-                        continue;
-                    case 'у':
-                        strOutput += y[IntUtil.Random(0, y.Length - 1)];
-                        continue;
-                    case 'х':
-                        strOutput += x[IntUtil.Random(0, x.Length - 1)];
-                        continue;
-                    case 'к':
-                        strOutput += k[IntUtil.Random(0, k.Length - 1)];
-                        continue;
-                    case 'т':
-                        strOutput += t[IntUtil.Random(0, t.Length - 1)];
-                        continue;
-                    case 'е':
-                        strOutput += e[IntUtil.Random(0, e.Length - 1)];
-                        continue;
-                    default:
-                        strOutput += letter;
-                        continue;
+                    src[dstIdx++] = c;
                 }
             }
-            return strOutput;
-        }        
+            return new string(src, 0, dstIdx);
+        }
+
+        public static int CountUpperCaseLetters(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return 0;
+            int count = 0;
+            foreach (char c in input)
+            {
+                if (char.IsUpper(c)) count++;
+            }
+            return count;
+        }
+
         public static string ConvertRank(string rank, bool direction)
         {
-            rank = rank.ToLower();            
-            if (direction)
+            rank = rank.ToLower();
+            if (direction) // Get Points from Name
             {
-                if (rankValues.ContainsKey(rank))
-                {
-                    return rankValues[rank].ToString();
-                }
-                else
-                {
-                    return "0";
-                }
+                return rankValues.TryGetValue(rank, out double val) ? val.ToString() : "0";
             }
-            else
+            else // Get Name from Points
             {
                 if (double.TryParse(rank, out double rankValue))
                 {
-                    string[] rankNames = rankValues.Keys.ToArray();
-                    double[] rankPoints = rankValues.Values.ToArray();
-                    int index = 0;
-                    double minDiff = Math.Abs(rankPoints[0] - rankValue);
-                    for (int i = 1; i < rankPoints.Length; i++)
+                    string bestMatch = "Unknown Rank";
+                    double minDiff = double.MaxValue;
+
+                    foreach (var kvp in rankValues)
                     {
-                        double diff = Math.Abs(rankPoints[i] - rankValue);
+                        double diff = Math.Abs(kvp.Value - rankValue);
                         if (diff < minDiff)
                         {
                             minDiff = diff;
-                            index = i;
+                            bestMatch = kvp.Key;
                         }
                     }
-                    return rankNames[index];
+                    return bestMatch;
                 }
-                else
-                {
-                    return "Unknown Rank";
-                }
+                return "Unknown Rank";
             }
         }
-        public static int CountUpperCaseLetters(string input)
-        {
-            return input.Count(c => char.IsUpper(c));
-        }
-        public static bool IsValidApiToken(string token)
-        {
-            if (string.IsNullOrEmpty(token))
-            {
-                return false; 
-            }
-            var pattern = @"^(oauth:|RGAPI-|)[a-zA-Z0-9_-]+$";
-            var regex = new Regex(pattern);
-            return regex.IsMatch(token);
-        }
-        public static string ExtractClipId(string input)
-        {
-            Match match = Regex.Match(input, urlPattern);
-            if (match.Success && match.Value == input)
-            {
-                if (Uri.TryCreate(match.Value, UriKind.Absolute, out Uri uri) && uri.Host == "clips.twitch.tv")
-                {
-                    string[] segments = uri.Segments;
-                    if (segments.Length > 1)
-                    {
-                        string clipId = segments[1].Trim('/');
-                        return clipId;
-                    }
-                }
-            }
-            return null;
-        }
-        public static HashSet<string> GenerateDictionary(HashSet<string> dictionary)
-        {
-            Console.WriteLine("Generating Variations");
-            HashSet<string> dictionaryGen = new HashSet<string>();
-            foreach (string s in dictionary)
-            {
-                dictionaryGen.UnionWith(GenerateVariations(s));
-            }
-            Console.WriteLine($"{dictionaryGen.Count} variations has been generated!");
-            return dictionaryGen;
-        }
-        private static void GenerateVariationsRecursive(string input, int index, string current, HashSet<string> variations)
-        {
-            if (index == input.Length)
-            {
-                variations.Add(current.ToLower()); //should be tolower, or it might brake stuff
-                return;
-            }
-
-            char currentChar = input[index];
-            string similarChars = GetSimilarCharacters(currentChar);
-            foreach (char similarChar in similarChars)
-            {
-                GenerateVariationsRecursive(input, index + 1, current + similarChar, variations);
-            }
-        }
-        private static HashSet<string> GenerateVariations(string input)
-        {
-            HashSet<string> variations = new HashSet<string>();
-            GenerateVariationsRecursive(input, 0, "", variations);
-            return variations;
-        }
-        private static string GetSimilarCharacters(char c)
-        {
-            return c switch
-            {
-                'о' => new string(o),
-                'п' => new string(p),
-                'а' => new string(a),
-                'р' => new string(r),
-                'д' => new string(g),
-                'н' => new string(h),
-                'и' => new string(i),
-                'к' => new string(k),
-                'е' => new string(e),
-                'г' => "гg",
-                _ => c.ToString(),
-            };
-        }        
     }
 }
