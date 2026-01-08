@@ -13,7 +13,9 @@
 
   
   <ItemGroup>
+    <None Remove="full_codebase.txt" />
     <None Remove="IllSkillzBot\IllChatMessageHandler.csBe" />
+    <None Remove="merge.py" />
     <None Remove="Utils\StringUtil.csBe" />
   </ItemGroup>
 

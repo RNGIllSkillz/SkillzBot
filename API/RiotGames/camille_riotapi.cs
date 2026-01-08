@@ -62,7 +62,7 @@ namespace SkillzBot.API.RiotGames
                 new RiotGamesApiConfig.Builder(IllSingleton.Config.RiotApiToken)
                 {
                     MaxConcurrentRequests = 200,
-                    Retries = 3, // Reduced from 10 to prevent long hangs
+                    Retries = 3, // Reduced from 10 to prevent long hangs 
                 }.Build()
             );
 
