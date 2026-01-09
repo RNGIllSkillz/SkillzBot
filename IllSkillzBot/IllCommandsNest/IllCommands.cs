@@ -1,28 +1,29 @@
-﻿using SkillzBot.API.Twitch;
+﻿using Camille.Enums;
+using Camille.RiotGames.LeagueV4;
+using IllSkillzBot;
+using Microsoft.Extensions.Logging;
+using Serilog.Core;
+using Serilog.Events;
+using SkillzBot.API.MMR;
+using SkillzBot.API.RiotGames;
+using SkillzBot.API.StreamElements;
+using SkillzBot.API.Twitch;
+using SkillzBot.IllSTRINGS;
+using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
+using SkillzBot.Readers;
+using SkillzBot.Singleton;
+using SkillzBot.SubUtils;
+using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
+using SkillzBot.Writers;
 using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Linq;
-using SkillzBot.Writers;
-using SkillzBot.API.MMR;
-using SkillzBot.API.StreamElements;
-using SkillzBot.Readers;
-using SkillzBot.TtvClient.TTVRewards;
 using System.Globalization;
-using SkillzBot.IllSTRINGS;
-using IllSkillzBot;
 using System.IO;
-using SkillzBot.SubUtils;
-using Camille.Enums;
-using SkillzBot.API.RiotGames;
-using Camille.RiotGames.LeagueV4;
-using SkillzBot.Interfaces;
-using Microsoft.Extensions.Logging;
-using SkillzBot.Hosts;
-using SkillzBot.Singleton;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace SkillzBot.IllSkillzBot.IllCommandsNest
 {
@@ -36,6 +37,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly ILogger<IllCommands> _logger;
         private readonly IRiotApiService _riotApi;
         private readonly IllGames _illGames;
+        private readonly QuartzBackgroundTaskManager _quartzManager;
+        private readonly LoggingLevelSwitch _loggingSwitch;
 
         private string _ludka = "";
 
@@ -47,7 +50,9 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             IDatabaseService databaseService,
             ILogger<IllCommands> logger,
             IRiotApiService riotApi,
-            IllGames illGames)
+            IllGames illGames,
+            QuartzBackgroundTaskManager quartzManager,
+            LoggingLevelSwitch loggingSwitch)
         {
             _ircClient = ircClient;
             _modInteractions = modInteractions;
@@ -57,6 +62,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             _logger = logger;
             _riotApi = riotApi;
             _illGames = illGames;
+            _quartzManager = quartzManager;
+            _loggingSwitch = loggingSwitch;
         }
 
         public async Task Help(UserObject user)
@@ -622,7 +629,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task getJobs(UserObject user)
         {
-            await _ircClient.SendMessage(await QuartzBackgroundTaskManager.GetRunningJobs());
+            await _ircClient.SendMessage(await _quartzManager.GetRunningJobs());
         }
 
         public async Task ChangeLanguage(UserObject user, string[] input)
@@ -656,7 +663,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         public async Task ToggleDebug(UserObject user)
         {
             IllSingleton.State.Debug = !IllSingleton.State.Debug;
-            await _ircClient.SendMessage($"Debug mode is {IllSingleton.State.Debug}");
+            if (IllSingleton.State.Debug)
+                _loggingSwitch.MinimumLevel = LogEventLevel.Debug;
+            else
+                _loggingSwitch.MinimumLevel = LogEventLevel.Warning;
+
+            await _ircClient.SendMessage($"Debug mode is now {IllSingleton.State.Debug}");
         }
 
         public async Task ToggleSilentMode(UserObject user)

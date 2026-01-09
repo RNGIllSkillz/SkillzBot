@@ -2,7 +2,6 @@
 using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
-using SkillzBot.WRITERS;
 using System;
 using System.IO;
 using System.Threading;

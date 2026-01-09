@@ -1,101 +1,64 @@
-﻿using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Core;
 using SkillzBot.EventSub;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Interfaces;
 using SkillzBot.IRC;
 using SkillzBot.MySQL;
+using SkillzBot.QuartZ;
 using SkillzBot.TtvClient.TTVRewards;
-using SkillzBot.Writers;
-using System;
-using System.IO;
 using TwitchLib.EventSub.Websockets.Extensions;
 
 namespace SkillzBot.Hosts
 {
     internal class IHostBuilders
     {
-        private readonly string _dataPath;
-        private readonly string _channelName;
-        private readonly IConfiguration _configuration;
-
-        public IHostBuilders(string dataPath, string channelName, IConfiguration configuration = null)
+        private readonly LoggingLevelSwitch _levelSwitch;
+        public IHostBuilders(LoggingLevelSwitch levelSwitch, IConfiguration configuration = null)
         {
-            _dataPath = dataPath;
-            _channelName = channelName;
-            _configuration = configuration;
+            _levelSwitch = levelSwitch;
         }
 
-        public IHostBuilder CreateMainApplicationHostBuilder() =>
-            Host.CreateDefaultBuilder()
-                .ConfigureLogging(logging =>
-                {
-                    logging.ClearProviders();
-                    logging.AddSkillzLogger(options =>
-                    {
-                        options.LogFilePath = Path.Combine(_dataPath, "logs", $"{_channelName}_{DateTime.Now:yyyy-MM-dd}.log");
-                        options.WriteToFile = true;
-                        options.WriteToConsole = true;
-                        options.IncludeTimestamp = true;
-                        options.AddEmptyLines = true;
-
-                        options.TraceSeparator = "···············································································";
-                        options.DebugSeparator = "───────────────────────────────────────────────────────────────────────────────────";
-                        options.InfoSeparator = "═══════════════════════════════════════════════════════════════════════════════════";
-                        options.WarningSeparator = "▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲";
-                        options.ErrorSeparator = "████████████████████████████████████████████████████████████████████████████████████";
-                        options.CriticalSeparator = "🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥";
-                    });
-                })
+        public IHost BuildMainApplicationHost(string[] args)
+        {
+            return Host.CreateDefaultBuilder(args)
+                .UseSerilog() 
                 .ConfigureServices((context, services) =>
                 {
-                    services.AddDatabaseServices(_configuration ?? context.Configuration);
+                    services.AddDatabaseServices(context.Configuration);
                     services.AddTwitchLibEventSubWebsockets();
 
                     // Core Services
                     services.AddSingleton<ITtvIRCClient, TtvIRCClientService>();
                     services.AddSingleton<API.RiotGames.IRiotApiService, API.RiotGames.RiotApiService>();
 
-                    // Logic Services (Added specific registrations)
+                    // Logic Services
                     services.AddSingleton<IllChatFilters>();
                     services.AddSingleton<IllGames>();
-                    services.AddSingleton<RewardsRedemption>();
                     services.AddSingleton<IllModeratorsInteractions>();
+                    services.AddSingleton<RewardsRedemption>();
 
-                    // Commands & Handlers
-                    services.AddSingleton<IllCommands>(); // FIX: Registered IllCommands
+                    // Internal Logic Services
+                    services.AddSingleton<IllCommands>();
                     services.AddSingleton<IllCommandHandler>();
                     services.AddSingleton<IllChatMessageHandler>();
 
-                    // --- HOSTED SERVICES (Background Tasks) ---
+                    // Background & Quartz
+                    services.AddSingleton<BackGroundTasks>();
+                    services.AddSingleton<QuartzBackgroundTaskManager>();
+                    services.AddTransient<BGTasks>();
 
-                    // 1. The EventSub (Websockets)
+                    // Hosted Services
                     services.AddHostedService<TTVEventSub>();
-
-                    // 2. THIS WAS MISSING: The IRC Client (Chat)
                     services.AddHostedService<TwitchIrcHostedService>();
-                });
 
-        public IHost BuildMainApplicationHost()
-        {
-            return CreateMainApplicationHostBuilder().Build();
-        }
-    }
-
-    internal class IWebHostBuilders
-    {
-        private static IWebHostBuilder ILLApiHostBuilder() =>
-        WebHost.CreateDefaultBuilder()
-            .UseStartup<Startup>();
-
-        public IWebHost ILLAPIHost()
-        {
-            return ILLApiHostBuilder().Build();
+                    services.AddSingleton(_levelSwitch);
+                })
+                .Build();
         }
     }
 }

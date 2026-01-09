@@ -1,36 +1,40 @@
-﻿using Quartz;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Quartz;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
+using Quartz.Spi;
+using SkillzBot.Hosts;
+using SkillzBot.QuartZ;
 using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using SkillzBot.QuartZ;
-using Microsoft.Extensions.Logging;
-using SkillzBot.Hosts;
 
 public class QuartzBackgroundTaskManager
 {
-    private static IScheduler _scheduler;
-    private static readonly ILogger<QuartzBackgroundTaskManager> _logger = IllServiceProvider.GetLogger<QuartzBackgroundTaskManager>();
-    public QuartzBackgroundTaskManager()
+    private readonly IScheduler _scheduler;
+    private readonly ILogger<QuartzBackgroundTaskManager> _logger;
+
+    public QuartzBackgroundTaskManager(IServiceProvider serviceProvider, ILogger<QuartzBackgroundTaskManager> logger)
     {
+        _logger = logger;
         ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
         _scheduler = schedulerFactory.GetScheduler().GetAwaiter().GetResult();
+        _scheduler.JobFactory = new DiJobFactory(serviceProvider);
     }
 
     public async Task ScheduleTasks()
     {
-        await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/4 * * * * ?").ConfigureAwait(false);
-        await StackBackGroundTask("RunEvery5Min", "TaskGroup", "CalculatePointsTrigger", "TriggerGroup", "0 */5 * * * ?").ConfigureAwait(false);
-        await StackBackGroundTask("RunDaily", "TaskGroup", "RunDailyTrigger", "TriggerGroup", "0 0 0 * * ?").ConfigureAwait(false);
-        await StackBackGroundTask("TopRuleteTask", "TaskGroup", "TopRuleteTaskTrigger", "TriggerGroup", "0 0 */3 * * ?").ConfigureAwait(false);
-        await StackBackGroundTask("MediaQueueFlush", "TaskGroup", "MediaQueueFlushTrigger", "TriggerGroup", "0 */30 * * * ?").ConfigureAwait(false);
-        await StackBackGroundTask("Quizz", "TaskGroup", "QuizzTrigger", "TriggerGroup", "0 */30 * * * ?").ConfigureAwait(false);
+        await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/4 * * * * ?");
+        await StackBackGroundTask("RunEvery5Min", "TaskGroup", "CalculatePointsTrigger", "TriggerGroup", "0 */5 * * * ?");
+        await StackBackGroundTask("RunDaily", "TaskGroup", "RunDailyTrigger", "TriggerGroup", "0 0 0 * * ?");
+        await StackBackGroundTask("TopRuleteTask", "TaskGroup", "TopRuleteTaskTrigger", "TriggerGroup", "0 0 */3 * * ?");
+        await StackBackGroundTask("MediaQueueFlush", "TaskGroup", "MediaQueueFlushTrigger", "TriggerGroup", "0 */30 * * * ?");
 
         if (!_scheduler.IsStarted)
         {
-            await _scheduler.Start().ConfigureAwait(false);
+            await _scheduler.Start();
         }
     }
 
@@ -67,7 +71,7 @@ public class QuartzBackgroundTaskManager
             _logger.LogCritical(ex, "UpdateJobSchedule");
         }
     }
-    public static async Task<string> GetRunningJobs()
+    public async Task<string> GetRunningJobs()
     {
         var executingJobs = await _scheduler.GetCurrentlyExecutingJobs().ConfigureAwait(false);
         if (executingJobs == null || executingJobs.Count == 0)
@@ -133,6 +137,23 @@ public class QuartzBackgroundTaskManager
         catch (Exception)
         {
             return false;
+        }
+    }
+
+    private class DiJobFactory : IJobFactory
+    {
+        private readonly IServiceProvider _serviceProvider;
+        public DiJobFactory(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
+
+        public IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
+        {
+            return _serviceProvider.GetRequiredService(bundle.JobDetail.JobType) as IJob;
+        }
+
+        public void ReturnJob(IJob job)
+        {
+            // Dispose if needed, container handles transient usually
+            (job as IDisposable)?.Dispose();
         }
     }
 }

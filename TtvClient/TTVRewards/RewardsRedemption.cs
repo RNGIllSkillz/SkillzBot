@@ -19,7 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SkillzBot.TtvClient.TTVRewards
 {
-    public class RewardsRedemption
+    internal class RewardsRedemption
     {
         private static bool CencelUvalIsWating = false;
         private static string CencelUvalUserName = "";
@@ -31,15 +31,17 @@ namespace SkillzBot.TtvClient.TTVRewards
         private readonly ITtvIRCClient _ircClient;
         private readonly ILogger<RewardsRedemption> _logger;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IllModeratorsInteractions _modInteractions;
 
         private IllCommands _illCommands => _serviceProvider.GetRequiredService<IllCommands>();
 
-        public RewardsRedemption(IDatabaseService database, ITtvIRCClient ircClient, ILogger<RewardsRedemption> logger, IServiceProvider serviceProvider)
+        public RewardsRedemption(IDatabaseService database, ITtvIRCClient ircClient, ILogger<RewardsRedemption> logger, IServiceProvider serviceProvider, IllModeratorsInteractions modInteractions)
         {
             _database = database;
             _ircClient = ircClient;
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _modInteractions = modInteractions;
         }
 
         public async Task UvalSabReward(string UserName, string message, string redemID, string rewardID)
@@ -485,7 +487,7 @@ namespace SkillzBot.TtvClient.TTVRewards
             await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), reason).ConfigureAwait(false);
             if (Convert.ToBoolean(user.isMod))
             {
-                Task backgroundTask = BackGroundTasks.UserUntimeoutTrigger(user.Name);
+                Task backgroundTask = _modInteractions.UserUntimeoutTrigger(user.Name);
                 lock (_lock)
                 {
                     if (_runningTasks.Contains(backgroundTask)) return;

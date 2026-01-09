@@ -2,12 +2,13 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Serilog;
+using Serilog.Events;
 using SkillzBot.API.RiotGames;
 using SkillzBot.API.Twitch;
 using SkillzBot.Discord;
 using SkillzBot.Hosts;
 using SkillzBot.Interfaces;
-using SkillzBot.IRC;
 using SkillzBot.JSON.Settings;
 using SkillzBot.MODELS;
 using SkillzBot.Singleton;
@@ -19,13 +20,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SkillzBot.IllSkillzBot;
+using Serilog.Core;
 
 namespace IllSkillzBot
 {
     class IllSkillzBotMain
     {
-        private static ILogger<IllSkillzBotMain> _logger;
         private static IHost _host;
         private static readonly ManualResetEventSlim _resetEvent = new ManualResetEventSlim(false);
         private static string _dataPath;
@@ -38,44 +38,62 @@ namespace IllSkillzBot
             try
             {
                 InitializePaths();
-                Console.WriteLine("Paths initialized.");
 
                 // 1. Initialize Singleton State
                 await IllSingleton.InitializeAsync(_configPath).ConfigureAwait(false);
 
-                // 2. Ensure Files Exist
+                // 2. Configure Serilog
+                string logFileName = $"{DateTime.Now:yyyy-MM-dd}.log";
+                string fullLogPath = Path.Combine(_dataPath, "logs", logFileName);
+                var levelSwitch = new LoggingLevelSwitch(IllSingleton.State.Debug ? LogEventLevel.Debug : LogEventLevel.Warning);
+                Log.Logger = new LoggerConfiguration()
+                    .MinimumLevel.ControlledBy(levelSwitch)
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .MinimumLevel.Override("System", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
+                    .MinimumLevel.Override("TwitchLib", LogEventLevel.Information)
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    .WriteTo.File(
+                        path: fullLogPath,
+                        rollingInterval: RollingInterval.Infinite, 
+                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+                    )
+                    .CreateLogger();
+
+                Log.Information("Paths initialized. Logging system started.");
+
+                // 3. Ensure Files Exist
                 await EnsureDefaultFilesExistAsync().ConfigureAwait(false);
                 await EnsureConfigurationExistsAsync().ConfigureAwait(false);
 
-                // 3. Build Host
-                Console.WriteLine("Building Host...");
-                var hostBuilders = new IHostBuilders(_dataPath, _channelName);
-                _host = hostBuilders.BuildMainApplicationHost();
+                // 4. Build Host
+                Log.Information("Building Host...");
+                var hostBuilders = new IHostBuilders(levelSwitch);
+                _host = hostBuilders.BuildMainApplicationHost(args);
 
-                // 4. Initialize Service Locator
+                // 5. Initialize Service Locator (Legacy support)
                 IllServiceProvider.Initialize(_host.Services);
-                _logger = _host.Services.GetRequiredService<ILogger<IllSkillzBotMain>>();
 
-                // 5. Initialize Application Settings (TtvAPI etc)
-                // We run this BEFORE starting the host so basic APIs are ready
+                // 6. Initialize Application Settings
                 await InitializeApplicationAsync().ConfigureAwait(false);
 
-                // 6. Start Host (Starts Background Services: EventSub, IRC, Logger)
-                Console.WriteLine("Starting Host (Background Services)...");
+                // 7. Start Host
+                Log.Information("Starting Host (Background Services)...");
                 await _host.StartAsync().ConfigureAwait(false);
-                Console.WriteLine("Host Started.");
+                Log.Information("Host Started.");
 
-                // 7. Run Application Logic (Services init)
+                // 8. Run Application Logic
                 await RunApplicationAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"CRITICAL ERROR: {ex}");
-                if (_logger != null) _logger.LogCritical(ex, "Critical error in main application");
+                Log.Fatal(ex, "Critical application failure");
                 Environment.Exit(1);
             }
             finally
             {
+                Log.CloseAndFlush();
                 _resetEvent?.Dispose();
                 _host?.Dispose();
             }
@@ -83,56 +101,52 @@ namespace IllSkillzBot
 
         private static async Task InitializeApplicationAsync()
         {
-            AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionHandler;
-            Console.CancelKeyPress += OnCancelKeyPress;
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => 
+                Log.Fatal((Exception)e.ExceptionObject, "Unhandled Domain Exception");
+                
+            Console.CancelKeyPress += (s, e) =>
+            {
+                Log.Information("Shutdown signal received");
+                e.Cancel = true;
+                _resetEvent.Set();
+            };
+
             Console.OutputEncoding = Encoding.UTF8;
             var culture = new CultureInfo("ru-RU");
             CultureInfo.DefaultThreadCurrentCulture = culture;
             CultureInfo.DefaultThreadCurrentUICulture = culture;
 
-            // Initialize Static API Wrappers
+            // Legacy Static Init
             TtvAPI.Initialize(_host.Services.GetRequiredService<ILogger<TtvAPI>>());
-
-            _logger.LogInformation("Application initialized successfully for channel: {ChannelName}", _channelName);
+            
             await Task.CompletedTask;
         }
+
 
         private static void InitializePaths()
         {
             _channelName = Environment.GetEnvironmentVariable("ENV_CHANNEL_NAME");
-
-            if (string.IsNullOrWhiteSpace(_channelName))
-            {
-                throw new InvalidOperationException("ENV_CHANNEL_NAME environment variable is required");
-            }
-
-            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            _dataPath = Path.Combine(baseDirectory, $"Channels_Data/{_channelName}/DATA/");
-            _sharedPath = Path.Combine(baseDirectory, "Channels_Data/_shared/");
+            if (string.IsNullOrWhiteSpace(_channelName)) throw new InvalidOperationException("ENV_CHANNEL_NAME required");
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            _dataPath = Path.Combine(baseDir, $"Channels_Data/{_channelName}/DATA/");
+            _sharedPath = Path.Combine(baseDir, "Channels_Data/_shared/");
             _configPath = Path.Combine(_dataPath, $"{_channelName}.ini");
-
-            Directory.CreateDirectory(_dataPath);
-            Directory.CreateDirectory(_sharedPath);
-            Directory.CreateDirectory(Path.Combine(_dataPath, "logs"));
+            Directory.CreateDirectory(_dataPath); Directory.CreateDirectory(_sharedPath); Directory.CreateDirectory(Path.Combine(_dataPath, "logs"));
         }
 
         private static async Task RunApplicationAsync()
         {
-            Console.WriteLine("Initializing External Services (Discord/Riot)...");
             var services = await InitializeServicesAsync().ConfigureAwait(false);
-
-            Console.WriteLine("Configuring Startup settings...");
             await ConfigureStartupAsync().ConfigureAwait(false);
 
-            Console.WriteLine("Scheduling Cron Tasks...");
-            var quartzManager = new QuartzBackgroundTaskManager();
+            Log.Information("Scheduling Quartz Tasks...");
+            var quartzManager = _host.Services.GetRequiredService<QuartzBackgroundTaskManager>();
             await quartzManager.ScheduleTasks().ConfigureAwait(false);
 
-            Console.WriteLine("Bot is fully running. Waiting for exit signal.");
+            Log.Information("Bot is fully running. Waiting for exit signal.");
             _resetEvent.Wait();
 
-            _logger.LogInformation("Shutting down application...");
-            await _host.StopAsync().ConfigureAwait(false);
+            await _host.StopAsync();
             foreach (var service in services.OfType<IDisposable>())
             {
                 service.Dispose();
@@ -141,27 +155,13 @@ namespace IllSkillzBot
 
         private static async Task<IList<object>> InitializeServicesAsync()
         {
-            var services = new List<object>();
-            try
-            {
-                var discordClient = new DiscordClient(
-                    _host.Services.GetRequiredService<ITtvIRCClient>(),
-                    _host.Services 
-                );
-                
-                await discordClient.InitializeAsync().ConfigureAwait(false);
-                services.Add(discordClient);
-
-                var riotService = _host.Services.GetRequiredService<IRiotApiService>();
-                await riotService.InitializeAsync().ConfigureAwait(false);
-
-                return services;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to initialize services");
-                throw;
-            }
+             var discordClient = new DiscordClient(_host.Services.GetRequiredService<ITtvIRCClient>(), _host.Services);
+             await discordClient.InitializeAsync();
+             
+             var riotService = _host.Services.GetRequiredService<IRiotApiService>();
+             await riotService.InitializeAsync();
+             
+             return new List<object> { discordClient };
         }
 
         private static async Task ConfigureStartupAsync()
@@ -171,11 +171,11 @@ namespace IllSkillzBot
                 bool isStreamLive = await TtvAPI.GetStreamStatus().ConfigureAwait(false);
                 IllSingleton.State.BroadcasterIsOnline = isStreamLive;
                 string status = isStreamLive ? "LIVE" : "Offline";
-                _logger.LogInformation("{ChannelName} is {Status}!", IllSingleton.Config.ChannelName, status);
+                Log.Information("{ChannelName} is {Status}!", IllSingleton.Config.ChannelName, status);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to configure startup settings");
+                Log.Information(ex, "Failed to configure startup settings");
             }
         }
 
@@ -215,7 +215,7 @@ namespace IllSkillzBot
                 await File.WriteAllTextAsync(_configPath, jsonContent);
             }
         }
-
+        /*
         private static void UnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs args)
         {
             var exception = (Exception)args.ExceptionObject;
@@ -230,20 +230,10 @@ namespace IllSkillzBot
             Console.WriteLine("Shutdown signal received.");
             e.Cancel = true;
             _resetEvent.Set();
-        }
+        }*/
 
-        public static ConfPathes GetDataPath()
-        {
-            return new ConfPathes
-            {
-                sharedPath = _sharedPath,
-                uniquePath = _dataPath
-            };
-        }
+        public static ConfPathes GetDataPath() => new ConfPathes { sharedPath = _sharedPath, uniquePath = _dataPath };
 
-        public static string GetConfigPath()
-        {
-            return _configPath;
-        }
+        public static string GetConfigPath() => _configPath;
     }
 }

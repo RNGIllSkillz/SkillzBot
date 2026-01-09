@@ -1,40 +1,47 @@
 ﻿using Quartz;
-using SkillzBot.IllSkillzBot;
 using System;
 using System.Threading.Tasks;
 
 namespace SkillzBot.QuartZ
 {
     [DisallowConcurrentExecution]
-    public class BGTasks : IJob
+    internal class BGTasks : IJob
     {
+        private readonly BackGroundTasks _taskService;
+
+        // Injected via DI now!
+        public BGTasks(BackGroundTasks taskService)
+        {
+            _taskService = taskService;
+        }
+
         public async Task Execute(IJobExecutionContext context)
         {
-            switch (context.JobDetail.Key.Name)
+            string key = context.JobDetail.Key.Name;
+            switch (key)
             {
                 case "GetCurrentMatchTask":
-                    await IllPredictions.GetCurrentMatchTask().ConfigureAwait(false);
+                    // Assuming IllPredictions is still static for now, or you can refactor it too.
+                    await IllSkillzBot.IllPredictions.GetCurrentMatchTask().ConfigureAwait(false);
                     break;
                 case "RunEvery5Min":
-                    await BackGroundTasks.StaticRunEvery5Min().ConfigureAwait(false);
+                    await _taskService.RunEvery5Min().ConfigureAwait(false);
                     break;
                 case "RunDaily":
-                    await BackGroundTasks.RunDaily().ConfigureAwait(false);
+                    await _taskService.RunDaily().ConfigureAwait(false);
                     break;
                 case "TopRuleteTask":
-                    await BackGroundTasks.TopRuleteTask().ConfigureAwait(false);
+                    await _taskService.TopRuleteTask().ConfigureAwait(false);
                     break;
                 case "MediaQueueFlush":
-                    await BackGroundTasks.MediaQueueFlush().ConfigureAwait(false);
-                    break;
-                case "Quizz":
-                    //await IllGames.Quizz(false).ConfigureAwait(false); 
+                    await _taskService.MediaQueueFlush().ConfigureAwait(false);
                     break;
                 case "CronTest":
-                    await BackGroundTasks.CronTest().ConfigureAwait(false);
+                    await _taskService.CronTest().ConfigureAwait(false);
                     break;
                 default:
-                    throw new InvalidOperationException($"Unknown job name {context.JobDetail.Key.Name}");
+                    // Log unknown job
+                    break;
             }
         }
     }

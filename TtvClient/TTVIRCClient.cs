@@ -95,11 +95,8 @@ namespace SkillzBot.IRC
                     _client.Initialize(credentials, IllSingleton.Config.ChannelName);
 
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(CONNECTION_TIMEOUT_SECONDS));
+                    await _client.ConnectAsync();                    
 
-                    // FIX: ConnectAsync is now async
-                    await _client.ConnectAsync();
-
-                    // Wait a moment for IsConnected to reflect true state
                     await Task.Delay(2000, CancellationToken.None).ConfigureAwait(false);
 
                     if (_client.IsConnected)
@@ -121,7 +118,11 @@ namespace SkillzBot.IRC
                 if (attempt < MAX_RETRIES)
                 {
                     int delayMs = BASE_DELAY_MS * attempt;
-                    await Task.Delay(delayMs).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(delayMs, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch { /* ignore cancellation */ }
                 }
             }
 

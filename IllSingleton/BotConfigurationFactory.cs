@@ -1,5 +1,6 @@
-﻿using System.Threading.Tasks;
-using SkillzBot.Readers;
+﻿using SkillzBot.Readers;
+using System;
+using System.Threading.Tasks;
 
 namespace SkillzBot.Singleton
 {
@@ -7,8 +8,22 @@ namespace SkillzBot.Singleton
     {
         public static async Task<BotConfigModel> CreateAsync(string configPath)
         {
-            var config = new Config(configPath);
-            var botConfigs = config.GetBotConfigs();
+            var configReader = new Config(configPath);
+            var botConfigs = configReader.GetBotConfigs();
+
+            if (botConfigs == null)
+                throw new InvalidOperationException("Configuration file is empty or invalid JSON.");
+
+            var missingFields = new System.Collections.Generic.List<string>();
+            if (string.IsNullOrWhiteSpace(botConfigs.BotTwitchAuth)) missingFields.Add("BotTwitchAuth");
+            if (string.IsNullOrWhiteSpace(botConfigs.ChannelName)) missingFields.Add("ChannelName");
+            if (string.IsNullOrWhiteSpace(botConfigs.RiotApiToken)) missingFields.Add("RiotApiToken");
+
+            if (missingFields.Count > 0)
+            {
+                throw new InvalidOperationException($"Critical configuration missing: {string.Join(", ", missingFields)}");
+            }
+
             var configuration = new BotConfigModel
             {
                 BotTwitchName = botConfigs.BotTwitchName,
@@ -26,7 +41,7 @@ namespace SkillzBot.Singleton
                 DiscordBotToken = botConfigs.DiscordBotToken,
                 DiscordNoteID = botConfigs.DiscordNoteID,
                 DiscordSpamID = botConfigs.DiscordSpamID,
-                RootUser = "rng_backtrack",
+                RootUser = "rng_backtrack", 
 
                 Database = new DatabaseConfig(
                     botConfigs.MySQL_IP,
@@ -56,9 +71,9 @@ namespace SkillzBot.Singleton
                     botConfigs.UvalSabId,
                     botConfigs.UvalVipId
                 )
-
             };
-            await Task.CompletedTask.ConfigureAwait(false);
+
+            await Task.CompletedTask;
             return configuration;
         }
     }

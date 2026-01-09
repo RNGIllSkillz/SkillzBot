@@ -1,5 +1,5 @@
 # Program.cs
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -8,7 +8,6 @@ using SkillzBot.API.Twitch;
 using SkillzBot.Discord;
 using SkillzBot.Hosts;
 using SkillzBot.Interfaces;
-using SkillzBot.IRC;
 using SkillzBot.JSON.Settings;
 using SkillzBot.MODELS;
 using SkillzBot.Singleton;
@@ -20,7 +19,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SkillzBot.IllSkillzBot;
 
 namespace IllSkillzBot
 {
@@ -41,24 +39,32 @@ namespace IllSkillzBot
                 InitializePaths();
                 Console.WriteLine("Paths initialized.");
 
+                // 1. Initialize Singleton State
                 await IllSingleton.InitializeAsync(_configPath).ConfigureAwait(false);
 
+                // 2. Ensure Files Exist
                 await EnsureDefaultFilesExistAsync().ConfigureAwait(false);
                 await EnsureConfigurationExistsAsync().ConfigureAwait(false);
 
+                // 3. Build Host
                 Console.WriteLine("Building Host...");
                 var hostBuilders = new IHostBuilders(_dataPath, _channelName);
                 _host = hostBuilders.BuildMainApplicationHost();
 
+                // 4. Initialize Service Locator
                 IllServiceProvider.Initialize(_host.Services);
                 _logger = _host.Services.GetRequiredService<ILogger<IllSkillzBotMain>>();
 
+                // 5. Initialize Application Settings (TtvAPI etc)
+                // We run this BEFORE starting the host so basic APIs are ready
                 await InitializeApplicationAsync().ConfigureAwait(false);
 
+                // 6. Start Host (Starts Background Services: EventSub, IRC, Logger)
                 Console.WriteLine("Starting Host (Background Services)...");
                 await _host.StartAsync().ConfigureAwait(false);
                 Console.WriteLine("Host Started.");
 
+                // 7. Run Application Logic (Services init)
                 await RunApplicationAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -83,6 +89,7 @@ namespace IllSkillzBot
             CultureInfo.DefaultThreadCurrentCulture = culture;
             CultureInfo.DefaultThreadCurrentUICulture = culture;
 
+            // Initialize Static API Wrappers
             TtvAPI.Initialize(_host.Services.GetRequiredService<ILogger<TtvAPI>>());
 
             _logger.LogInformation("Application initialized successfully for channel: {ChannelName}", _channelName);
@@ -140,7 +147,7 @@ namespace IllSkillzBot
                     _host.Services.GetRequiredService<ITtvIRCClient>(),
                     _host.Services 
                 );
-
+                
                 await discordClient.InitializeAsync().ConfigureAwait(false);
                 services.Add(discordClient);
 
@@ -241,30 +248,35 @@ namespace IllSkillzBot
 }
 
 # Startup.cs
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
 public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddMvc();
-        services.AddMvc(options => options.EnableEndpointRouting = false);
+        services.AddControllers();
+        //services.AddMvc();
+        //services.AddMvc(options => options.EnableEndpointRouting = false);
     }
 
     public void Configure(IApplicationBuilder app)
     {
-        app.UseMvc(routes =>
+        app.UseRouting();
+
+        app.UseEndpoints(endpoints =>
         {
-            routes.MapRoute(
+            endpoints.MapControllers();
+            // Fallback route if needed, though usually attribute routing in controllers is preferred
+            endpoints.MapControllerRoute(
                 name: "default",
-                template: "{controller=Home}/{action=Index}/{id?}");
+                pattern: "{controller=Home}/{action=Index}/{id?}");
         });
     }
 }
 
 # API/ChatGPT.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using OpenAI;
@@ -281,12 +293,80 @@ namespace SkillzBot.API.OpenAI
 {
     internal sealed class ChatGPT
     {
-
+        /*private static readonly OpenAIAPI api;
+        private static Conversation chat;
+        private static readonly bool ValidToken = StringUtil.IsValidApiToken(IllSingleton.GetInstance().GPTApiToken);
+        static ChatGPT()
+        {
+            Console.Write("Initializing ChatGPT... ");
+            if (!ValidToken)
+            {
+                Console.WriteLine();
+                Console.WriteLine("No valid OpenAI API access token. ChatGPT functionality is offline");
+                return;
+            }
+            try
+            {
+                api = new OpenAIAPI(IllSingleton.GetInstance().GPTApiToken);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog(ex, "ChatGPT");
+                Console.WriteLine("ERROR.");
+            }
+            chat = api.Chat.CreateConversation();
+            chat.Model = Model.ChatGPTTurbo;
+            chat.AppendSystemMessage("Ты бот твич чата. Твой никнейм bot_Illskillz, тебя разработал модератор под ником rng_backtrack, никнейм стримера general_hs_. Старайся отвечать в максимально не формальной, человеческой манере, с шуточками и троллингом. Старайся ограничить дринну сообщений в 500 символов.");
+            chat.AppendSystemMessage("Первое слово в каждом запросе это никнейм человека, который сформулировал запрос.");
+            chat.AppendSystemMessage("Список всех модераторов канала: asatsuni (девочка), bot_illskillz (ты), f1layn (мальчик), kayn_hs (мальчик), lord_of_cancers (мальчик), melisasa0 (девочка), murtiger (девочка), rng_backtrack (твой разработчик), snow_witchx (девочка), streamelements (тоже бот), su6aru (мальчик)");
+            chat.AppendSystemMessage("general_hs_ бывший стример по hearthstone, уже несколько лет стримит лигу легенд. Играет на топлейне, пытается стать масстер тир игроком, но у него пока это плохо получается.");
+            chat.AppendSystemMessage("Список популярных смайликов в твич чате: PoroSad (означает грусть), PogChamp (означает хайп или что-то крутое), LUL (означает смех), PunOko (означает раздражение), KEKW (означает смех), Durka (используется когда человек странно себя ведет, или говорит глупости), BloodTrail (означает иронию или сарказм). Используй данные смайлики в своих ответах чату.");
+            chat.AppendSystemMessage("Есть еще смайлик cmonBruh. Отвечай только им, если речь заходит об африке или афроамериканцев.");
+            chat.AppendSystemMessage("Избегай любых разговоров про политику, особенно если речь заходит про Россию и Украину.");
+            chat.AppendUserInput("@bot_Illskillz привет как дела");
+            chat.AppendExampleChatbotOutput("здорова! все путем PogChamp");
+            Console.WriteLine("OK.");
+        }        
+        public static async Task<string> GetGptResponce(string input)
+        {
+            if (!ValidToken) return "";
+            chat.AppendUserInput(input);
+            try
+            {
+                return await chat.GetResponseFromChatbotAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;                
+            }
+        }
+        public static async Task<string> GetGptResponceBasic(string input)
+        {
+            var api = new OpenAIAPI(IllSingleton.GetInstance().GPTApiToken);
+            var result = await api.Chat.CreateChatCompletionAsync(input);
+            return result.Object;
+        }
+        public static void CreateNewChat()
+        {
+            if (!ValidToken) return;
+            chat = api.Chat.CreateConversation();
+            chat.Model = Model.ChatGPTTurbo;
+            chat.AppendSystemMessage("Ты бот твич чата. Твой никнейм bot_Illskillz, тебя разработал модератор под ником rng_backtrack, никнейм стримера general_hs_. Старайся отвечать в максимально не формальной, человеческой манере, с шуточками и троллингом. Старайся ограничить дринну сообщений в 500 символов.");
+            chat.AppendSystemMessage("Первое слово в каждом запросе это никнейм человека, который сформулировал запрос.");
+            chat.AppendSystemMessage("Список всех модераторов канала: asatsuni (девочка), bot_illskillz (ты), f1layn (мальчик), kayn_hs (мальчик), lord_of_cancers (мальчик), melisasa0 (девочка), murtiger (девочка), rng_backtrack (твой разработчик), snow_witchx (девочка), streamelements (тоже бот), su6aru (мальчик)");
+            chat.AppendSystemMessage("general_hs_ бывший стример по hearthstone, уже несколько лет стримит лигу легенд. Играет на топлейне, пытается стать масстер тир игроком, но у него пока это плохо получается.");
+            chat.AppendSystemMessage("Список популярных смайликов в твич чате: PoroSad (означает грусть), PogChamp (означает хайп или что-то крутое), LUL (означает смех), PunOko (означает раздражение), KEKW (означает смех), Durka (используется когда человек странно себя ведет, или говорит глупости), BloodTrail (означает иронию или сарказм). Используй данные смайлики в своих ответах чату.");
+            chat.AppendSystemMessage("Есть еще смайлик cmonBruh. Отвечай только им, если речь заходит об африке или афроамериканцев.");
+            chat.AppendSystemMessage("Избегай любых разговоров про политику, особенно если речь заходит про Россию и Украину.");
+            chat.AppendUserInput("@bot_Illskillz привет как дела");
+            chat.AppendExampleChatbotOutput("здорова! все путем PogChamp");
+        }*/
     }
 }
 
+
 # API/GetMMR_api.cs
-using System;
+﻿using System;
 using System.Net.Http;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
@@ -343,7 +423,7 @@ namespace SkillzBot.API.MMR
 }
 
 # API/Streamelements_api.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Net.Http;
@@ -512,7 +592,7 @@ namespace SkillzBot.API.StreamElements
 }
 
 # API/TwitchLib_api.cs
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SkillzBot.MODELS;
 using SkillzBot.Singleton;
 using SkillzBot.Utils;
@@ -1311,7 +1391,7 @@ namespace SkillzBot.API.Twitch
 }
 
 # API/YouTube_api.cs
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using System.Xml;
 using System;
 using System.Collections.Generic;
@@ -1430,7 +1510,7 @@ namespace SkillzBot.API.YouTube
 }
 
 # API/RiotGames/camille_riotapi.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SkillzBot.Utils;
@@ -1484,12 +1564,15 @@ namespace SkillzBot.API.RiotGames
                 }.Build()
             );
 
+            // Attempt to fetch summoner. If it fails (503, etc), we don't crash, 
+            // we just leave _summoner null. It will be retried on the first command call.
             _summoner = await GetSummonerInternalAsync();
 
             if (_summoner == null)
             {
                 _logger.LogWarning("Riot API Warning: Initial Summoner fetch failed for {GameName}#{TagLine}. Service will attempt to reconnect on next command usage.", _gameName, _tagLine);
-
+                // We return true here to allow the rest of the bot to start up. 
+                // The service is "Initialized" in terms of config, but "Not Ready" in terms of data.
                 return true;
             }
 
@@ -1497,11 +1580,15 @@ namespace SkillzBot.API.RiotGames
             return true;
         }
 
+        /// <summary>
+        /// Checks if the service has valid summoner data. If not, attempts to fetch it.
+        /// </summary>
         private async Task<bool> EnsureServiceReadyAsync()
         {
             if (_summoner != null) return true;
             if (!_isValidToken) return false;
 
+            // Attempt to re-fetch if previously failed
             _summoner = await GetSummonerInternalAsync().ConfigureAwait(false);
 
             if (_summoner != null)
@@ -1527,7 +1614,7 @@ namespace SkillzBot.API.RiotGames
             }
             catch (Exception ex)
             {
-
+                // Log as warning during runtime retry, Error during explicit init
                 _logger.LogWarning("Riot API request failed: {Message}", ex.Message);
                 return null;
             }
@@ -1564,7 +1651,7 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<List<string>> GetRankBySummonerAsync()
         {
-
+            // FIX: Added lazy retry here
             if (!await EnsureServiceReadyAsync())
             {
                 _logger.LogWarning("GetRankBySummonerAsync: Service not ready.");
@@ -1595,7 +1682,7 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<Match> GetMatchAsync(string matchID)
         {
-            if (!_isValidToken) return null; 
+            if (!_isValidToken) return null; // No need to check summoner for generic match lookup, just token
             try
             {
                 return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID).ConfigureAwait(false);
@@ -1616,6 +1703,7 @@ namespace SkillzBot.API.RiotGames
         {
             if (!_isValidToken) return null;
 
+            // If looking up CURRENT user, ensure service is ready
             if (SummonerName == null && !await EnsureServiceReadyAsync()) return null;
 
             try
@@ -1689,7 +1777,8 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<Summoner> GetSummonerByNameAsync(string tagLine, string inRegion)
         {
-
+            // Note: This method seems partially implemented in original code (uses class-level 'account' which might be stale),
+            // but keeping signature as requested.
             if (!_isValidToken) return null;
             try
             {
@@ -1726,32 +1815,38 @@ namespace SkillzBot.API.RiotGames
 }
 
 # API/RiotGames/HttpHandler.cs
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Camille.Enums;
 using Camille.RiotGames.LeagueV4;
 using SkillzBot.Singleton;
+using System;
 
 namespace SkillzBot.API.RiotGames
 {
     internal class HttpHandler
     {
+        private static readonly HttpClient _client = new HttpClient();
+
         public static async Task<LeagueEntry[]> GetLeagueEntriesByPUUIDAsync(PlatformRoute platformRoute, string puuid)
         {
-            using var client = new HttpClient();
-            string splatformRoute = platformRoute.ToString();
-            client.DefaultRequestHeaders.Add("X-Riot-Token", IllSingleton.Config.RiotApiToken);
-            var response = await client.GetAsync($"https://{splatformRoute}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}");
+            string splatformRoute = platformRoute.ToString().ToLower();
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://{splatformRoute}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}");
+            request.Headers.Add("X-Riot-Token", IllSingleton.Config.RiotApiToken);
+
+            using var response = await _client.SendAsync(request).ConfigureAwait(false);
+
             response.EnsureSuccessStatusCode();
-            string jsonString = await response.Content.ReadAsStringAsync();
+            string jsonString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             return JsonConvert.DeserializeObject<LeagueEntry[]>(jsonString);
         }
     }
 }
 
 # API/RiotGames/IRiotApiService.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.SummonerV4;
@@ -1775,7 +1870,7 @@ namespace SkillzBot.API.RiotGames
 }
 
 # Controller/ApiController.cs
-using System;
+﻿using System;
 using Microsoft.AspNetCore.Mvc;
 using SkillzBot.MODELS;
 using SkillzBot.SubUtils;
@@ -1817,7 +1912,7 @@ namespace SkillzBot.Controller
 }
 
 # DiscordClient/DiscordClient.cs
-using Discord;
+﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
@@ -1960,7 +2055,7 @@ namespace SkillzBot.Discord
         {
             _client.MessageReceived += HandleCommandAsync;
             await _commands.AddModulesAsync(typeof(DiscordCommands).Assembly, _services);
-
+            //await Task.CompletedTask;
         }
         private static async Task HandleCommandAsync(SocketMessage arg)
         {
@@ -1981,7 +2076,7 @@ namespace SkillzBot.Discord
 }
 
 # DiscordClient/DiscordCommands.cs
-using SkillzBot.IllSkillzBot;
+﻿using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Utils;
 using SkillzBot.Singleton;
@@ -2061,7 +2156,7 @@ namespace SkillzBot.Discord
 }
 
 # Hosts/IHostBuilders.cs
-using Microsoft.AspNetCore;
+﻿using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -2120,20 +2215,27 @@ namespace SkillzBot.Hosts
                     services.AddDatabaseServices(_configuration ?? context.Configuration);
                     services.AddTwitchLibEventSubWebsockets();
 
+                    // Core Services
                     services.AddSingleton<ITtvIRCClient, TtvIRCClientService>();
                     services.AddSingleton<API.RiotGames.IRiotApiService, API.RiotGames.RiotApiService>();
 
+                    // Logic Services (Added specific registrations)
                     services.AddSingleton<IllChatFilters>();
                     services.AddSingleton<IllGames>();
                     services.AddSingleton<RewardsRedemption>();
                     services.AddSingleton<IllModeratorsInteractions>();
 
-                    services.AddSingleton<IllCommands>(); 
+                    // Commands & Handlers
+                    services.AddSingleton<IllCommands>(); // FIX: Registered IllCommands
                     services.AddSingleton<IllCommandHandler>();
                     services.AddSingleton<IllChatMessageHandler>();
 
+                    // --- HOSTED SERVICES (Background Tasks) ---
+
+                    // 1. The EventSub (Websockets)
                     services.AddHostedService<TTVEventSub>();
 
+                    // 2. THIS WAS MISSING: The IRC Client (Chat)
                     services.AddHostedService<TwitchIrcHostedService>();
                 });
 
@@ -2157,7 +2259,7 @@ namespace SkillzBot.Hosts
 }
 
 # Hosts/ServiceProvider.cs
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Interfaces;
 using System;
@@ -2186,7 +2288,7 @@ namespace SkillzBot.Hosts
 }
 
 # Hosts/TwitchIrcHostedService.cs
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Interfaces;
 using System.Threading.Tasks;
@@ -2210,6 +2312,7 @@ namespace SkillzBot.Hosts
         {
             _logger.LogInformation("Starting Twitch IRC Hosted Service Loop...");
 
+            // Initial Connection Loop
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -2220,7 +2323,7 @@ namespace SkillzBot.Hosts
                         if (success)
                         {
                             _logger.LogInformation("Twitch IRC connected successfully.");
-                            break; 
+                            break; // Exit initial loop, move to maintenance loop
                         }
                         else
                         {
@@ -2229,7 +2332,7 @@ namespace SkillzBot.Hosts
                     }
                     else
                     {
-                        break; 
+                        break; // Already connected
                     }
                 }
                 catch (Exception ex)
@@ -2240,11 +2343,12 @@ namespace SkillzBot.Hosts
                 await Task.Delay(5000, stoppingToken);
             }
 
+            // Maintenance Loop
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-
+                    // Check every 10 seconds
                     await Task.Delay(10000, stoppingToken);
 
                     if (!_ircClient.IsConnected && _ircClient.IsInitialized)
@@ -2281,7 +2385,7 @@ namespace SkillzBot.Hosts
 }
 
 # IllSingleton/BotConfigModel.cs
-namespace SkillzBot.Singleton
+﻿namespace SkillzBot.Singleton
 {
     public class BotConfigModel
     {
@@ -2310,7 +2414,7 @@ namespace SkillzBot.Singleton
 }
 
 # IllSingleton/BotConfigurationFactory.cs
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using SkillzBot.Readers;
 
 namespace SkillzBot.Singleton
@@ -2377,7 +2481,7 @@ namespace SkillzBot.Singleton
 }
 
 # IllSingleton/BotState.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using SkillzBot.MODELS;
 using System;
 using System.Collections.Generic;
@@ -2614,7 +2718,7 @@ namespace SkillzBot.Singleton
 }
 
 # IllSingleton/GameState.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using SkillzBot.MODELS;
 using System.Collections.Generic;
 using System.IO;
@@ -2804,7 +2908,7 @@ namespace SkillzBot.Singleton
 }
 
 # IllSingleton/Records.cs
-namespace SkillzBot.Singleton
+﻿namespace SkillzBot.Singleton
 {
     public record DatabaseConfig(
         string Host,
@@ -2837,7 +2941,7 @@ namespace SkillzBot.Singleton
 }
 
 # IllSingleton/Singleton.cs
-using System;
+﻿using System;
 using System.Threading.Tasks;
 
 namespace SkillzBot.Singleton
@@ -2900,7 +3004,7 @@ namespace SkillzBot.Singleton
 }
 
 # IllSingleton/SingletonService.cs
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using System;
 
 namespace SkillzBot.Singleton
@@ -2932,7 +3036,7 @@ namespace SkillzBot.Singleton
 }
 
 # IllSkillzBot/IllAccess.cs
-using SkillzBot.MODELS;
+﻿using SkillzBot.MODELS;
 using static SkillzBot.IllSkillzBot.IllEnums;
 using SkillzBot.Singleton;
 
@@ -2958,7 +3062,7 @@ namespace SkillzBot.IllSkillzBot
 }
 
 # IllSkillzBot/IllChatFilters.cs
-using SkillzBot.Utils;
+﻿using SkillzBot.Utils;
 using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
@@ -3164,7 +3268,7 @@ namespace SkillzBot.IllSkillzBot
 }
 
 # IllSkillzBot/IllChatMessageHandler.cs
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -3330,19 +3434,19 @@ namespace SkillzBot.IllSkillzBot
             }
 
             if (user.Name != chatmessage.Username ||
-                user.isSub != (chatmessage.IsSubscriber ? 1 : 0) ||
-                user.isMod != (chatmessage.IsModerator ? 1 : 0) ||
-                user.isVip != (chatmessage.IsVip ? 1 : 0))
+                user.isSub != (chatmessage.UserDetail.IsSubscriber ? 1 : 0) ||
+                user.isMod != (chatmessage.UserDetail.IsModerator ? 1 : 0) ||
+                user.isVip != (chatmessage.UserDetail.IsVip ? 1 : 0))
             {
                 needsUpdate = true;
             }
 
             user.Name = chatmessage.Username;
-            user.isSub = chatmessage.IsSubscriber ? 1 : 0;
-            user.isVip = chatmessage.IsVip ? 1 : 0;
+            user.isSub = chatmessage.UserDetail.IsSubscriber ? 1 : 0;
+            user.isVip = chatmessage.UserDetail.IsVip ? 1 : 0;
             user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
-            user.isMod = chatmessage.IsModerator ? 1 : 0;
-            user.isPartner = chatmessage.IsPartner ? 1 : 0;
+            user.isMod = chatmessage.UserDetail.IsModerator ? 1 : 0;
+            user.isPartner = chatmessage.UserDetail.IsPartner ? 1 : 0;
 
             if (needsUpdate)
             {
@@ -3395,7 +3499,7 @@ namespace SkillzBot.IllSkillzBot
 }
 
 # IllSkillzBot/IllEnums.cs
-namespace SkillzBot.IllSkillzBot
+﻿namespace SkillzBot.IllSkillzBot
 {
     public class IllEnums
     {
@@ -3411,7 +3515,7 @@ namespace SkillzBot.IllSkillzBot
 }
 
 # IllSkillzBot/IllGames.cs
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SkillzBot.API.Twitch;
 using SkillzBot.Hosts;
 using SkillzBot.IllSTRINGS;
@@ -3594,7 +3698,7 @@ namespace SkillzBot.IllSkillzBot
 }
 
 # IllSkillzBot/IllModeratorsInteractions.cs
-using SkillzBot.API.Twitch;
+﻿using SkillzBot.API.Twitch;
 using SkillzBot.IRC;
 using SkillzBot.MODELS;
 using SkillzBot.IllSTRINGS;
@@ -3678,7 +3782,7 @@ namespace SkillzBot.IllSkillzBot
 }
 
 # IllSkillzBot/IllPredictions.cs
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using SkillzBot.API.Twitch;
 using SkillzBot.Utils;
@@ -3706,8 +3810,7 @@ namespace SkillzBot.IllSkillzBot
         public static async Task GetCurrentMatchTask()
         {
             if (IllSingleton.State.Debug) _logger.LogDebug("Running GetCurrentMatchTask()");
-            if (!IllSingleton.State.isSubActive) return;
-            if (IllSingleton.State.InMatch || !IllSingleton.State.AutoPred) return;
+            if (!IllSingleton.State.isSubActive || IllSingleton.State.InMatch || !IllSingleton.State.AutoPred) return;
 
             PlatformID = IllSingleton.Game.SummonerRegion switch
             {
@@ -3729,9 +3832,11 @@ namespace SkillzBot.IllSkillzBot
             if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
             if (currentGame.GameType == GameType.CUSTOM)
             {  
-
+                //await TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
+                //return;
             }
-
+            //await DisableRewardAsync().ConfigureAwait(false);
+            //await CalculateGameStats(currentGame).ConfigureAwait(false);
             string currentGameID = PlatformID + Convert.ToString(currentGame.GameId);
             var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
             if (rank == null) return;
@@ -3744,12 +3849,94 @@ namespace SkillzBot.IllSkillzBot
             }
             while (true)
             {
-                if (IntUtil.GetChance(wchance))
+                try
                 {
-                    await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180).ConfigureAwait(false);
-                    break;
+                    if (IntUtil.GetChance(wchance))
+                    {
+                        await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180).ConfigureAwait(false);
+                        break;
+                    }
+                    /*if (IntUtil.GetChance(15))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(30))
+                    {
+                        await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(25))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(15))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(18))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_KDA_5(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(4))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(4))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                        break;
+                    }*/
                 }
-
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error starting prediction task");
+                    IllSingleton.State.InMatch = false; 
+                }
             }
             IllSingleton.State.InMatch = false;
         }
@@ -3850,6 +4037,751 @@ namespace SkillzBot.IllSkillzBot
                 IllSingleton.State.InMatch = false;
             }
         }
+        /*
+        private static async Task Prediction_MAX_KDA(CurrentGameInfo CurrentGame, string currentGameID, string Title, int windowSec)
+        {
+            Match onMatch;
+            List<string> SelectedChamps = new List<string>();
+            foreach (var Participant in CurrentGame.Participants)
+            {
+                var ChampName = await RiotAPI.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId)).ConfigureAwait(false);                
+                SelectedChamps.Add(ChampName.Name);
+            }
+            await TtvAPI.Start_10_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
+            if (singleton.debug)
+                Log.WriteLog(null, "Ставка запущена");
+            while (IllSingleton.State.InMatch)
+            {
+                try
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_KDA");
+                    IllSingleton.State.InMatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(4000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
+                    }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumLosses++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var CompPartisList = new PlayersObject
+                    {
+                        Flag = 0
+                    };
+                    foreach (var Participant in onMatch.Info.Participants)
+                    {
+                        long vFlag;
+                        if (Participant.Deaths != 0)
+                            vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
+                        else
+                            vFlag = Participant.Kills + Participant.Assists;
+                        Players.Add(new PlayersObject()
+                        {
+                            champ = Participant.ChampionName,
+                            Flag = vFlag
+                        });
+                    }
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag < Player.Flag)
+                        {
+                            CompPartisList.champ = Player.champ;
+                            CompPartisList.Flag = Player.Flag;
+                        }
+                    }
+                    int outnum = 0;
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag == Player.Flag)
+                        {
+                            outnum++;
+                        }
+                    }
+                    if (outnum == 1)
+                    {
+                        string output = await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
+                        if (output != "OK")
+                            await TtvIRCClient.SendMessage(output);
+                    }
+                    else
+                    {
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    IllSingleton.State.InMatch = false;
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
+            }
+        }
+        private static async Task Prediction_MAX_KDA_2(string currentGameID, string Title, string blue, string red, int sec)
+        {
+            Match onMatch;
+            await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
+            if (singleton.debug)
+                Log.WriteLog(null, "Ставка запущена");
+            while (IllSingleton.State.InMatch)
+            {
+                try
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_KDA_2");
+                    IllSingleton.State.InMatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(4000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
+                    }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumLosses++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    int TeamID = 0;
+                    string getPosition = "";
+                    foreach (var champGetData in FinParticipants)
+                    {
+                        if (champGetData.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TeamID = champGetData.TeamId;
+                            getPosition = champGetData.IndividualPosition;
+                        }
+                    }
+                    foreach (var champ in FinParticipants)
+                    {
+                        if (champ.TeamPosition == getPosition)
+                        {
+                            long vFlag;
+                            if (champ.Deaths != 0)
+                                vFlag = (champ.Kills + champ.Assists) / champ.Deaths;
+                            else
+                                vFlag = champ.Kills + champ.Assists;
+                            Players.Add(new PlayersObject()
+                            {
+                                Flag = vFlag,
+                                teamID = champ.TeamId
+                            });
+                        }
+                    }
+                    if (Players[0].Flag == Players[1].Flag)
+                    {
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                    else if (Players.Count > 2)
+                    {
+                        await TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        if (Players[0].Flag > Players[1].Flag)
+                        {
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
+                        }
+                    }
+                }
+                else
+                {
+                    IllSingleton.State.InMatch = false;
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
+            }
+        }
+        private static async Task Prediction_MAX_KDA_5(CurrentGame CurrentGame, string currentGameID, string Title, int windowSec)
+        {
+            var Participants = CurrentGame.Participants.ToArray();
+            long teamid = 0;
+            Match onMatch;
+            foreach (var champ in Participants)
+            {
+                if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
+                {
+                    teamid = champ.TeamId;
+                }
+            }
+            CurrentGameParticipant[] teammates = new CurrentGameParticipant[5];
+            int i = 0;
+            foreach (var champ in Participants)
+            {
+                if (champ.TeamId == teamid)
+                {
+                    teammates[i] = champ;
+                    i++;
+                }
+            }
+            List<string> SelectedChamps = new List<string>();
+            foreach (var Participant in teammates)
+            {
+                var ChampName = await RiotAPI.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId)).ConfigureAwait(false);
+                SelectedChamps.Add(ChampName.Name);
+            }
+            await TtvAPI.Start_5_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
+            if (singleton.debug)
+                Log.WriteLog(null, "Ставка запущена");
+            while (IllSingleton.State.InMatch)
+            {
+                try
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_KDA_5");
+                    IllSingleton.State.InMatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(4000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
+                    }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumLosses++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    foreach (var champ in FinParticipants)
+                    {
+                        if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            teamid = champ.TeamId;
+                        }
+                    }
+                    RiotSharp.Endpoints.MatchEndpoint.Participant[] teammatesFIN = new RiotSharp.Endpoints.MatchEndpoint.Participant[5];
+                    i = 0;
+                    foreach (var champ in FinParticipants)
+                    {
+                        if (champ.TeamId == teamid)
+                        {
+                            teammatesFIN[i] = champ;
+                            i++;
+                        }
+                    }
+                    var CompPartisList = new PlayersObject
+                    {
+                        Flag = 0
+                    };
+                    foreach (var Participant in teammatesFIN)
+                    {
+                        long vFlag;
+                        if (Participant.Deaths != 0)
+                            vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
+                        else
+                            vFlag = Participant.Kills + Participant.Assists;
+                        Players.Add(new PlayersObject()
+                        {
+                            champ = Participant.ChampionName,
+                            Flag = vFlag
+                        });
+                    }
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag < Player.Flag)
+                        {
+                            CompPartisList.champ = Player.champ;
+                            CompPartisList.Flag = Player.Flag;
+                        }
+                    }
+                    int outnum = 0;
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag == Player.Flag)
+                        {
+                            outnum++;
+                        }
+                    }
+                    if (outnum == 1)
+                        await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
+                    else
+                    {
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    IllSingleton.State.InMatch = false;
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
+            }
+        }
+        private static async Task Prediction_MAX_FLAG_5(CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
+        {
+            var Participants = CurrentGame.Participants.ToArray();
+            long teamid = 0;
+            Match onMatch;
+            foreach (var champ in Participants)
+            {
+                if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
+                {
+                    teamid = champ.TeamId;
+                }
+            }
+            CurrentGameParticipant[] teammates = new CurrentGameParticipant[5];
+            int i = 0;
+            foreach (var champ in Participants)
+            {
+                if (champ.TeamId == teamid)
+                {
+                    teammates[i] = champ;
+                    i++;
+                }
+            }
+            List<string> SelectedChamps = new List<string>();
+            foreach (var Participant in teammates)
+            {
+                var ChampName = await RiotAPI.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId)).ConfigureAwait(false);
+                SelectedChamps.Add(ChampName.Name);
+            }
+            await TtvAPI.Start_5_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
+            if (singleton.debug)
+                Log.WriteLog(null, "Ставка запущена");
+            while (IllSingleton.State.InMatch)
+            {
+                try
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_FLAG_5");
+                    IllSingleton.State.InMatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(4000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                    {
+                        IllSingleton.State.InMatch = false;
+                        IllSingleton.Game.NumGames++;
+                        if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                        {
+                            IllSingleton.Game.NumWins++;
+                            await UpdateDailyStats(true).ConfigureAwait(false);
+                        }
+                        if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                        {
+                            IllSingleton.Game.NumLosses++;
+                            await UpdateDailyStats(false).ConfigureAwait(false);
+                        }
+                        IllCommands.SaveGameStats();
+                        List<PlayersObject> Players = new List<PlayersObject>();
+                        var FinParticipants = onMatch.Info.Participants.ToArray();
+                        foreach (var champ in FinParticipants)
+                        {
+                            if (champ.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                teamid = champ.TeamId;
+                            }
+                        }
+                        RiotSharp.Endpoints.MatchEndpoint.Participant[] teammatesFIN = new RiotSharp.Endpoints.MatchEndpoint.Participant[5];
+                        i = 0;
+                        foreach (var champ in FinParticipants)
+                        {
+                            if (champ.TeamId == teamid)
+                            {
+                                teammatesFIN[i] = champ;
+                                i++;
+                            }
+                        }
+                        var CompPartisList = new PlayersObject
+                        {
+                            Flag = 0
+                        };
+                        foreach (var Participant in teammatesFIN)
+                        {
+                            Players.Add(new PlayersObject()
+                            {
+                                champ = Participant.ChampionName,
+                                Flag = func(Participant)
+                            });
+                        }
+                        foreach (var Player in Players)
+                        {
+                            if (CompPartisList.Flag < Player.Flag)
+                            {
+                                CompPartisList.champ = Player.champ;
+                                CompPartisList.Flag = Player.Flag;
+                            }
+                        }
+                        int outnum = 0;
+                        foreach (var Player in Players)
+                        {
+                            if (CompPartisList.Flag == Player.Flag)
+                            {
+                                outnum++;
+                            }
+                        }
+                        if (outnum == 1)
+                            await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
+                        else
+                        {
+                            await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                            await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        IllSingleton.State.InMatch = false;
+                        await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }                
+            }
+        }
+        private static async Task Prediction_MAX_FLAG_2(string currentGameID, string Title, string blue, string red, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int sec)
+        {
+            Match onMatch;
+            await TtvAPI.Start_2_Prediction(Title, blue, red, sec).ConfigureAwait(false);
+            if (singleton.debug)
+                Log.WriteLog(null, "Ставка запущена");
+            while (IllSingleton.State.InMatch)
+            {
+                try
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_FLAG_2");
+                    IllSingleton.State.InMatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(4000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumWins++;
+                        await UpdateDailyStats(true).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        IllSingleton.Game.NumLosses++;
+                        await UpdateDailyStats(false).ConfigureAwait(false);
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    int TeamID = 0;
+                    string getPosition = "";
+                    foreach (var champGetData in FinParticipants)
+                    {
+                        if (champGetData.SummonerName.Equals(IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TeamID = champGetData.TeamId;
+                            getPosition = champGetData.IndividualPosition;
+                        }
+                    }
+                    foreach (var champ in FinParticipants)
+                    {
+                        if (champ.TeamPosition == getPosition)
+                        {
+                            Players.Add(new PlayersObject()
+                            {
+                                Flag = func(champ),
+                                teamID = champ.TeamId
+                            });
+                        }
+                    }
+                    if (Players[0].Flag == Players[1].Flag)
+                    {
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                    else if (Players.Count > 2)
+                    {
+                        await TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        if (Players[0].Flag > Players[1].Flag)
+                        {
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            if (Players[0].teamID == TeamID)
+                                await TtvAPI.End_WinLoose_Prediction(false, 0).ConfigureAwait(false);
+                            else
+                                await TtvAPI.End_WinLoose_Prediction(true, 0).ConfigureAwait(false);
+                        }
+                    }
+                }
+                else
+                {
+                    IllSingleton.State.InMatch = false;
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
+
+            }
+        }
+        private static async Task Prediction_MAX_FLAG(CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
+        {
+            Match onMatch;
+            var Participants = CurrentGame.Participants.ToArray();
+            List<string> SelectedChamps = new List<string>();
+            foreach (var Participant in Participants)
+            {
+                var ChampName = await RiotAPI.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId)).ConfigureAwait(false);
+                SelectedChamps.Add(ChampName.Name);
+            }
+            await TtvAPI.Start_10_Prediction(SelectedChamps, Title, windowSec).ConfigureAwait(false);
+            if (singleton.debug)
+                Log.WriteLog(null, "Ставка запущена");
+            while (IllSingleton.State.InMatch)
+            {
+                try
+                {
+                    onMatch = await RiotAPI.GetMatchAsync(currentGameID).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(ex, "Prediction_MAX_FLAG");
+                    IllSingleton.State.InMatch = false;
+                    break;
+                }
+                if (onMatch == null)
+                {
+                    await Task.Delay(4000).ConfigureAwait(false);
+                    continue;
+                }
+                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
+                {
+                    IllSingleton.State.InMatch = false;
+                    IllSingleton.Game.NumGames++;
+                    if (RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumWins++;
+                        var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+                        if (buffdata != null)
+                        {
+                            int bufflp = int.Parse(buffdata[1]);
+                            if (buffdata[0] != IllSingleton.Game.Elo & buffdata[2] != "MASTER")
+                            {
+                                IllSingleton.Game.EarnedLP += 100 - IllSingleton.Game.StartLP;
+                                IllSingleton.Game.StartLP = 0;
+                                IllSingleton.Game.Elo = buffdata[0];
+                            }
+                            IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
+                            IllSingleton.Game.StartLP = bufflp;
+                        }
+                    }
+                    if (!RiotAPI.GetParticipantByMatch(onMatch).Winner)
+                    {
+                        IllSingleton.Game.NumLosses++;
+                        var buffdata = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+                        if (buffdata != null)
+                        {
+                            int bufflp = int.Parse(buffdata[1]);
+                            if (buffdata[0] != IllSingleton.Game.Elo & buffdata[2] != "MASTER")
+                            {
+                                IllSingleton.Game.StartLP = 100;
+                                IllSingleton.Game.Elo = buffdata[0];
+                                IllSingleton.Game.Tier = buffdata[2];
+                            }
+                            IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
+                            IllSingleton.Game.StartLP = bufflp;
+                        }
+                    }
+                    IllCommands.SaveGameStats();
+                    List<PlayersObject> Players = new List<PlayersObject>();
+                    var FinParticipants = onMatch.Info.Participants.ToArray();
+                    var CompPartisList = new PlayersObject
+                    {
+                        Flag = 0
+                    };
+                    foreach (var Participant in FinParticipants)
+                    {
+                        Players.Add(new PlayersObject()
+                        {
+                            champ = Participant.ChampionName,
+                            Flag = func(Participant)
+                        });
+                    }
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag < Player.Flag)
+                        {
+                            CompPartisList.champ = Player.champ;
+                            CompPartisList.Flag = Player.Flag;
+                        }
+                    }
+                    int outnum = 0;
+                    foreach (var Player in Players)
+                    {
+                        if (CompPartisList.Flag == Player.Flag)
+                        {
+                            outnum++;
+                        }
+                    }
+                    if (outnum == 1)
+                        await TtvAPI.End_Multy_Prediction(CompPartisList.champ).ConfigureAwait(false);
+                    else
+                    {
+                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                        await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    IllSingleton.State.InMatch = false;
+                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                    await TtvAPI.CencelePrediction().ConfigureAwait(false);
+                }
+            }
+        }
+        
+        private static async Task CalculateGameStats(CurrentGame CurrentGame)
+        {
+            var champs = CurrentGame.Participants;
+            int teamWr = 0;
+            int enemyWr = 0;
+            int teamElo = 0;
+            int enemyElo = 0;
+            int numberOfRankedPlayers = 0;
+            int numberOfRankedEnemyPlayers = 0;
+            long teamid = 0;
+            foreach (var champ in champs)
+            {
+                if (string.Equals(champ.SummonerName, IllSingleton.Game.SummonerName, StringComparison.OrdinalIgnoreCase))
+                {
+                    teamid = champ.TeamId;
+                    break;
+                }
+            }
+
+            foreach (var champ in champs)
+            {
+                var data = await GettInfo(champ.SummonerName).ConfigureAwait(false);
+                if (data == null) return;
+                if (champ.TeamId == teamid)
+                {
+                    if (data[0] != 0 || data[1] != 0)
+                        numberOfRankedPlayers++;
+                    teamWr += data[0];
+                    teamElo += data[1];
+                }
+                else
+                {
+                    if (data[0] != 0 || data[1] != 0)
+                        numberOfRankedEnemyPlayers++;
+                    enemyWr += data[0];
+                    enemyElo += data[1];
+                }
+            }
+            teamWr = numberOfRankedPlayers > 0 ? (int)Math.Ceiling((double)teamWr / numberOfRankedPlayers) : 0;
+            enemyWr = numberOfRankedEnemyPlayers > 0 ? (int)Math.Ceiling((double)enemyWr / numberOfRankedEnemyPlayers) : 0;
+            teamElo = numberOfRankedPlayers > 0 ? (int)Math.Ceiling((double)teamElo / numberOfRankedPlayers) : 0;
+            enemyElo = numberOfRankedEnemyPlayers > 0 ? (int)Math.Ceiling((double)enemyElo / numberOfRankedEnemyPlayers) : 0;
+            string elo = StringUtil.ConvertRank(teamElo.ToString(), false);
+            string elo2 = StringUtil.ConvertRank(enemyElo.ToString(), false);
+            await TtvIRCClient.SendMessage($"Среднее ило команды союзников: {elo}, средний WR {teamWr}%. Среднее ило команды противников {elo2}, средний WR {enemyWr}%");
+        }
+        
+        private static async Task<int[]> GettInfo(string summonerName)
+        {
+            int[] data = new int[2];
+            data[0] = 0;
+            data[1] = 0;
+            int numtryes = 0;
+            var summoner = await RiotAPI.GetSummonerByNameAsync(summonerName).ConfigureAwait(false);
+            while (summoner == null && numtryes < 5)
+            {
+                summoner = await RiotAPI.GetSummonerByNameAsync(summonerName).ConfigureAwait(false);
+                numtryes++;
+                Thread.Sleep(2000);
+            }
+            if (summoner == null)
+                return data;
+            var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync(summoner.Id).ConfigureAwait(false);
+            if (rank == null) return data;
+            var rankedSoloQueue = rank.FirstOrDefault(Queues => Queues.QueueType == "RANKED_SOLO_5x5");
+            if (rankedSoloQueue != null)
+            {
+                data[0] = (int)Math.Round((double)rankedSoloQueue.Wins * 100 / (rankedSoloQueue.Wins + rankedSoloQueue.Losses), MidpointRounding.AwayFromZero);
+                var sRank = $"{rankedSoloQueue.Tier} {rankedSoloQueue.Rank}";
+                data[1] = int.Parse(StringUtil.ConvertRank(sRank, true));
+            }
+            return data;
+        }    */
 
         private static async Task UpdateDailyStats(bool won)
         {
@@ -3866,42 +4798,42 @@ namespace SkillzBot.IllSkillzBot
                 {
                     if (!isHighElo)
                     {
-                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier) 
+                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier) // Promoted
                         {
                             IllSingleton.Game.EarnedLP += LowEloMaxLP - IllSingleton.Game.StartLP + bufflp;
-                            IllSingleton.Game.StartLP = bufflp; 
+                            IllSingleton.Game.StartLP = bufflp; // StartLP in the new division
                         }
-                        else 
+                        else // Regular win
                         {
                             IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
                             IllSingleton.Game.StartLP = bufflp;
                         }
                     }
-                    else 
+                    else // High Elo win
                     {
-                        if (IllSingleton.Game.Tier.Equals("diamond", StringComparison.OrdinalIgnoreCase)) 
+                        if (IllSingleton.Game.Tier.Equals("diamond", StringComparison.OrdinalIgnoreCase)) // Promoted to Master
                             IllSingleton.Game.EarnedLP += LowEloMaxLP - IllSingleton.Game.StartLP + bufflp;
                         else
                             IllSingleton.Game.EarnedLP += bufflp - IllSingleton.Game.StartLP;
                         IllSingleton.Game.StartLP = bufflp;
                     }
                 }
-                else 
+                else // Lost
                 {
                     if (!isHighElo)
                     {
-                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier) 
+                        if (buffdata[0] != IllSingleton.Game.Elo || buffdata[2] != IllSingleton.Game.Tier) // Demoted
                         {
                             IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP + (LowEloMaxLP - bufflp);
                             IllSingleton.Game.StartLP = bufflp;
                         }
-                        else 
+                        else // Regular loss
                         {
                             IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
                             IllSingleton.Game.StartLP = bufflp;
                         }
                     }
-                    else 
+                    else // High Elo loss
                     {
                         IllSingleton.Game.EarnedLP -= IllSingleton.Game.StartLP - bufflp;
                         IllSingleton.Game.StartLP = bufflp;
@@ -3919,7 +4851,7 @@ namespace SkillzBot.IllSkillzBot
 }
 
 # IllSkillzBot/IllCommandsNest/IllCommandHandler.cs
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.Singleton;
@@ -4068,7 +5000,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 }
 
 # IllSkillzBot/IllCommandsNest/IllCommands.cs
-using SkillzBot.API.Twitch;
+﻿using SkillzBot.API.Twitch;
 using SkillzBot.MODELS;
 using SkillzBot.Utils;
 using SkillzBot.WRITERS;
@@ -4396,7 +5328,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             else
             {
                 var rankParts = lpData.RANK.Split(' ');
-                var rank = await _riotApi.GetRankBySummonerAsync(); 
+                var rank = await _riotApi.GetRankBySummonerAsync(); // Note: This might be redundant if we just want Win/Loss, optimized slightly below
                 int wins = 0, losses = 0;
 
                 var leagueEntries = await _riotApi.GetLeagueEntriesBySummonerAsync();
@@ -4456,7 +5388,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task StartQuizz()
         {
-
+            // FIX: Using injected _illGames instance instead of manual 'new'
             await _illGames.Quizz(true);
         }
 
@@ -4857,8 +5789,929 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
     }
 }
 
-# Infrastructure/BotContext.cs
+# IllSkillzBot/IllCommandsNest/IllCommands_WIP.cs
+﻿/*using SkillzBot.API.Twitch;
+using SkillzBot.IRC;
+using SkillzBot.MODELS;
+using SkillzBot.Utils;
+using SkillzBot.WRITERS;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
+using SkillzBot.Writers;
+using F23.StringSimilarity;
+using SkillzBot.API.MMR;
+using SkillzBot.API.StreamElements;
+using SkillzBot.Readers;
+using SkillzBot.TtvClient.TTVRewards;
+using System.Globalization;
+using SkillzBot.IllSTRINGS;
+using IllSkillzBot;
+using System.IO;
+using SkillzBot.SubUtils;
+using Camille.Enums;
+using SkillzBot.API.RiotGames;
+using SkillzBot.Interfaces;
+using Microsoft.Extensions.Logging;
+using SkillzBot.Hosts;
 using SkillzBot.Singleton;
+
+namespace SkillzBot.IllSkillzBot.IllCommandsNest
+{
+	internal class IllCommands
+	{
+		#region Fields & Helpers
+
+		// Thread-safe queue for recent chat messages
+		private static readonly ConcurrentQueue<string> popMessages = new ConcurrentQueue<string>();
+
+		private static readonly IDatabaseService _databaseService = IllServiceProvider.Database;
+		private static readonly ILogger<IllCommands> _logger = IllServiceProvider.GetLogger<IllCommands>();
+
+		/// <summary>
+		/// Generic helper to set integer levels with validation.
+		/// Keeps behavior consistent with previous implementation,
+		/// but reduces duplication for commands like SetChatfilterLvl and SetAntiBotLvl.
+		/// </summary>
+		private static async Task SetLevel(UserObject user, string[] input, int min, int max, Action<int> setAction, string successMsg)
+		{
+			if (input == null || input.Length != 2 || !int.TryParse(input[1], out int lvl) || lvl < min || lvl > max)
+			{
+				await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+				return;
+			}
+
+			setAction(lvl);
+			SaveAppConfig();
+			await TtvIRCClient.SendMessage(string.Format(successMsg, user.Name, lvl));
+		}
+
+		/// <summary>
+		/// Generic helper to parse typed args with validation.
+		/// Returns true if parsing succeeded.
+		/// </summary>
+		private static bool TryParseArg<T>(string arg, out T value)
+		{
+			value = default;
+			try
+			{
+				if (typeof(T) == typeof(int))
+				{
+					if (int.TryParse(arg, out int r)) { value = (T)(object)r; return true; }
+					return false;
+				}
+				if (typeof(T) == typeof(bool))
+				{
+					if (bool.TryParse(arg, out bool r)) { value = (T)(object)r; return true; }
+					return false;
+				}
+				// fallback for string
+				if (typeof(T) == typeof(string))
+				{
+					value = (T)(object)arg;
+					return true;
+				}
+			}
+			catch {  ignore  }
+			return false;
+		}
+
+		private static void ClearPopMessages()
+		{
+			while (popMessages.TryDequeue(out _)) { }
+		}
+
+		// Safe wrapper to call an async action and swallow exceptions (to avoid bot-wide crashes).
+		// We intentionally do not add logging as requested.
+		private static async Task SafeInvoke(Func<Task> action)
+		{
+			try
+			{
+				if (action != null) await action();
+			}
+			catch
+			{
+				// swallow exceptions to keep bot alive; logging intentionally left out per request
+			}
+		}
+
+		#endregion
+
+		#region General Commands
+
+		public static async Task Help(UserObject user)
+		{
+			await TtvIRCClient.SendMessage(string.Format(STRINGS.HelpMessage, user.Name));
+		}
+
+		public static async Task Ping()
+		{
+			await TtvIRCClient.SendMessage("pong");
+		}
+
+		public static async Task TypeInChat(string message)
+		{
+			if (string.IsNullOrEmpty(message)) return;
+
+			popMessages.Enqueue(message);
+
+			// Keep queue at most 10 items
+			while (popMessages.Count > 10 && popMessages.TryDequeue(out _)) { }
+
+			if (popMessages.Count == 10)
+			{
+				var jw = new NormalizedLevenshtein();
+				var snapshot = popMessages.ToList();
+
+				foreach (var popMessage in snapshot)
+				{
+					int popWeight = 0;
+					foreach (var checkpop in snapshot)
+					{
+						var sim1 = jw.Distance(popMessage, checkpop);
+						if (sim1 < 0.5)
+						{
+							popWeight++;
+							if (popWeight >= 5)
+							{
+								// send and clear queue
+								await SafeInvoke(() => TtvIRCClient.SendMessage(popMessage));
+								ClearPopMessages();
+								return;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		public static async Task TestingMethod(UserObject user)
+		{
+			Console.WriteLine("test");
+			// reserved for tests
+		}
+
+		public static async Task<string> GetGPTResponce(string message, string userName = null)
+		{
+			// Disabled: placeholder kept for compatibility
+			return null;
+		}
+
+		#endregion
+
+		#region Points & Leaderboards
+
+		public static async Task Points(UserObject user)
+		{
+			var taskList = new List<Task<int[]>>
+			{
+				_databaseService.GetUserPositionAsync(user.Name, "Points"),
+				_databaseService.GetUserPositionAsync(user.Name, "QuizPoints"),
+				_databaseService.GetUserPositionAsync(user.Name, "QuizTotal")
+			};
+
+			var results = await Task.WhenAll(taskList).ConfigureAwait(false);
+
+			await TtvIRCClient.SendMessage(string.Format(
+				STRINGS.PointsMessage,
+				user.Name,
+				user.Points,
+				results[0][0],
+				results[0][1],
+				user.QuizPoints,
+				results[1][0],
+				results[1][1],
+				user.QuizTotal,
+				results[2][0],
+				results[2][1]
+			));
+		}
+
+		public static async Task RouletteTop(UserObject user) => await TopRulete();
+
+		public static async Task TopRulete()
+		{
+			var result = await _databaseService.GetTopUsersAsync("rtop").ConfigureAwait(false);
+			if (result != null && result.Count >= 3)
+			{
+				await TtvIRCClient.SendMessage(string.Format(
+					STRINGS.Top3Roulette,
+					result[0].Name, result[0].roulettCon, IntUtil.RulProbability(result[0].roulettCon, 80),
+					result[1].Name, result[1].roulettCon, IntUtil.RulProbability(result[1].roulettCon, 80),
+					result[2].Name, result[2].roulettCon, IntUtil.RulProbability(result[2].roulettCon, 80)
+				));
+			}
+			else
+			{
+				_logger.LogError("Cant get 3 users at TopRulete");
+			}
+		}
+
+		public static async Task GetTopChat(UserObject user)
+		{
+			var result = await _databaseService.GetTopUsersAsync("top").ConfigureAwait(false);
+			if (result != null && result.Count >= 3)
+			{
+				await TtvIRCClient.SendMessage(string.Format(
+					STRINGS.Top3Chat,
+					result[0].Name, result[0].messageCon,
+					result[1].Name, result[1].messageCon,
+					result[2].Name, result[2].messageCon
+				));
+			}
+			else
+			{
+				_logger.LogError("Cant get 3 users at GetTopChat");
+			}
+		}
+
+		#endregion
+
+		#region Riot Games / LP / MMR
+
+		public static async Task<LP> GetLpAsync(string summoner = null, string region = null)
+		{
+			bool ranked = false;
+			var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync(summoner, region).ConfigureAwait(false);
+			if (rank != null)
+			{
+				foreach (var mType in rank)
+				{
+					if (mType.QueueType == QueueType.RANKED_SOLO_5x5)
+					{
+						ranked = true;
+						if (mType.MiniSeries != null)
+						{
+							var promo = new List<string>();
+							foreach (var prog in mType.MiniSeries.Progress)
+							{
+								if (prog == 'L') promo.Add("❌");
+								if (prog == 'W') promo.Add("✅");
+								if (prog == 'N') promo.Add("➖");
+							}
+
+							string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
+							string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+							var promoString = string.Join(" ", promo);
+
+							return new LP
+							{
+								RANK = "ПРОМО В " + subs[0],
+								LPoints = promoString
+							};
+						}
+						else
+						{
+							int WR = (int)Math.Ceiling(mType.Wins * 100 / (double)(mType.Wins + mType.Losses));
+							return new LP
+							{
+								RANK = mType.Tier + " " + mType.Rank,
+								LPoints = mType.LeaguePoints.ToString()
+							};
+						}
+					}
+				}
+			}
+			else
+			{
+				return new LP
+				{
+					RANK = "Riot API error",
+					LPoints = null
+				};
+			}
+
+			if (!ranked)
+			{
+				return new LP
+				{
+					RANK = "Калибровка",
+					LPoints = null
+				};
+			}
+
+			return new LP
+			{
+				RANK = "ERROR",
+				LPoints = null
+			};
+		}
+
+		public static async Task ShowLPAsync(string sender)
+		{
+			bool ranked = false;
+			var rank = await RiotAPI.GetLeagueEntriesBySummonerAsync().ConfigureAwait(false);
+			if (rank != null)
+			{
+				foreach (var mType in rank)
+				{
+					if (mType.QueueType == QueueType.RANKED_SOLO_5x5)
+					{
+						ranked = true;
+						if (mType.MiniSeries != null)
+						{
+							var promo = new List<string>();
+							foreach (var prog in mType.MiniSeries.Progress)
+							{
+								if (prog == 'L') promo.Add("❌");
+								if (prog == 'W') promo.Add("✅");
+								if (prog == 'N') promo.Add("➖");
+							}
+
+							string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{mType.Tier} {mType.Rank}", true)) + 1), false);
+							string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+							var promoString = string.Join(" ", promo);
+							await TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, IllSingleton.Game.SummonerName, subs[0], promoString));
+						}
+						else
+						{
+							int WR = (int)Math.Ceiling(mType.Wins * 100 / (double)(mType.Wins + mType.Losses));
+							await TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLP, sender, IllSingleton.Game.SummonerName, mType.Tier, mType.Rank, mType.LeaguePoints, WR, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
+						}
+					}
+				}
+			}
+			else
+			{
+				await TtvIRCClient.SendMessage("Riot API error");
+			}
+
+			if (!ranked)
+			{
+				await TtvIRCClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, IllSingleton.Game.SummonerName, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
+			}
+		}
+
+		public static async Task LpCommand(UserObject user, string[] command)
+		{
+			if (command.Length > 2)
+			{
+				if (!IllAccess.Mod(user)) return;
+
+				if (IllSingleton.State.InMatch)
+				{
+					await TtvIRCClient.SendMessage(string.Format(STRINGS.LPInaMatch, user.Name));
+					return;
+				}
+
+				var region = command.Last();
+				if (region != "ru" && region != "euw" && region != "na")
+				{
+					await TtvIRCClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
+					return;
+				}
+
+				var result = await RiotAPI.UpdateSummonerByNameAsync(command[1], command[2], region).ConfigureAwait(false);
+				if (result == null)
+				{
+					IllSingleton.Game.SummonerName = command[1] + "#" + command[2];
+					IllSingleton.Game.SummonerRegion = region;
+					RiotAPI.UpdateConfig();
+
+					var Rank = await RiotAPI.GetRankBySummonerAsync().ConfigureAwait(false);
+					if (Rank != null)
+					{
+						if (int.TryParse(Rank[1], out int buffStartLP))
+							IllSingleton.Game.StartLP = buffStartLP;
+						else
+							IllSingleton.Game.StartLP = 0;
+						IllSingleton.Game.Elo = Rank[0];
+						IllSingleton.Game.Tier = Rank[2];
+					}
+					SaveGameStats();
+					SaveAppConfig();
+					await ShowLPAsync(user.Name).ConfigureAwait(false);
+				}
+				else
+				{
+					await TtvIRCClient.SendMessage($"ERROR: {result}");
+				}
+			}
+			else
+			{
+				await ShowLPAsync(user.Name).ConfigureAwait(false);
+			}
+		}
+
+		public static async Task GetMMR(UserObject user)
+		{
+			var result = await MyLOLMMRApi.GetMMR(IllSingleton.Game.SummonerName).ConfigureAwait(false);
+			if (result == null) return;
+			if (result.Count == 2)
+				await TtvIRCClient.SendMessage($"@{user.Name} {result[0]}: mmr:{result[1]}");
+		}
+
+		public static async Task OpGG(UserObject user)
+		{
+			await TtvIRCClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, IllSingleton.Game.SummonerName.Replace('#', '-')));
+		}
+
+		public static async Task GetMatchHistory(UserObject user)
+		{
+			// kept intentionally as "in dev" per original
+			await TtvIRCClient.SendMessage("Команда в разработке. Верим.");
+		}
+
+		#endregion
+
+		#region StreamElements / Music
+
+		public static async Task GetTreck(UserObject user)
+		{
+			var result = await StreamElementsAPI.GetCurrentSong().ConfigureAwait(false);
+			string output;
+			if (result == null)
+				output = string.Format(STRINGS.GetTrack404, user.Name);
+			else
+			{
+				var userID = TempDataReader.GetUserIDByTreckID(result.VideoId);
+				UserObject uUser = new UserObject();
+				if (userID != -1)
+				{
+					uUser = await _databaseService.GetUserAsync(userID).ConfigureAwait(false);
+				}
+				else
+					uUser.Name = "streamelements";
+				output = string.Format(STRINGS.GetTrackShow, user.Name, result.Title, result.VideoId, uUser.Name);
+			}
+			await TtvIRCClient.SendMessage(output);
+		}
+
+		public static async Task GetTrackQueue(UserObject user)
+		{
+			var result = await StreamElementsAPI.GetQueue().ConfigureAwait(false);
+			if (result == null)
+				await TtvIRCClient.SendMessage(string.Format(STRINGS.GetTrack404, user.Name));
+			else
+				await TtvIRCClient.SendMessage(string.Join(", ", result.Select(v => v.Title)));
+		}
+
+		public static async Task CreateClip(UserObject user)
+		{
+			var response = await TtvAPI.CreateClip().ConfigureAwait(false);
+			if (response != null && response.CreatedClips != null && response.CreatedClips.Length > 0)
+			{
+				var clipUrl = response.CreatedClips[0].EditUrl;
+				// some edit urls have trailing characters; preserve original logic of removing last 5 if it exists and is safe
+				if (!string.IsNullOrEmpty(clipUrl) && clipUrl.Length > 5)
+					clipUrl = clipUrl.Remove(clipUrl.Length - 5);
+				await TtvIRCClient.SendMessage(string.Format(STRINGS.CreateClipSuccess, user.Name, clipUrl));
+			}
+			else
+			{
+				await TtvIRCClient.SendMessage(string.Format(STRINGS.CreateClipERROR, user.Name, "ex"));
+			}
+		}
+
+		public static async Task BanUserForTrack(UserObject user)
+		{
+			var history = await StreamElementsAPI.GetHistory().ConfigureAwait(false);
+			if (history == null) return;
+
+			int userID = TempDataReader.GetUserIDByTreckID(history.History[0].Song.VideoId);
+			MediaBlackListWriter.Write(history.History[0].Song.VideoId);
+			if (userID != -1)
+			{
+				var uUser = await _databaseService.GetUserAsync(userID).ConfigureAwait(false);
+				await TtvAPI.TimeOutUser(uUser, 3600, STRINGS.TimeOutReason_Track).ConfigureAwait(false);
+				UserBlackListWriter.Write(uUser.TwitchID.ToString());
+				await TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_chatMessage, user.Name, uUser.Name));
+			}
+			else
+			{
+				await TtvIRCClient.SendMessage(string.Format(STRINGS.BanUserForTrack_DonatedTrack, user.Name));
+			}
+		}
+
+		public static async Task GetTreckQueue(UserObject user)
+		{
+			// alias to GetTrackQueue
+			await GetTrackQueue(user);
+		}
+
+		#endregion
+
+		#region Rewards (Twitch Channel Points)
+
+		public static async Task GetAllRewards(UserObject user)
+		{
+			var rewards = await TtvAPI.GetAllRewards().ConfigureAwait(false);
+			if (rewards == null) return;
+			int rewardsCount = rewards.Data.Length;
+			string rewardsTitle = string.Join(" | ", rewards.Data.Select(r => r.Title));
+			string message = string.Format(STRINGS.GetAllReward_chatMessage, rewardsCount, rewardsTitle);
+			await TtvIRCClient.SendMessage(message);
+		}
+
+		public static async Task EnableReward(UserObject user, string[] args)
+		{
+			if (args.Length == 2)
+			{
+				string rewardID = args[1];
+				await TtvIRCClient.SendMessage($"rewardID - {rewardID}");
+				var reward = await TtvAPI.GetReward(rewardID).ConfigureAwait(false);
+				if (reward == null)
+					await TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+				else
+					await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
+			}
+			else if (args.Length == 3)
+			{
+				string title = args[1];
+				string text = args[2];
+				await TtvIRCClient.SendMessage($"Title - {title}");
+				var reward = await TtvAPI.GetReward(title, text).ConfigureAwait(false);
+				if (reward == null)
+					await TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+				else
+					await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
+			}
+			else
+			{
+				await TtvIRCClient.SendMessage("Usage: !enablereward rewardID or !enablereward \"title\" \"text\"");
+			}
+		}
+
+		public static async Task DisableReward(UserObject user, string[] input)
+		{
+			if (input.Length == 1)
+			{
+				await TtvIRCClient.SendMessage("usage - !disablereward|rewardID(string) or !disablereward|Title(string)|text(string)");
+				return;
+			}
+			if (input.Length == 2)
+			{
+				await TtvIRCClient.SendMessage($"rewardID - {input[1]}");
+				var reward = await TtvAPI.GetReward(input[1]).ConfigureAwait(false);
+				if (reward == null)
+					await TtvIRCClient.SendMessage("Error 404 - Награда не найденa");
+				else
+					await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
+			}
+		}
+
+		public static async Task CreateReward(UserObject user, string[] args)
+		{
+			if (args.Length == 6)
+			{
+				string title = args[1];
+				string costStr = args[2];
+				string prompt = args[3];
+				string enabledStr = args[4];
+				string userinputStr = args[5];
+
+				if (int.TryParse(costStr, out int cost) &&
+					bool.TryParse(enabledStr, out bool enabled) &&
+					bool.TryParse(userinputStr, out bool userinput))
+				{
+					await TtvIRCClient.SendMessage($"title - {title}, cost - {cost}, prompt - {prompt}, enabled - {enabled}, userinput - {userinput}");
+					var response = await TtvAPI.CreateReward(title, cost, prompt, enabled, userinput).ConfigureAwait(false);
+					if (response != null)
+						await TtvIRCClient.SendMessage(response);
+				}
+				else
+				{
+					if (!int.TryParse(costStr, out _))
+						await TtvIRCClient.SendMessage("Cost must be an integer.");
+					if (!bool.TryParse(enabledStr, out _))
+						await TtvIRCClient.SendMessage("Enabled must be a boolean (true or false).");
+					if (!bool.TryParse(userinputStr, out _))
+						await TtvIRCClient.SendMessage("Userinput must be a boolean (true or false).");
+				}
+			}
+			else
+			{
+				await TtvIRCClient.SendMessage("Usage: !createreward \"title\" cost \"prompt\" enabled userinput");
+			}
+		}
+
+		public static async Task UpdateReward(UserObject user, string[] args)
+		{
+			// Check if the total length is 7 (command name + 6 arguments)
+			if (args.Length == 7)
+			{
+				string rewardID = args[1];
+				string title = args[2];
+				string costStr = args[3];
+				string promt = args[4];
+				string enabledStr = args[5];
+				string userinputStr = args[6];
+
+				if (int.TryParse(costStr, out int cost) &&
+					bool.TryParse(enabledStr, out bool enabled) &&
+					bool.TryParse(userinputStr, out bool userinput))
+				{
+					await TtvIRCClient.SendMessage($"rewardID - {rewardID}, title - {title}, cost - {cost}, promt - {promt}, enabled - {enabled}, userinput - {userinput}");
+					await TtvAPI.UpdateReward(rewardID, title, cost, promt, enabled, userinput).ConfigureAwait(false);
+				}
+				else
+				{
+					await TtvIRCClient.SendMessage("Invalid parameters. Ensure cost is an integer and enabled/userinput are booleans.");
+				}
+			}
+			else
+			{
+				await TtvIRCClient.SendMessage("Usage: !updatereward rewardID \"title\" cost \"promt\" enabled userinput");
+			}
+		}
+
+		public static async Task DeleteReward(UserObject user, string[] input)
+		{
+			// kept blank intentionally (original was commented out)
+		}
+
+		#endregion
+
+		#region Moderation & Blacklist / Whitelist
+
+		public static async Task<UserObject> IllFilterTrigger(UserObject user, string messageID = null)
+		{
+			if (user == null) return user;
+
+			if (user.banCount == 35)
+			{
+				await TtvAPI.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
+				user.banCount = 0;
+				return user;
+			}
+
+			switch (IllSingleton.State.ChatFilterLvl)
+			{
+				case 0:
+					break;
+				case 1:
+					if (messageID != null)
+						await TtvAPI.DeleteMessage(messageID).ConfigureAwait(false);
+					break;
+				case 2:
+					if (messageID != null)
+						await TtvAPI.DeleteMessage(messageID).ConfigureAwait(false);
+					string ModsZapMsg = $"Найдена запретка на канале {IllSingleton.Config.ChannelName} от пользователя @{user.Name}. Модерам на проверку";
+					await IllModeratorsInteractions.IllAllModsNotification(ModsZapMsg).ConfigureAwait(false);
+					break;
+				case 3:
+					await TtvAPI.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+					user.banCount++;
+					break;
+				case 4:
+					await TtvAPI.TimeOutUser(user, 604800, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+					user.banCount++;
+					break;
+				case 5:
+					await TtvAPI.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
+					user.banCount = 0;
+					break;
+				default:
+					break;
+			}
+			return user;
+		}
+
+		public static async Task RemoveUserFromBlacklist(UserObject user, string[] input)
+		{
+			if (input.Length != 2)
+			{
+				await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+				return;
+			}
+
+			var UserToUnban = await _databaseService.GetUserAsync(input[1]).ConfigureAwait(false);
+			if (UserToUnban.dbID == -404)
+			{
+				await TtvIRCClient.SendMessage(STRINGS.FindUser_ERROR404);
+				return;
+			}
+
+			var path = IllSkillzBotMain.GetDataPath().uniquePath;
+			path = Path.Combine(path, IllSingleton.Config.FilePaths.UserBlacklistFileName);
+			if (FileManipulator.DeleteLineFromFile(path, UserToUnban.TwitchID.ToString()))
+			{
+				IllChatFilters.EditUserBlackList(UserToUnban.TwitchID.ToString());
+				await TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} удален из черного списка");
+			}
+			else
+			{
+				await TtvIRCClient.SendMessage($"Пользователь {UserToUnban.Name} не был найден в черном списке");
+			}
+		}
+
+		public static async Task AddTowhiteList(UserObject user, string[] input)
+		{
+			if (input.Length != 2)
+			{
+				await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+				return;
+			}
+
+			var path = IllSkillzBotMain.GetDataPath().sharedPath;
+			path = Path.Combine(path, IllSingleton.Config.FilePaths.DicWhiteListFileName);
+			FileManipulator.AddLineToFile(path, input[1]);
+			IllChatFilters.AddToWhiteList(input[1]);
+		}
+
+		public static async Task AddVIP(UserObject user, string[] UserInput)
+		{
+			if (UserInput.Length == 2)
+			{
+				var aUser = await _databaseService.GetUserAsync(UserInput[1]).ConfigureAwait(false);
+				if (aUser.dbID != -404)
+				{
+					await TtvAPI.AddChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
+					await TtvIRCClient.SendMessage(string.Format(STRINGS.AddVIPSuccess, aUser.Name));
+				}
+				else
+					await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+			}
+			else
+				await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+		}
+
+		public static async Task DeleteVIP(UserObject user, string[] UserInput)
+		{
+			if (UserInput.Length == 2)
+			{
+				var aUser = await _databaseService.GetUserAsync(UserInput[1]).ConfigureAwait(false);
+				if (aUser.dbID != -404)
+				{
+					await TtvAPI.DeleteChannelVIP(aUser.TwitchID.ToString()).ConfigureAwait(false);
+					await TtvIRCClient.SendMessage(string.Format(STRINGS.DeleteVIPSuccess, aUser.Name));
+				}
+				else
+					await TtvIRCClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
+			}
+			else
+				await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+		}
+
+		public static async Task GetMods(UserObject user)
+		{
+			var mods = await TtvAPI.GetAllMods().ConfigureAwait(false);
+			if (mods == null) return;
+			string Moderators = string.Join(" ", mods.Select(m => $"{m.UserLogin}: {m.UserId}."));
+			await TtvIRCClient.SendMessage(Moderators);
+		}
+
+		public static async Task Sheptun(UserObject user)
+		{
+			var mods = await TtvAPI.GetAllMods().ConfigureAwait(false);
+			if (mods == null) return;
+			foreach (var mod in mods)
+			{
+				await TtvAPI.SendWhisper(mod.UserId, "Тестовый шептун").ConfigureAwait(false);
+				await Task.Delay(10).ConfigureAwait(false);
+			}
+		}
+
+		#endregion
+
+		#region Quizzes / Games
+
+		public static async Task StartQuizz()
+		{
+			await IllGames.Quizz(true).ConfigureAwait(false);
+		}
+
+		public static async Task<UserObject> QuizzMediaReward(UserObject user, string[] UserInput)
+		{
+			if (user == null) return user;
+			if (user.isMod == 1) return user;
+
+			if (user.QuizPoints > 1)
+			{
+				if (UserInput.Length < 2)
+				{
+					await TtvIRCClient.SendMessage(STRINGS.InputERROR);
+					return user;
+				}
+				if (await RewardsRedemption.ZakazTrekaReward(user.Name, string.Join(" ", UserInput.Skip(1)), null, null).ConfigureAwait(false))
+				{
+					user.QuizPoints -= 2;
+				}
+			}
+			return user;
+		}
+
+		#endregion
+
+		#region Subscriptions & Misc
+
+		public static async Task AddSubscription(UserObject user)
+		{
+			await TtvIRCClient.SendMessage(AddSub.NewPurchase().ToString()).ConfigureAwait(false);
+			SubCheck.RunChecker();
+		}
+
+		public static async Task CheckSubscription(UserObject user)
+		{
+			if (SubCheck.RunChecker())
+				await TtvIRCClient.SendMessage("Valid!");
+			else
+				await TtvIRCClient.SendMessage("Expired!");
+		}
+
+		public static async Task GetTtvgg(UserObject user)
+		{
+			long currentUnixTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+			var taskList = new List<Task<int[]>>
+			{
+				_databaseService.GetUserPositionAsync(user.Name, "roulettCon"),
+				_databaseService.GetUserPositionAsync(user.Name, "UvalCon"),
+				_databaseService.GetUserPositionAsync(user.Name, "messageCon"),
+				_databaseService.GetUserPositionAsync(user.Name, "Points"),
+				_databaseService.GetUserPositionAsync(user.Name, "QuizPoints"),
+				_databaseService.GetUserPositionAsync(user.Name, "QuizTotal")
+			};
+			var results = await Task.WhenAll(taskList).ConfigureAwait(false);
+			var roulettCD = user.roulettCD - currentUnixTime;
+			roulettCD = roulettCD < 0 ? 0 : roulettCD;
+			TimeSpan time = TimeSpan.FromSeconds(roulettCD);
+
+			await TtvIRCClient.SendMessage($"@{user.Name}, твой винстрик в рулетке {user.roulettCon} {IntUtil.CalculateTopPercentage(results[0])}, " +
+				$"всего ты отправил {user.messageCon} сообщений {IntUtil.CalculateTopPercentage(results[2])}, " +
+				$"ты был в увале {user.UvalCon} раз {IntUtil.CalculateTopPercentage(results[1])}, " +
+				$"у тебя есть {user.QuizPoints} баллов квиза {IntUtil.CalculateTopPercentage(results[4])}, " +
+				$"за все время ты набрал {user.QuizTotal} баллов квиза {IntUtil.CalculateTopPercentage(results[5])}, " +
+				$"у тебя есть {user.Points} поинтов {IntUtil.CalculateTopPercentage(results[3])}, " +
+				$"кулдаун у твоей рулетки продлится еще {time:hh\\:mm\\:ss}");
+		}
+
+		#endregion
+
+		#region Cron / Background Tasks
+
+		public static async Task StartCronTask(UserObject user, string input)
+		{
+			QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
+			var inputParts = input.Split(' ');
+			if (inputParts.Length <= 4)
+			{
+				await TtvIRCClient.SendMessage(STRINGS.StartCronTaskERROR);
+			}
+			else
+			{
+				var taskName = inputParts[1];
+				var triggerName = inputParts[2];
+				var cronExpression = string.Join(" ", inputParts.Skip(3));
+				if (!quartzBackgroundTaskManager.IsCronExpressionValid(cronExpression))
+				{
+					await TtvIRCClient.SendMessage(STRINGS.StartCronTaskERROR2);
+				}
+				else
+				{
+					await quartzBackgroundTaskManager.UpdateJobSchedule(taskName, triggerName, cronExpression);
+					await TtvIRCClient.SendMessage(STRINGS.StartCronTaskSuccess);
+				}
+			}
+		}
+
+		public static async Task GetAllJobs(UserObject user)
+		{
+			QuartzBackgroundTaskManager quartzBackgroundTaskManager = new QuartzBackgroundTaskManager();
+			var jobs = await quartzBackgroundTaskManager.GetAllJobsNames().ConfigureAwait(false);
+			await TtvIRCClient.SendMessage(jobs);
+		}
+
+		public static async Task getJobs(UserObject user)
+		{
+			await TtvIRCClient.SendMessage(await QuartzBackgroundTaskManager.GetRunningJobs().ConfigureAwait(false));
+		}
+
+		#endregion
+
+		#region Admin / Unsafe removed
+
+		// The original "InjectSQL" raw SQL execution block was removed for security reasons.
+		// If you need admin SQL functionality, implement a safe, parameterized admin tool explicitly.
+
+		#endregion
+
+		#region Save Helpers
+
+		public static void SaveGameStats()
+		{
+			GameStatsWriter.Write(
+				$"{IllSingleton.Game.StartLP} " +
+				$"{IllSingleton.Game.Elo} " +
+				$"{IllSingleton.Game.EarnedLP} " +
+				$"{IllSingleton.Game.NumLosses} " +
+				$"{IllSingleton.Game.NumGames} " +
+				$"{IllSingleton.Game.NumWins} " +
+				$"{IllSingleton.Game.Tier}"
+			);
+		}
+
+		public static void SaveAppConfig() => BotConfigWriter.Write();
+
+		#endregion
+	}
+}
+
+*/
+
+# Infrastructure/BotContext.cs
+﻿using SkillzBot.Singleton;
 using System.Threading.Tasks;
 
 namespace SkillzBot.Infrastructure
@@ -4899,7 +6752,7 @@ namespace SkillzBot.Infrastructure
 }
 
 # Interfaces/Database.cs
-using SkillzBot.MODELS;
+﻿using SkillzBot.MODELS;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -4927,10 +6780,10 @@ namespace SkillzBot.Interfaces
 }
 
 # Interfaces/IRCClient.cs
-using System.Threading.Tasks;
+﻿using System;
 using System.Threading;
-using System;
-using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using System.Threading.Tasks;
+using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace SkillzBot.Interfaces
 {
@@ -4951,7 +6804,7 @@ namespace SkillzBot.Interfaces
 }
 
 # JSON/Converter.cs
-using Newtonsoft.Json.Converters;
+﻿using Newtonsoft.Json.Converters;
 using Newtonsoft.Json;
 using System.Globalization;
 
@@ -4972,7 +6825,7 @@ namespace SkillzBot.JSON
 }
 
 # JSON/GameConstants.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -4984,7 +6837,7 @@ namespace SkillzBot.JSON.GameConstants
 }
 
 # JSON/Get_JSON_appSettings.cs
-using System;
+﻿using System;
 using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -5125,7 +6978,7 @@ namespace SkillzBot.JSON.Settings
 }
 
 # JSON/mediaHistory_json.cs
-namespace SkillzBot.JSON.MediaHistory
+﻿namespace SkillzBot.JSON.MediaHistory
 {
     using System;
     using System.Collections.Generic;
@@ -5253,7 +7106,7 @@ namespace SkillzBot.JSON.MediaHistory
 }
 
 # JSON/MediaQueue_json.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -5351,7 +7204,7 @@ namespace SkillzBot.JSON.MediaQueue
 }
 
 # JSON/mymmr_api.cs
-using System.Globalization;
+﻿using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
@@ -5453,7 +7306,7 @@ namespace SkillzBot.JSON.Whatismymmr
 }
 
 # JSON/nChatters_JSON.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -5511,7 +7364,7 @@ namespace SkillzBot.JSON.nChatters
 }
 
 # JSON/StreamElements_playing.cs
-using System;
+﻿using System;
 using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -5596,7 +7449,7 @@ namespace SkillzBot.JSON.StreamElements
 }
 
 # MODELS/apiPost.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     public class apiPost
     {
@@ -5605,7 +7458,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/BotGameState.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     public class BotGameStateModel
     {
@@ -5622,7 +7475,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/BotState.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     public class BotStateModel
     {
@@ -5642,7 +7495,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/ConfPathes.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     internal class ConfPathes
     {
@@ -5652,7 +7505,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/LP.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -5666,7 +7519,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/MessageBuffer.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     public class MessageBuffer
     {
@@ -5678,7 +7531,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/PlayersKDA.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     internal class PlayersObject
     {
@@ -5689,7 +7542,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/QuizzObject.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     internal class quizz_activeUser
     {
@@ -5699,7 +7552,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/quizz_activeUser.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     public class QuizzObject
     {
@@ -5710,7 +7563,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/TrackedMessages.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     internal class TrackedMessages
     {
@@ -5721,7 +7574,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/TrackUser.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 namespace SkillzBot.MODELS
 {
     public class TrackUser
@@ -5732,7 +7585,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/TtvReward.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     internal class TtvCustomReward
     {
@@ -5746,7 +7599,7 @@ namespace SkillzBot.MODELS
 }
 
 # MODELS/UserObject.cs
-namespace SkillzBot.MODELS
+﻿namespace SkillzBot.MODELS
 {
     public class UserObject
     {
@@ -5772,7 +7625,7 @@ namespace SkillzBot.MODELS
 }
 
 # MySQL/CollectionExtension.cs
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SkillzBot.MYSQL;
 using SkillzBot.Interfaces;
@@ -5807,7 +7660,7 @@ namespace SkillzBot.MySQL
 }
 
 # MySQL/Configuration.cs
-namespace SkillzBot.MySQL
+﻿namespace SkillzBot.MySQL
 {
     public class DatabaseConfiguration
     {
@@ -5826,7 +7679,7 @@ namespace SkillzBot.MySQL
 }
 
 # MySQL/DBMySQLUtils.cs
-using System;
+﻿using System;
 using MySql.Data.MySqlClient;
 
 namespace SkillzBot.MYSQL
@@ -5854,7 +7707,7 @@ namespace SkillzBot.MYSQL
 }
 
 # MySQL/DBUtils.cs
-using MySql.Data.MySqlClient;
+﻿using MySql.Data.MySqlClient;
 using SkillzBot.Singleton;
 
 namespace SkillzBot.MYSQL
@@ -5877,7 +7730,7 @@ namespace SkillzBot.MYSQL
 }
 
 # MySQL/MySQL.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using MySql.Data.MySqlClient;
 using SkillzBot.WRITERS;
@@ -6093,6 +7946,7 @@ namespace SkillzBot.MYSQL
             catch { return new UserObject { dbID = -404 }; }
         }
 
+        // Helper to safely read values handling DBNull and type conversion
         private static T SafeGet<T>(IDataReader reader, string column, T defaultValue = default)
         {
             try
@@ -6173,13 +8027,16 @@ namespace SkillzBot.MYSQL
             }
             catch (MySqlException ex)
             {
-
+                // Handle duplicate entry on 'Name' column (Error Code 1062)
+                // This happens if Twitch recycles a username to a new ID, but we still have the old user in DB.
                 if (ex.Number == 1062 && ex.Message.Contains("uk_name"))
                 {
                     _logger.LogWarning("Username collision detected for {Name}. Deleting old user entry and retrying.", user.Name);
 
+                    // Delete the OLD user who has this name
                     await DeleteUserAsync(user.Name);
 
+                    // Retry the insertion/update recursively
                     await AddOrUpdateUserAsync(user);
                 }
                 else
@@ -6595,7 +8452,7 @@ namespace SkillzBot.MYSQL
 }
 
 # QuartZ/BackGroundTasks.cs
-using SkillzBot.IllSkillzBot;
+﻿using SkillzBot.IllSkillzBot;
 using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
@@ -6619,7 +8476,7 @@ namespace SkillzBot.QuartZ
         private static readonly IDatabaseService _database = IllServiceProvider.GetService<IDatabaseService>();
         private static readonly ITtvIRCClient _ircClient = IllServiceProvider.GetService<ITtvIRCClient>();
         private static readonly IllChatMessageHandler _chatMessageHandler = IllServiceProvider.GetService<IllChatMessageHandler>();
-
+        
         public static async Task RunDaily()
         {
             var riotApi = IllServiceProvider.GetService<IRiotApiService>();
@@ -6637,7 +8494,7 @@ namespace SkillzBot.QuartZ
             IllSingleton.Game.NumLosses = 0;
             IllSingleton.Game.NumGames = 0;
             IllSingleton.Game.NumWins = 0;
-
+            
             await IllSingleton.Game.SaveAsync().ConfigureAwait(false);
         }
         public static async Task StaticRunEvery5Min()
@@ -6652,7 +8509,7 @@ namespace SkillzBot.QuartZ
             {
                 try
                 {
-
+                    // FIX: Resolve IllCommands from ServiceProvider instead of manual new()
                     var commands = IllServiceProvider.GetService<IllCommands>();
                     await commands.TopRulete().ConfigureAwait(false);
                 }
@@ -6690,7 +8547,7 @@ namespace SkillzBot.QuartZ
 }
 
 # QuartZ/BGs.cs
-using Quartz;
+﻿using Quartz;
 using SkillzBot.IllSkillzBot;
 using System;
 using System.Threading.Tasks;
@@ -6720,7 +8577,7 @@ namespace SkillzBot.QuartZ
                     await BackGroundTasks.MediaQueueFlush().ConfigureAwait(false);
                     break;
                 case "Quizz":
-
+                    //await IllGames.Quizz(false).ConfigureAwait(false); 
                     break;
                 case "CronTest":
                     await BackGroundTasks.CronTest().ConfigureAwait(false);
@@ -6733,7 +8590,7 @@ namespace SkillzBot.QuartZ
 }
 
 # QuartZ/QScheduler.cs
-using Quartz;
+﻿using Quartz;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using System;
@@ -6873,7 +8730,7 @@ public class QuartzBackgroundTaskManager
 }
 
 # Readers/ConfigurationReader.cs
-using SkillzBot.JSON.Settings;
+﻿using SkillzBot.JSON.Settings;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -6912,7 +8769,7 @@ namespace SkillzBot.Readers
 }
 
 # Readers/TempDataReader.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using System;
@@ -6955,23 +8812,44 @@ namespace SkillzBot.Readers
 }
 
 # STRINGS/STRINGS.Designer.cs
+﻿//------------------------------------------------------------------------------
+// <auto-generated>
+//     This code was generated by a tool.
+//     Runtime Version:4.0.30319.42000
+//
+//     Changes to this file may cause incorrect behavior and will be lost if
+//     the code is regenerated.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
 namespace SkillzBot.IllSTRINGS
 {
     using System;
-
+    
+    
+    /// <summary>
+    ///   A strongly-typed resource class, for looking up localized strings, etc.
+    /// </summary>
+    // This class was auto-generated by the StronglyTypedResourceBuilder
+    // class via a tool like ResGen or Visual Studio.
+    // To add or remove a member, edit your .ResX file then rerun ResGen
+    // with the /str option, or rebuild your VS project.
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class STRINGS {
-
+        
         private static global::System.Resources.ResourceManager resourceMan;
-
+        
         private static global::System.Globalization.CultureInfo resourceCulture;
-
+        
         [global::System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal STRINGS() {
         }
-
+        
+        /// <summary>
+        ///   Returns the cached ResourceManager instance used by this class.
+        /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
@@ -6982,7 +8860,11 @@ namespace SkillzBot.IllSTRINGS
                 return resourceMan;
             }
         }
-
+        
+        /// <summary>
+        ///   Overrides the current thread's CurrentUICulture property for all
+        ///   resource lookups using this strongly typed resource class.
+        /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
         internal static global::System.Globalization.CultureInfo Culture {
             get {
@@ -6992,493 +8874,739 @@ namespace SkillzBot.IllSTRINGS
                 resourceCulture = value;
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User {0} has been added as a channel moderator..
+        /// </summary>
         internal static string AddModSuccess {
             get {
                 return ResourceManager.GetString("AddModSuccess", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User {0} received a VIP status..
+        /// </summary>
         internal static string AddVIPSuccess {
             get {
                 return ResourceManager.GetString("AddVIPSuccess", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, AntiBot protection lvl is set to {1}.
+        /// </summary>
         internal static string AntiBotLvl {
             get {
                 return ResourceManager.GetString("AntiBotLvl", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} User {1} has been timed out for 1 hour and has also been blacklisted. The track is banned..
+        /// </summary>
         internal static string BanUserForTrack_chatMessage {
             get {
                 return ResourceManager.GetString("BanUserForTrack_chatMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Command on cooldown ({1} s).
+        /// </summary>
         internal static string BanUserForTrack_CoolDownmsg {
             get {
                 return ResourceManager.GetString("BanUserForTrack_CoolDownmsg", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Track from donation. The track has been blacklisted..
+        /// </summary>
         internal static string BanUserForTrack_DonatedTrack {
             get {
                 return ResourceManager.GetString("BanUserForTrack_DonatedTrack", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} donated {1} bits! PogChamp.
+        /// </summary>
         internal static string BitsRecieved {
             get {
                 return ResourceManager.GetString("BitsRecieved", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, {1} will be timed out for another {2} seconds. To summon him, you need {3} Channel Points. Check the rewards again, there is a reward for summoning {1} with the current price. The new reward will be available for a minute..
+        /// </summary>
         internal static string CencelUval_ChatMessage {
             get {
                 return ResourceManager.GetString("CencelUval_ChatMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0},  {1} is not timed out..
+        /// </summary>
         internal static string CencelUval_NotInTimeOut {
             get {
                 return ResourceManager.GetString("CencelUval_NotInTimeOut", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Reward time is up.
+        /// </summary>
         internal static string CencelUval_TimeOut {
             get {
                 return ResourceManager.GetString("CencelUval_TimeOut", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} can&apos;t find {1}.
+        /// </summary>
         internal static string CencelUval404 {
             get {
                 return ResourceManager.GetString("CencelUval404", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, ERROR: {1} Is stream online?.
+        /// </summary>
         internal static string CreateClipERROR {
             get {
                 return ResourceManager.GetString("CreateClipERROR", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Clip have been created! {1}.
+        /// </summary>
         internal static string CreateClipSuccess {
             get {
                 return ResourceManager.GetString("CreateClipSuccess", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User {0} has been removed from the channel moderators..
+        /// </summary>
         internal static string DeleteModSuccess {
             get {
                 return ResourceManager.GetString("DeleteModSuccess", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User {0} has lost his vip..
+        /// </summary>
         internal static string DeleteVIPSuccess {
             get {
                 return ResourceManager.GetString("DeleteVIPSuccess", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, can&apos;t find user named {1}.
+        /// </summary>
         internal static string FindUser_ERROR404 {
             get {
                 return ResourceManager.GetString("FindUser_ERROR404", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} awards received. {1} Reward IDs saved in logs..
+        /// </summary>
         internal static string GetAllReward_chatMessage {
             get {
                 return ResourceManager.GetString("GetAllReward_chatMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, no custom tracks.
+        /// </summary>
         internal static string GetTrack404 {
             get {
                 return ResourceManager.GetString("GetTrack404", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, {1} https://youtu.be/{2} Track ordered by @{3}.
+        /// </summary>
         internal static string GetTrackShow {
             get {
                 return ResourceManager.GetString("GetTrackShow", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Gifted a sub for @{1} PogChamp (+600 Points).
+        /// </summary>
         internal static string GiftedSubMessage {
             get {
                 return ResourceManager.GetString("GiftedSubMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Bot commands⠀available at https://github.com/RNGIllSkillz/SkillzBot/blob/main/README.md.
+        /// </summary>
         internal static string HelpMessage {
             get {
                 return ResourceManager.GetString("HelpMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid input..
+        /// </summary>
         internal static string InputERROR {
             get {
                 return ResourceManager.GetString("InputERROR", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Bot language has been set to Eng..
+        /// </summary>
         internal static string language {
             get {
                 return ResourceManager.GetString("language", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Defeat.
+        /// </summary>
         internal static string loose {
             get {
                 return ResourceManager.GetString("loose", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} while summoner is in a match, he cannot be changed..
+        /// </summary>
         internal static string LPInaMatch {
             get {
                 return ResourceManager.GetString("LPInaMatch", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Champ {1} ({2}/{3}/{4}), {5}, match {6}, {7}.
+        /// </summary>
         internal static string MatchHistoryMessage {
             get {
                 return ResourceManager.GetString("MatchHistoryMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Ended like a hero EZ.
+        /// </summary>
         internal static string OnStreadDownHighLP {
             get {
                 return ResourceManager.GetString("OnStreadDownHighLP", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Ended with shame PoroSad.
+        /// </summary>
         internal static string OnStreadDownLowLP {
             get {
                 return ResourceManager.GetString("OnStreadDownLowLP", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Channel {0} is LIVE!.
+        /// </summary>
         internal static string OnStreamUP {
             get {
                 return ResourceManager.GetString("OnStreamUP", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Moderator @{0} gifted life to @{1}.
+        /// </summary>
         internal static string OnUnban {
             get {
                 return ResourceManager.GetString("OnUnban", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} https://euw.op.gg/summoners/euw/{1}.
+        /// </summary>
         internal static string OpGGMessage {
             get {
                 return ResourceManager.GetString("OpGGMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ban (spent 5 lives).
+        /// </summary>
         internal static string PermaBanReason {
             get {
                 return ResourceManager.GetString("PermaBanReason", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} you have {1} points. Your place in the leaderboard: ({2}/{3}). You have {4} quiz points ({5}/{6}), in total you won {7} points ({8}/{9}).
+        /// </summary>
         internal static string PointsMessage {
             get {
                 return ResourceManager.GetString("PointsMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to PREDICTION &quot;{0}&quot; IS LAUNCHED!.
+        /// </summary>
         internal static string PredictionStarted {
             get {
                 return ResourceManager.GetString("PredictionStarted", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to QUIZ! {0}.
+        /// </summary>
         internal static string QuizStart {
             get {
                 return ResourceManager.GetString("QuizStart", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Nobody gave the right answer..
+        /// </summary>
         internal static string QuizTimeOut {
             get {
                 return ResourceManager.GetString("QuizTimeOut", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Correct answer: {0}! @{1} earned {2} point(s). You have {3} total points, all time {4} points. Points can be spent on ordering a track through the command !sr YouTube link.
+        /// </summary>
         internal static string QuizWin {
             get {
                 return ResourceManager.GetString("QuizWin", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to role {0}.
+        /// </summary>
         internal static string role {
             get {
                 return ResourceManager.GetString("role", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Roulette on CoolDown {1}s remaining..
+        /// </summary>
         internal static string RouletteCD {
             get {
                 return ResourceManager.GetString("RouletteCD", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Boom! @{0} died..
+        /// </summary>
         internal static string RouletteLoose {
             get {
                 return ResourceManager.GetString("RouletteLoose", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Boom! @{0} died on the {1}th winstreak..
+        /// </summary>
         internal static string RouletteLooseWs {
             get {
                 return ResourceManager.GetString("RouletteLooseWs", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Roulette.
+        /// </summary>
         internal static string RouletteTimeOut {
             get {
                 return ResourceManager.GetString("RouletteTimeOut", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Survived EZ.
+        /// </summary>
         internal static string RouletteWin {
             get {
                 return ResourceManager.GetString("RouletteWin", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} survived {1} times in a row!!! Your place in the leaderboard is {2} out of {3}! The probability of this winstreak is {4} PogChamp PogChamp PogChamp.
+        /// </summary>
         internal static string RouletteWinStreak {
             get {
                 return ResourceManager.GetString("RouletteWinStreak", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error: Word too long to be sent to chat.
+        /// </summary>
         internal static string SendMessageERROR {
             get {
                 return ResourceManager.GetString("SendMessageERROR", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, {1}, {2} {3}, {4} lp, WR {5}% {6} games played today, {7} wins / {8} losses. {9} LP earned.
+        /// </summary>
         internal static string ShowLP {
             get {
                 return ResourceManager.GetString("ShowLP", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Summoner {1} is being calibrated. {2} games played today, {3} wins / {4} losses. {5} LP earned.
+        /// </summary>
         internal static string ShowLPCalibration {
             get {
                 return ResourceManager.GetString("ShowLPCalibration", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0},  {1} PROMO TO {2}, {3}.
+        /// </summary>
         internal static string ShowLPPromo {
             get {
                 return ResourceManager.GetString("ShowLPPromo", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid input. Please use the format: !CronEdit [taskName] [triggerName] [cronExpression].
+        /// </summary>
         internal static string StartCronTaskERROR {
             get {
                 return ResourceManager.GetString("StartCronTaskERROR", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid cron expression..
+        /// </summary>
         internal static string StartCronTaskERROR2 {
             get {
                 return ResourceManager.GetString("StartCronTaskERROR2", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Job schedule updated..
+        /// </summary>
         internal static string StartCronTaskSuccess {
             get {
                 return ResourceManager.GetString("StartCronTaskSuccess", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Thank you for subscribing! It&apos;s your {1}th month with us! PogChamp +{2}.
+        /// </summary>
         internal static string SubMessage {
             get {
                 return ResourceManager.GetString("SubMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to swearing.
+        /// </summary>
         internal static string TimeOut1wReason {
             get {
                 return ResourceManager.GetString("TimeOut1wReason", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 18+ Image.
+        /// </summary>
         internal static string TimeOutBadPic {
             get {
                 return ResourceManager.GetString("TimeOutBadPic", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Symbols in chat.
+        /// </summary>
         internal static string TimeOutPic {
             get {
                 return ResourceManager.GetString("TimeOutPic", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to For the streamer!.
+        /// </summary>
         internal static string TimeOutReason_TimeOutBroadcaster {
             get {
                 return ResourceManager.GetString("TimeOutReason_TimeOutBroadcaster", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to UNO reverse Card!.
+        /// </summary>
         internal static string TimeOutReason_TimeOutRootUser {
             get {
                 return ResourceManager.GetString("TimeOutReason_TimeOutRootUser", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TimeOut for subscriber.
+        /// </summary>
         internal static string TimeOutReason_TimeOutSub {
             get {
                 return ResourceManager.GetString("TimeOutReason_TimeOutSub", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TimeOut for unsubscriver.
+        /// </summary>
         internal static string TimeOutReason_TimeOutUnsub {
             get {
                 return ResourceManager.GetString("TimeOutReason_TimeOutUnsub", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TimeOut for VIP.
+        /// </summary>
         internal static string TimeOutReason_TimeOutVIP {
             get {
                 return ResourceManager.GetString("TimeOutReason_TimeOutVIP", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to track.
+        /// </summary>
         internal static string TimeOutReason_Track {
             get {
                 return ResourceManager.GetString("TimeOutReason_Track", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0},  {1} has been timed out for {2} s. It&apos;s his {3}-th timeout.
+        /// </summary>
         internal static string TimeOutReward_chatMessage {
             get {
                 return ResourceManager.GetString("TimeOutReward_chatMessage", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Spam.
+        /// </summary>
         internal static string TimeOutSpam {
             get {
                 return ResourceManager.GetString("TimeOutSpam", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Top 3 chat users: TOP 1 @{0}, {1} messages PogChamp TOP2 @{2}, {3} messages EZ TOP 3 @{4}, {5} messages BloodTrail.
+        /// </summary>
         internal static string Top3Chat {
             get {
                 return ResourceManager.GetString("Top3Chat", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Топ 3 roulette players: TOP 1 @{0} win streak {1} {2} PogChamp TOP 2 @{3} win streak {4} {5} EZ TOP 3 @{6} win streak {7} {8} BloodTrail.
+        /// </summary>
         internal static string Top3Roulette {
             get {
                 return ResourceManager.GetString("Top3Roulette", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} An exception occurred in track order.
+        /// </summary>
         internal static string Track_Esception {
             get {
                 return ResourceManager.GetString("Track_Esception", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Track {1} added to queue.
+        /// </summary>
         internal static string Track200_Success {
             get {
                 return ResourceManager.GetString("Track200_Success", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Something went wrong. The track was not added to the queue.
+        /// </summary>
         internal static string Track400_ERROR {
             get {
                 return ResourceManager.GetString("Track400_ERROR", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} There is nothing in the found videos to post..
+        /// </summary>
         internal static string Track404 {
             get {
                 return ResourceManager.GetString("Track404", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, this track is not allowed..
+        /// </summary>
         internal static string Track500_bannedTrack {
             get {
                 return ResourceManager.GetString("Track500_bannedTrack", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} You don&apos;t have permission to add tracks.
+        /// </summary>
         internal static string Track500_bannedUser {
             get {
                 return ResourceManager.GetString("Track500_bannedUser", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} 18+ videos is not allowed..
+        /// </summary>
         internal static string Track510_Age {
             get {
                 return ResourceManager.GetString("Track510_Age", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Maximum video length is 6 minutes!.
+        /// </summary>
         internal static string Track510_Duration {
             get {
                 return ResourceManager.GetString("Track510_Duration", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} This video can only be viewed on YouTube.
+        /// </summary>
         internal static string Track510_Embedded {
             get {
                 return ResourceManager.GetString("Track510_Embedded", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0} Views must be over 300k.
+        /// </summary>
         internal static string Track510_ViewCount {
             get {
                 return ResourceManager.GetString("Track510_ViewCount", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User {0} Chatted on {1} streams.
+        /// </summary>
         internal static string TrackUserSuccess {
             get {
                 return ResourceManager.GetString("TrackUserSuccess", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Write the nickname of the user who is in timeout. The bot will calculate the cost and write further actions to the chat. You will have a minute to complete them..
+        /// </summary>
         internal static string UpdateRewardPromptOrig {
             get {
                 return ResourceManager.GetString("UpdateRewardPromptOrig", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Untimeout {0}.
+        /// </summary>
         internal static string UpdateRewardTitleNew {
             get {
                 return ResourceManager.GetString("UpdateRewardTitleNew", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Untimeout user.
+        /// </summary>
         internal static string UpdateRewardTitleOrig {
             get {
                 return ResourceManager.GetString("UpdateRewardTitleOrig", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, {1} sub/vip.
+        /// </summary>
         internal static string Uval500_IsSub {
             get {
                 return ResourceManager.GetString("Uval500_IsSub", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to @{0}, {1} vip.
+        /// </summary>
         internal static string Uval500_IsVIP {
             get {
                 return ResourceManager.GetString("Uval500_IsVIP", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Victory.
+        /// </summary>
         internal static string win {
             get {
                 return ResourceManager.GetString("win", resourceCulture);
@@ -7487,8 +9615,9 @@ namespace SkillzBot.IllSTRINGS
     }
 }
 
+
 # SubUtils/AddSub.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using System;
 using System.IO;
 
@@ -7576,7 +9705,7 @@ namespace SkillzBot.SubUtils
 }
 
 # SubUtils/SubCall.cs
-using SkillzBot.IRC;
+﻿using SkillzBot.IRC;
 using SkillzBot.MODELS;
 using System;
 using SkillzBot.Singleton;
@@ -7592,7 +9721,8 @@ namespace SkillzBot.SubUtils
 
         public SubCall()
         {
-
+            // Note: Since this is called from a Controller, we might need to resolve this from ServiceProvider
+            // if SubCall isn't registered in DI. Using ServiceProvider for compatibility with Controller instantiation.
             _ircClient = IllServiceProvider.GetService<ITtvIRCClient>();
         }
 
@@ -7641,7 +9771,7 @@ namespace SkillzBot.SubUtils
 }
 
 # SubUtils/SubCheck.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using System;
 using System.IO;
 using SkillzBot.Singleton;
@@ -7681,7 +9811,7 @@ namespace SkillzBot.SubUtils
                     string dateTimeString = File.ReadAllText(filePath);
                     if (DateTime.TryParse(dateTimeString, out result))
                     {
-                        return true; 
+                        return true; // Successfully read DateTime from file
                     }
                     else
                     {
@@ -7704,13 +9834,15 @@ namespace SkillzBot.SubUtils
     }
 }
 
+
 # TtvClient/TTVEventSub.cs
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Discord;
 using SkillzBot.Hosts;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
+using SkillzBot.IRC;
 using SkillzBot.Singleton;
 using SkillzBot.TtvClient.TTVRewards;
 using System;
@@ -7719,15 +9851,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
+using TwitchLib.EventSub.Core.EventArgs.Channel;
+using TwitchLib.EventSub.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
-using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
-using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 
 namespace SkillzBot.EventSub
 {
-#nullable enable
-    public class TTVEventSub : IHostedService
+    internal class TTVEventSub : IHostedService
     {
         private static readonly ILogger<TTVEventSub> _logger = IllServiceProvider.GetLogger<TTVEventSub>();
         private readonly IDatabaseService _databaseService;
@@ -7739,9 +9870,8 @@ namespace SkillzBot.EventSub
         private readonly Dictionary<string, string> SubscriptionsTypes;
 
         public TTVEventSub(
-            EventSubWebsocketClient eventSubWebsocketClient,
-            ILogger<TTVEventSub> logger,
-            IDatabaseService databaseService,
+            EventSubWebsocketClient eventSubWebsocketClient, 
+            IDatabaseService databaseService, 
             ITtvIRCClient ircClient,
             RewardsRedemption rewardsRedemption)
         {
@@ -7838,7 +9968,6 @@ namespace SkillzBot.EventSub
             int retryCount = 0;
             int maxRetries = 5;
             int baseDelayMs = 1000;
-            Random jitter = new Random();
 
             while (retryCount < maxRetries)
             {
@@ -7856,9 +9985,7 @@ namespace SkillzBot.EventSub
                 }
 
                 retryCount++;
-                int delay = baseDelayMs * (int)Math.Pow(2, retryCount) + jitter.Next(0, 100);
-                _logger.LogDebug("Waiting {delay}ms before retry {retryCount}/{maxRetries}...", delay, retryCount + 1, maxRetries);
-                await Task.Delay(delay).ConfigureAwait(false);
+                await Task.Delay(baseDelayMs * (int)Math.Pow(2, retryCount)).ConfigureAwait(false);
             }
             _logger.LogCritical("Failed to reconnect after maximum retries. Please restart the service.");
         }
@@ -7906,7 +10033,8 @@ namespace SkillzBot.EventSub
         }
         private async Task OnChannelBan(object sender, ChannelBanArgs e)
         {
-            if (e.Notification.Payload.Event.IsPermanent)
+            // FIX: Updated property access. Payload is now direct.
+            if (e.Payload.Event.IsPermanent)
             {
                 await _ircClient.SendMessage($"o7");
             }
@@ -7915,7 +10043,7 @@ namespace SkillzBot.EventSub
         private async Task OnPrediction(object sender, ChannelPredictionBeginArgs e)
         {
             if (!IllSingleton.State.isSubActive) return;
-            await _ircClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Notification.Payload.Event.Title));
+            await _ircClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Payload.Event.Title));
         }
         private async Task OnUnban(object sender, ChannelUnbanArgs e)
         {
@@ -7923,10 +10051,10 @@ namespace SkillzBot.EventSub
 
             try
             {
-                var user = await _databaseService.GetUserAsync(e.Notification.Payload.Event.UserLogin).ConfigureAwait(false);
+                var user = await _databaseService.GetUserAsync(e.Payload.Event.UserLogin).ConfigureAwait(false);
                 if (user.dbID == -404)
                 {
-                    _logger.LogCritical("UserTimedoutEventTask id = -1 username:{UserLogin}", e.Notification.Payload.Event.UserLogin);
+                    _logger.LogCritical("UserTimedoutEventTask id = -1 username:{UserLogin}", e.Payload.Event.UserLogin);
                 }
                 else
                 {
@@ -7944,10 +10072,10 @@ namespace SkillzBot.EventSub
             if (!IllSingleton.State.isSubActive) return;
             await RewardProcess
             (
-                e.Notification.Payload.Event.Reward.Id,
-                e.Notification.Payload.Event.UserLogin,
-                e.Notification.Payload.Event.UserInput,
-                e.Notification.Payload.Event.Id
+                e.Payload.Event.Reward.Id,
+                e.Payload.Event.UserLogin,
+                e.Payload.Event.UserInput,
+                e.Payload.Event.Id
             ).ConfigureAwait(false);
         }
 
@@ -8013,34 +10141,33 @@ namespace SkillzBot.EventSub
 }
 
 # TtvClient/TTVIRCClient.cs
-using System;
-using System.Threading.Tasks;
-using System.Threading;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SkillzBot.API.StreamElements;
+using SkillzBot.API.Twitch;
+using SkillzBot.Discord;
+using SkillzBot.Hosts;
+using SkillzBot.IllSkillzBot;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
+using SkillzBot.IllSTRINGS;
+using SkillzBot.Interfaces;
+using SkillzBot.Singleton;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
-using TwitchLib.Communication.Events;
-using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
-using SkillzBot.IllSkillzBot;
-using SkillzBot.IllSTRINGS;
-using SkillzBot.API.StreamElements;
-using SkillzBot.Discord;
-using SkillzBot.API.Twitch;
-using SkillzBot.IllSkillzBot.IllCommandsNest;
-using SkillzBot.Singleton;
-using SkillzBot.Interfaces;
-using Microsoft.Extensions.DependencyInjection;
+using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace SkillzBot.IRC
 {
-
     sealed class TtvIRCClientService : ITtvIRCClient
     {
-        private ILogger<TtvIRCClientService> _logger;
+        private static readonly ILogger<TtvIRCClientService> _logger = IllServiceProvider.GetLogger<TtvIRCClientService>();
         private IDatabaseService _databaseService;
-        private IllChatMessageHandler _messageHandler;
         private readonly IServiceProvider _serviceProvider;
+        private IllChatMessageHandler _messageHandler;
 
         private TwitchClient _client;
         private bool _isInitialized = false;
@@ -8051,15 +10178,13 @@ namespace SkillzBot.IRC
         private const int MAX_RETRIES = 3;
         private const int BASE_DELAY_MS = 1000;
         private const int SMALL_DELAY_MS = 100;
-        private const int CONNECTION_TIMEOUT_SECONDS = 10;
+        private const int CONNECTION_TIMEOUT_SECONDS = 15;
         private const int MESSAGE_MAX_LENGTH = 500;
 
         public TtvIRCClientService(
-            ILogger<TtvIRCClientService> logger, 
             IDatabaseService database,
             IServiceProvider serviceProvider)
         {
-            _logger = logger;
             _databaseService = database;
             _serviceProvider = serviceProvider;
             _logger.LogDebug("TtvIRCClient logger initialized");
@@ -8113,8 +10238,7 @@ namespace SkillzBot.IRC
                     _client.Initialize(credentials, IllSingleton.Config.ChannelName);
 
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(CONNECTION_TIMEOUT_SECONDS));
-
-                    await Task.Run(() => _client.Connect(), cts.Token).ConfigureAwait(false);
+                    await _client.ConnectAsync();                    
 
                     await Task.Delay(2000, CancellationToken.None).ConfigureAwait(false);
 
@@ -8129,27 +10253,19 @@ namespace SkillzBot.IRC
                 {
                     _logger?.LogWarning("Connection attempt {Attempt}/{Max} timed out.", attempt, MAX_RETRIES);
                 }
-                catch (OperationCanceledException)
-                {
-                    _logger?.LogWarning("Connection attempt {Attempt}/{Max} timed out (OperationCanceled).", attempt, MAX_RETRIES);
-                }
                 catch (Exception e)
                 {
-
-                    if (e is AggregateException ae && ae.InnerExceptions.Count == 1 && ae.InnerExceptions[0] is TaskCanceledException)
-                    {
-                        _logger?.LogWarning("Connection attempt {Attempt}/{Max} timed out (Aggregate).", attempt, MAX_RETRIES);
-                    }
-                    else
-                    {
-                        _logger?.LogError("Connection error attempt {Attempt}/{Max}: {Message}", attempt, MAX_RETRIES, e.Message);
-                    }
+                    _logger?.LogError("Connection error attempt {Attempt}/{Max}: {Message}", attempt, MAX_RETRIES, e.Message);
                 }
 
                 if (attempt < MAX_RETRIES)
                 {
                     int delayMs = BASE_DELAY_MS * attempt;
-                    await Task.Delay(delayMs).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(delayMs, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch { /* ignore cancellation */ }
                 }
             }
 
@@ -8190,7 +10306,13 @@ namespace SkillzBot.IRC
                     _client.OnUserTimedout -= Client_OnUserTimedout;
                     _client.OnDisconnected -= Client_OnDisconnected;
                     _client.OnConnected -= Client_OnConnected;
-                    if (_client.IsConnected) _client.Disconnect();
+
+                    // Disconnect is also likely async now, but in Dispose context we fire and forget
+                    if (_client.IsConnected)
+                    {
+                        // Fire and forget disconnect to avoid blocking dispose
+                        _ = _client.DisconnectAsync();
+                    }
                 }
                 catch { }
                 finally { _client = null; }
@@ -8200,21 +10322,33 @@ namespace SkillzBot.IRC
         public bool IsConnected => _client?.IsConnected ?? false;
         public bool IsInitialized => _isInitialized && !_isDisposed;
 
-        private async void Client_OnConnected(object sender, OnConnectedArgs e)
+        private async Task Client_OnConnected(object sender, OnConnectedEventArgs e)
         {
-            _logger?.LogInformation("Twitch IRC client connected to channel: {Channel}", e.AutoJoinChannel);
-            await Task.CompletedTask.ConfigureAwait(false);
+            var channelName = IllSingleton.Config.ChannelName;
+            _logger?.LogInformation("Twitch IRC Socket Connected as {Username}. Joining channel: {Channel}", e.BotUsername, channelName);
+
+            try
+            {
+                await _client.JoinChannelAsync(channelName);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to join channel {Channel}", channelName);
+            }
         }
 
-        private async void Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
+        private async Task Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
         {
             try
             {
-                var messageHandler = _serviceProvider.GetRequiredService<IllChatMessageHandler>();
+                if (_messageHandler == null)
+                {
+                    _messageHandler = _serviceProvider.GetRequiredService<IllChatMessageHandler>();
+                }
 
                 _logger?.LogDebug("Message received from {User}: {Message}", e.ChatMessage.Username, e.ChatMessage.Message);
 
-                var user = await messageHandler.MessageHandler(e).ConfigureAwait(false);
+                var user = await _messageHandler.MessageHandler(e).ConfigureAwait(false);
                 if (user != null)
                 {
                     await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
@@ -8226,48 +10360,71 @@ namespace SkillzBot.IRC
             }
         }
 
-        private async void Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
+        private async Task Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
             try
             {
+                _logger?.LogInformation("User {Username} timed out for {Duration} seconds", e.UserTimeout.Username, e.UserTimeout.TimeoutDuration);
+
                 await UserTimedoutEventTask(e).ConfigureAwait(false);
-                if (e.UserTimeout.TimeoutDuration > 50000) await SendMessage("o7");
+
+                if (e.UserTimeout.TimeoutDuration.TotalSeconds > 50000)
+                {
+                    await SendMessage("o7").ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Error handling timeout");
+                _logger?.LogError(ex, "Error handling timeout for user {Username}", e.UserTimeout?.Username);
             }
         }
 
-        private void Client_OnDisconnected(object sender, OnDisconnectedEventArgs e)
+        private async Task Client_OnDisconnected(object sender, OnDisconnectedArgs e)
         {
             _logger?.LogWarning("Twitch IRC disconnected. Attempting to reconnect...");
-            lock (_lockObject) _isInitialized = false;
+
+            lock (_lockObject)
+            {
+                _isInitialized = false;
+            }
+
+            // Fire and forget reconnection logic
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await Task.Delay(BASE_DELAY_MS);
-                    if (!_isDisposed) await ReconnectAsync();
+                    await Task.Delay(BASE_DELAY_MS).ConfigureAwait(false);
+                    if (!_isDisposed)
+                    {
+                        await ReconnectAsync().ConfigureAwait(false);
+                    }
                 }
-                catch (Exception ex) { _logger?.LogError(ex, "Reconnect failed"); }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error during automatic reconnection");
+                }
             });
+            await Task.CompletedTask;
         }
 
         private async Task UserTimedoutEventTask(OnUserTimedoutArgs e)
         {
             if (e?.UserTimeout?.Username == null) return;
+
             try
             {
-                var user = await _databaseService.GetUserAsync(e.UserTimeout.Username);
+                var user = await _databaseService.GetUserAsync(e.UserTimeout.Username).ConfigureAwait(false);
                 if (user.dbID != -404)
                 {
-                    user.UvalTimer = e.UserTimeout.TimeoutDuration + DateTimeOffset.Now.ToUnixTimeSeconds();
+                    user.UvalTimer = e.UserTimeout.TimeoutDuration.TotalSeconds + DateTimeOffset.Now.ToUnixTimeSeconds();
                     user.UvalCon++;
-                    await _databaseService.UpdateUserAsync(user);
+                    await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
                 }
             }
-            catch (Exception ex) { _logger?.LogError(ex, "Timeout processing error"); }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error processing timeout for user {Username}", e.UserTimeout.Username);
+            }
         }
 
         public async Task OnStreamDown()
@@ -8353,12 +10510,44 @@ namespace SkillzBot.IRC
         {
             try
             {
-                if (e?.Notification?.Payload?.Event == null) return;
-                await SendMessage(string.Format(STRINGS.OnUnban, e.Notification.Payload.Event.ModeratorUserLogin, e.Notification.Payload.Event.UserName));
+                if (e?.Payload?.Event == null) return;
+                _logger?.LogInformation("User {Username} unbanned by {Moderator}", e.Payload.Event.UserName, e.Payload.Event.ModeratorUserLogin);
+                await SendMessage(string.Format(STRINGS.OnUnban, e.Payload.Event.ModeratorUserLogin, e.Payload.Event.UserName)).ConfigureAwait(false);
             }
-            catch (Exception ex) { _logger?.LogError(ex, "Unban error"); }
+            catch (Exception ex) { _logger?.LogError(ex, "Error processing unban event"); }
         }
+        public async Task SendBotMessage(string messageToSend, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(messageToSend)) return;
 
+            if (IllSingleton.State.IsSilent)
+            {
+                _logger?.LogDebug("Bot is in silent mode, message not sent: {Message}", messageToSend);
+                return;
+            }
+
+            if (!IsConnected)
+            {
+                _logger?.LogWarning("Cannot send message - not connected to Twitch IRC");
+                return;
+            }
+
+            try
+            {
+                if (messageToSend.Length <= MESSAGE_MAX_LENGTH)
+                {
+                    await _client.SendMessageAsync(IllSingleton.Config.ChannelName, messageToSend).ConfigureAwait(false);
+                }
+                else
+                {
+                    await _client.SendMessageAsync(IllSingleton.Config.ChannelName, messageToSend.Substring(0, MESSAGE_MAX_LENGTH)).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error sending message: {Message}", messageToSend);
+            }
+        }
         public async Task SendMessage(string messageToSend, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(messageToSend) || IllSingleton.State.IsSilent || !IsConnected) return;
@@ -8411,7 +10600,7 @@ namespace SkillzBot.IRC
 }
 
 # TtvClient/TTVRewards/RewardsRedemption.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SkillzBot.Singleton;
@@ -8924,7 +11113,7 @@ namespace SkillzBot.TtvClient.TTVRewards
 }
 
 # Utils/AhoCorasick.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace SkillzBot.Utils
 {
@@ -8933,7 +11122,7 @@ namespace SkillzBot.Utils
         private class Node
         {
             public Dictionary<char, Node> Children = new Dictionary<char, Node>();
-            public Node Failure; 
+            public Node Failure; // Link to the longest proper suffix
             public bool IsEndOfPattern;
         }
 
@@ -8961,12 +11150,14 @@ namespace SkillzBot.Utils
             var queue = new Queue<Node>();
             _root.Failure = _root;
 
+            // Initialize depth 1
             foreach (var child in _root.Children.Values)
             {
                 child.Failure = _root;
                 queue.Enqueue(child);
             }
 
+            // BFS to build failure links
             while (queue.Count > 0)
             {
                 var current = queue.Dequeue();
@@ -8991,6 +11182,7 @@ namespace SkillzBot.Utils
                         child.Failure = _root;
                     }
 
+                    // Optimization: If failure node is end of pattern, this node is also a match
                     if (child.Failure.IsEndOfPattern)
                     {
                         child.IsEndOfPattern = true;
@@ -9018,7 +11210,7 @@ namespace SkillzBot.Utils
 
                 if (node.IsEndOfPattern)
                 {
-                    return true; 
+                    return true; // Match found
                 }
             }
             return false;
@@ -9027,7 +11219,7 @@ namespace SkillzBot.Utils
 }
 
 # Utils/CooldownManager.cs
-using SkillzBot.IllSkillzBot;
+﻿using SkillzBot.IllSkillzBot;
 using SkillzBot.MODELS;
 using System;
 using System.Collections.Generic;
@@ -9064,6 +11256,7 @@ namespace SkillzBot.Utils
             bool canBypass = _allowBypassCooldown.TryGetValue(methodName, out var bypass) && bypass;
             bool isGlobal = _isGlobal.TryGetValue(methodName, out var global) && global;
 
+            
             if (IllSingleton.State.GodMode)
                 if (IllAccess.Root(user))
                 {
@@ -9071,6 +11264,7 @@ namespace SkillzBot.Utils
                     return null;
                 }
 
+            // If elevated users can bypass cooldowns and user is VIP, execute immediately
             if (canBypass && IllAccess.Vip(user))
             {
                 await InvokeDelegate(methodLogic, user, command).ConfigureAwait(false);
@@ -9133,7 +11327,7 @@ namespace SkillzBot.Utils
 }
 
 # Utils/IntUtil.cs
-using SkillzBot.Singleton;
+﻿using SkillzBot.Singleton;
 using SkillzBot.API.Twitch;
 using System;
 using System.Collections.Generic;
@@ -9209,7 +11403,7 @@ namespace SkillzBot.Utils
 
         public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
         {
-
+            // Unix timestamp is seconds past epoch
             DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             dateTime = dateTime.AddSeconds(unixTimeStamp).ToLocalTime();
             return dateTime;
@@ -9217,8 +11411,9 @@ namespace SkillzBot.Utils
     }
 }
 
+
 # Utils/NetUtil.cs
-using System;
+﻿using System;
 using System.Net.Sockets;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -9287,8 +11482,9 @@ namespace SkillzBot.Utils
     }
 }
 
+
 # Utils/QuickSort.cs
-using SkillzBot.MODELS;
+﻿using SkillzBot.MODELS;
 using System.Collections.Generic;
 
 namespace SkillzBot.Utils
@@ -9327,8 +11523,9 @@ namespace SkillzBot.Utils
     }
 }
 
+
 # Utils/StringUtil.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9338,15 +11535,19 @@ namespace SkillzBot.Utils
 {
     internal sealed class StringUtil
     {
-
+        // ==========================================
+        // DATA SOURCES
+        // ==========================================
         private static readonly Dictionary<string, double> rankValues;
 
+        // Compiled Regex is much faster for repeated use
         private static readonly Regex _youTubeRegex = new Regex(@"(?<=v=|\/)([a-zA-Z0-9_-]{11})(?=\&|\?|$)", RegexOptions.Compiled);
         private static readonly Regex _twitchClipRegex = new Regex(@"https?:\/\/clips\.twitch\.tv\/[A-Za-z0-9_-]+", RegexOptions.Compiled);
         private static readonly Regex _apiTokenRegex = new Regex(@"^(oauth:|RGAPI-|)[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
 
         private static readonly HashSet<char> CharsToRemove = new HashSet<char> { ' ', '.', ',', '!', '_', '-' };
 
+        // Lookup Tables
         private static readonly char[] _normalizationMap = new char[char.MaxValue + 1];
         private static readonly char[][] _obfuscationMap = new char[char.MaxValue + 1][];
 
@@ -9371,7 +11572,7 @@ namespace SkillzBot.Utils
 
         static StringUtil()
         {
-
+            // Initialize Ranks
             rankValues = new Dictionary<string, double>
             {
                 { "challenger i", 31 }, { "grandmaster i", 30 }, { "master i", 29 }, { "diamond i", 28 },
@@ -9385,15 +11586,19 @@ namespace SkillzBot.Utils
                 { "unranked", 0 }
             };
 
+            // Initialize Normalization Map (Default 1:1)
             for (int i = 0; i < _normalizationMap.Length; i++)
                 _normalizationMap[i] = (char)i;
 
+            // Fill Maps from Source of Truth
             foreach (var entry in Mappings)
             {
                 char targetBase = entry.Key;
 
+                // 1. Populate Obfuscation (Shuffle)
                 _obfuscationMap[targetBase] = entry.Value;
 
+                // 2. Populate Normalization (Filter)
                 foreach (char variant in entry.Value)
                 {
                     _normalizationMap[variant] = targetBase;
@@ -9401,6 +11606,14 @@ namespace SkillzBot.Utils
             }
         }
 
+        // ==========================================
+        // NORMALIZATION & OBFUSCATION
+        // ==========================================
+
+        /// <summary>
+        /// Converts obfuscated chars to base chars, but preserves structure.
+        /// "H0x0l is bad" -> "hohol is bad"
+        /// </summary>
         public static string Normalize(string input)
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;
@@ -9416,23 +11629,27 @@ namespace SkillzBot.Utils
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;
 
+            // Stack allocation for speed
             Span<char> result = input.Length <= 1024
                 ? stackalloc char[input.Length]
                 : new char[input.Length];
 
             int pos = 0;
-            char lastChar = '\0'; 
+            char lastChar = '\0'; // Tracker for deduplication
 
             for (int i = 0; i < input.Length; i++)
             {
                 char c = input[i];
 
+                // 1. Normalize the char (get base version, e.g. '0' -> 'o')
                 char normalizedChar = _normalizationMap[c];
 
+                // 2. Filter: Only keep Letters and Digits.
                 if (char.IsLetterOrDigit(normalizedChar))
                 {
                     char lower = char.ToLowerInvariant(normalizedChar);
 
+                    // 3. Deduplicate: Only add if different from the previous char
                     if (lower != lastChar)
                     {
                         result[pos++] = lower;
@@ -9467,14 +11684,19 @@ namespace SkillzBot.Utils
             return new string(result);
         }
 
+        // ==========================================
+        // PARSING & EXTRACTION
+        // ==========================================
+
         public static string GetUserNameFromInput(string userInput)
         {
             if (string.IsNullOrEmpty(userInput)) return null;
 
+            // Safer parsing
             int atIndex = userInput.LastIndexOf('@');
             if (atIndex == -1 && userInput.Length > 0)
             {
-
+                // Fallback if no @ symbol, assume first word is name
                 string[] parts = userInput.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 return parts.Length > 0 ? parts[0].ToLower() : null;
             }
@@ -9501,6 +11723,7 @@ namespace SkillzBot.Utils
         {
             if (string.IsNullOrEmpty(inputString)) return Array.Empty<string>();
 
+            // Optimized to not scan the whole string
             int firstSpace = inputString.IndexOf(' ');
             if (firstSpace == -1) return new string[] { inputString, "" };
 
@@ -9515,6 +11738,10 @@ namespace SkillzBot.Utils
         {
             if (wordsArray == null || wordsArray.Length <= 1) return string.Empty;
 
+            // Re-joining an array is slow, but assuming wordsArray was created via Split,
+            // we can't easily get the original substring without the original string.
+            // Using StringBuilder is slightly better than string.Join for strict control, 
+            // but string.Join is optimized internally. Kept strict Join here.
             return string.Join(" ", wordsArray.Skip(1));
         }
 
@@ -9530,7 +11757,7 @@ namespace SkillzBot.Utils
             if (string.IsNullOrEmpty(input)) return null;
             Match match = _twitchClipRegex.Match(input);
 
-            if (match.Success && match.Value == input) 
+            if (match.Success && match.Value == input) // Your original strict equality check
             {
                 if (Uri.TryCreate(match.Value, UriKind.Absolute, out Uri uri) && uri.Host == "clips.twitch.tv")
                 {
@@ -9550,13 +11777,18 @@ namespace SkillzBot.Utils
             return _apiTokenRegex.IsMatch(token);
         }
 
+        // ==========================================
+        // TEXT CLEANING & ANALYSIS
+        // ==========================================
+
         public static int CheckASCII(string message)
         {
             int count = 0;
             foreach (char ch in message)
             {
                 int val = (int)ch;
-
+                // Allow Standard ASCII (32-173) OR Cyrillic (1024-1279)
+                // Note: Standard ASCII is usually 0-127. 128-173 are extended/symbols.
                 if (!((val >= 32 && val <= 173) || (val >= 1024 && val <= 1279)))
                 {
                     count++;
@@ -9572,6 +11804,8 @@ namespace SkillzBot.Utils
             var sb = new StringBuilder(str.Length);
             string lowerStr = str.ToLower();
 
+            // Add first char manually to safely start the loop
+            // But check if it's a char to remove
             if (lowerStr.Length > 0 && !CharsToRemove.Contains(lowerStr[0]))
             {
                 sb.Append(lowerStr[0]);
@@ -9583,7 +11817,7 @@ namespace SkillzBot.Utils
 
                 if (!CharsToRemove.Contains(currentChar))
                 {
-
+                    // FIXED: Check Length > 0 before accessing index [Length-1]
                     if (sb.Length == 0 || sb[sb.Length - 1] != currentChar)
                     {
                         sb.Append(currentChar);
@@ -9597,8 +11831,9 @@ namespace SkillzBot.Utils
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;
 
+            // Optimized: No LINQ allocation
             int len = input.Length;
-            char[] src = input.ToCharArray(); 
+            char[] src = input.ToCharArray(); // Or use unsafe/fixed for zero-alloc
             int dstIdx = 0;
 
             for (int i = 0; i < len; i++)
@@ -9626,11 +11861,11 @@ namespace SkillzBot.Utils
         public static string ConvertRank(string rank, bool direction)
         {
             rank = rank.ToLower();
-            if (direction) 
+            if (direction) // Get Points from Name
             {
                 return rankValues.TryGetValue(rank, out double val) ? val.ToString() : "0";
             }
-            else 
+            else // Get Name from Points
             {
                 if (double.TryParse(rank, out double rankValue))
                 {
@@ -9655,7 +11890,7 @@ namespace SkillzBot.Utils
 }
 
 # Utils/TrieHelper.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System;
 
 namespace SkillzBot.Utils
@@ -9670,11 +11905,12 @@ namespace SkillzBot.Utils
     {
         private readonly TrieNode root = new TrieNode();
 
+        // Only pass the original small list of words here!
         public void BuildTrie(IEnumerable<string> baseWords)
         {
             foreach (var word in baseWords)
             {
-
+                // Normalize the dictionary words too, just to be safe
                 InsertWord(StringUtil.Normalize(word));
             }
         }
@@ -9697,7 +11933,7 @@ namespace SkillzBot.Utils
 
         public string FindBannedWord(string normalizedText)
         {
-
+            // No need to ToLower here, input should already be normalized
             for (int i = 0; i < normalizedText.Length; i++)
             {
                 var current = root;
@@ -9717,25 +11953,85 @@ namespace SkillzBot.Utils
             return null;
         }
     }
+    /*
+    public class BannedWordsTrie
+    {
+        private readonly TrieNode root = new TrieNode();
 
+        public void BuildTrie(HashSet<string> dictionary)
+        {
+            Console.WriteLine("Building Trie for fast word matching...");
+            foreach (var word in dictionary)
+            {
+                InsertWord(word.ToLower());
+            }
+            Console.WriteLine("Trie built successfully!");
+        }
+
+        private void InsertWord(string word)
+        {
+            var current = root;
+            foreach (char c in word)
+            {
+                if (!current.Children.ContainsKey(c))
+                    current.Children[c] = new TrieNode();
+                current = current.Children[c];
+            }
+            current.IsEndOfWord = true;
+            current.Word = word;
+        }
+
+        public string FindBannedWord(string text)
+        {
+            text = text.ToLower();
+            for (int i = 0; i < text.Length; i++)
+            {
+                var result = SearchFromPosition(text, i);
+                if (result != null)
+                    return result;
+            }
+
+            return null;
+        }
+
+        private string SearchFromPosition(string text, int startPos)
+        {
+            var current = root;
+
+            for (int i = startPos; i < text.Length; i++)
+            {
+                char c = text[i];
+
+                if (!current.Children.ContainsKey(c))
+                    break;
+
+                current = current.Children[c];
+
+                if (current.IsEndOfWord)
+                    return current.Word;
+            }
+            return null;
+        }
+    } */
 }
 
+
 # Utils/UserChatTracker.cs
-using System;
+﻿using System;
 
 namespace SkillzBot.Utils
 {
     public class UserChatTracker
     {
         public string Username;
-
+        // Store last 4 messages. Using a fixed array is faster than a List.
         public string[] RecentMessages = new string[4] { "", "", "", "" };
         public long LastMessageTimestamp;
         public double SecondsSinceLastMessage;
 
         public void AddMessage(string message)
         {
-
+            // Shift messages (Ring buffer style would be faster, but array shift is fine for size 4)
             RecentMessages[3] = RecentMessages[2];
             RecentMessages[2] = RecentMessages[1];
             RecentMessages[1] = RecentMessages[0];
@@ -9749,7 +12045,7 @@ namespace SkillzBot.Utils
 }
 
 # Writers/BotConfigWriter.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Newtonsoft.Json;
 using SkillzBot.JSON.Settings;
 using SkillzBot.MODELS;
@@ -9823,62 +12119,46 @@ namespace SkillzBot.Writers
 }
 
 # Writers/dicWhiteListWriter.cs
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks; 
 using IllSkillzBot;
 
 namespace SkillzBot.WRITERS
 {
     internal class dicWhiteListWriter
     {
-        readonly static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath().sharedPath;
-        readonly static string filePath = Path.Combine(dataPath, "dicWhiteList.txt");     
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private static readonly string dataPath = IllSkillzBotMain.GetDataPath().sharedPath;
+        private static readonly string filePath = Path.Combine(dataPath, "dicWhiteList.txt");
 
-        public void dicWhiteListWriterTask(string Message)
+        public async Task dicWhiteListWriterTask(string Message)
         {
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException();
-            }
-            mutexObj.WaitOne();
-            FileInfo file = new FileInfo(filePath);
-            while (IsFileLocked(file))
-            {
-                Thread.Sleep(100);
-            }
+            await _semaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                File.AppendAllText(filePath, Message + Environment.NewLine);
+                if (!File.Exists(filePath))
+                {
+                    await File.WriteAllTextAsync(filePath, string.Empty);
+                }
+
+                await File.AppendAllTextAsync(filePath, Message + Environment.NewLine).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
+                Console.WriteLine($"Error writing to whitelist: {e.Message}");
             }
-            mutexObj.ReleaseMutex();
-        }
-        protected virtual bool IsFileLocked(FileInfo file)
-        {
-            try
+            finally
             {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
-                {
-                    stream.Close();
-                }
+                _semaphore.Release();
             }
-            catch (IOException)
-            {
-                return true;
-            }
-            return false;
         }
     }
 }
 
 # Writers/ExtrackMessage.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using Quartz.Logging;
 using SkillzBot.Hosts;
@@ -9914,7 +12194,7 @@ namespace SkillzBot.WRITERS
 }
 
 # Writers/FileManipulator.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
@@ -9976,7 +12256,7 @@ namespace SkillzBot.Writers
 }
 
 # Writers/FlagWriter.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using SkillzBot.Utils;
@@ -10013,7 +12293,7 @@ namespace SkillzBot.WRITERS
 }
 
 # Writers/GameStatsWriter.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using System;
 using System.IO;
 using System.Threading;
@@ -10070,8 +12350,9 @@ namespace SkillzBot.Writers
     }
 }
 
+
 # Writers/IllLogger.cs
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Channels;
@@ -10378,6 +12659,7 @@ namespace SkillzBot.Writers
 }
 
 # Writers/mediaBlackListWriter.cs
+﻿
 using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
@@ -10416,7 +12698,7 @@ namespace SkillzBot.WRITERS
 }
 
 # Writers/mediaqueueWriter.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.API.StreamElements;
 using SkillzBot.Hosts;
@@ -10469,7 +12751,7 @@ namespace SkillzBot.WRITERS
 }
 
 # Writers/userBlackListWriter.cs
-using IllSkillzBot;
+﻿using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using System;

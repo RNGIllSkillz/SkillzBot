@@ -1,11 +1,12 @@
 ﻿using SkillzBot.API.Twitch;
+using SkillzBot.Hosts;
+using SkillzBot.IllSTRINGS;
+using SkillzBot.Interfaces;
 using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.IllSTRINGS;
-using System.Threading.Tasks;
 using SkillzBot.MySQL;
-using SkillzBot.Hosts;
-using SkillzBot.Interfaces;
+using System;
+using System.Threading.Tasks;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -20,6 +21,25 @@ namespace SkillzBot.IllSkillzBot
             _ircClient = ircClient;
         }
 
+        public async Task UserUntimeoutTrigger(string UserName)
+        {
+            await Task.Delay(2000).ConfigureAwait(false);
+            while (true)
+            {
+                var user = await _database.GetUserAsync(UserName).ConfigureAwait(false);
+                // Check if current time > UvalTimer
+                if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
+                {
+                    // Attempt to add mod until successful
+                    while (!await TtvAPI.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))
+                    {
+                        await Task.Delay(1000).ConfigureAwait(false);
+                    }
+                    return;
+                }
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+        }
         public async Task IllAllModsNotification(string message)
         {
             var mIds = await TtvAPI.GetAllMods().ConfigureAwait(false);

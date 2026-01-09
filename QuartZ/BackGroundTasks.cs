@@ -1,32 +1,45 @@
-﻿using SkillzBot.IllSkillzBot;
+﻿using Microsoft.Extensions.Logging;
+using SkillzBot.API.RiotGames;
+using SkillzBot.IllSkillzBot;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
+using SkillzBot.Interfaces;
+using SkillzBot.Singleton;
+using SkillzBot.SubUtils;
 using SkillzBot.WRITERS;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using SkillzBot.MYSQL;
-using SkillzBot.API.Twitch;
-using SkillzBot.IRC;
-using SkillzBot.SubUtils;
-using SkillzBot.API.RiotGames;
-using SkillzBot.IllSkillzBot.IllCommandsNest;
-using SkillzBot.Hosts;
-using Microsoft.Extensions.Logging;
-using SkillzBot.Singleton;
-using SkillzBot.Interfaces;
 
 namespace SkillzBot.QuartZ
 {
     internal class BackGroundTasks
     {
-        private static readonly ILogger<BackGroundTasks> _logger = IllServiceProvider.GetLogger<BackGroundTasks>();
-        private static readonly IDatabaseService _database = IllServiceProvider.GetService<IDatabaseService>();
-        private static readonly ITtvIRCClient _ircClient = IllServiceProvider.GetService<ITtvIRCClient>();
-        private static readonly IllChatMessageHandler _chatMessageHandler = IllServiceProvider.GetService<IllChatMessageHandler>();
-        
-        public static async Task RunDaily()
+        private readonly ILogger<BackGroundTasks> _logger;
+        private readonly IDatabaseService _database;
+        private readonly ITtvIRCClient _ircClient;
+        private readonly IllChatMessageHandler _chatMessageHandler;
+        private readonly IRiotApiService _riotApi;
+        private readonly IllCommands _illCommands;
+
+        public BackGroundTasks(
+            ILogger<BackGroundTasks> logger,
+            IDatabaseService database,
+            ITtvIRCClient ircClient,
+            IllChatMessageHandler chatMessageHandler,
+            IRiotApiService riotApi,
+            IllCommands illCommands)
         {
-            var riotApi = IllServiceProvider.GetService<IRiotApiService>();
-            var t = await riotApi.GetRankBySummonerAsync().ConfigureAwait(false);
+            _logger = logger;
+            _database = database;
+            _ircClient = ircClient;
+            _chatMessageHandler = chatMessageHandler;
+            _riotApi = riotApi;
+            _illCommands = illCommands;
+        }
+
+        public async Task RunDaily()
+        {
+            _logger.LogInformation("Running Daily Tasks...");
+            var t = await _riotApi.GetRankBySummonerAsync().ConfigureAwait(false);
             if (t != null)
             {
                 if (int.TryParse(t[1], out int startLP))
@@ -35,29 +48,28 @@ namespace SkillzBot.QuartZ
                     IllSingleton.Game.StartLP = 0;
                 IllSingleton.Game.Elo = t[0];
                 IllSingleton.Game.Tier = t[2];
-            }
+            }            
             IllSingleton.Game.EarnedLP = 0;
             IllSingleton.Game.NumLosses = 0;
             IllSingleton.Game.NumGames = 0;
             IllSingleton.Game.NumWins = 0;
-            
+
             await IllSingleton.Game.SaveAsync().ConfigureAwait(false);
         }
-        public static async Task StaticRunEvery5Min()
+
+        public async Task RunEvery5Min()
         {
             await _chatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
-            SubCheck.RunChecker();            
+            SubCheck.RunChecker();
         }
 
-        public static async Task TopRuleteTask()
+        public async Task TopRuleteTask()
         {
             if (IllSingleton.State.BroadcasterIsOnline)
             {
                 try
                 {
-                    // FIX: Resolve IllCommands from ServiceProvider instead of manual new()
-                    var commands = IllServiceProvider.GetService<IllCommands>();
-                    await commands.TopRulete().ConfigureAwait(false);
+                    await _illCommands.TopRulete().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -65,29 +77,15 @@ namespace SkillzBot.QuartZ
                 }
             }
         }
-        public static async Task MediaQueueFlush()
+
+        public async Task MediaQueueFlush()
         {
             await MediaqueueWriter.MediaQueueFlush().ConfigureAwait(false);
         }
-        public static async Task CronTest()
+
+        public async Task CronTest()
         {
-            await _ircClient.SendMessage("cron await test. 10s").ConfigureAwait(false);
-            await Task.Delay(10000);
-        }
-        public static async Task UserUntimeoutTrigger(string UserName)
-        {
-            await Task.Delay(2000).ConfigureAwait(false); 
-            while (true)
-            {
-                var user = await _database.GetUserAsync(UserName).ConfigureAwait(false);
-                if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
-                {
-                    while (!await TtvAPI.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))
-                        await Task.Delay(1000).ConfigureAwait(false);
-                    return;
-                }
-                await Task.Delay(1000).ConfigureAwait(false);
-            }
+            await _ircClient.SendMessage("Cron test message.").ConfigureAwait(false);
         }
     }
 }

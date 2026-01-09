@@ -26,8 +26,7 @@ namespace SkillzBot.IllSkillzBot
         public static async Task GetCurrentMatchTask()
         {
             if (IllSingleton.State.Debug) _logger.LogDebug("Running GetCurrentMatchTask()");
-            if (!IllSingleton.State.isSubActive) return;
-            if (IllSingleton.State.InMatch || !IllSingleton.State.AutoPred) return;
+            if (!IllSingleton.State.isSubActive || IllSingleton.State.InMatch || !IllSingleton.State.AutoPred) return;
 
             PlatformID = IllSingleton.Game.SummonerRegion switch
             {
@@ -66,86 +65,94 @@ namespace SkillzBot.IllSkillzBot
             }
             while (true)
             {
-                if (IntUtil.GetChance(wchance))
+                try
                 {
-                    await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180).ConfigureAwait(false);
-                    break;
+                    if (IntUtil.GetChance(wchance))
+                    {
+                        await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180).ConfigureAwait(false);
+                        break;
+                    }
+                    /*if (IntUtil.GetChance(15))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(30))
+                    {
+                        await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(25))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(15))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(18))
+                    {
+                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(20))
+                    {
+                        await Prediction_MAX_KDA_5(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(4))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(4))
+                    {
+                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IntUtil.GetChance(5))
+                    {
+                        await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
+                        break;
+                    }*/
                 }
-                /*if (IntUtil.GetChance(15))
+                catch (Exception ex)
                 {
-                    await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300).ConfigureAwait(false);
-                    break;
+                    _logger.LogError(ex, "Error starting prediction task");
+                    IllSingleton.State.InMatch = false; 
                 }
-                if (IntUtil.GetChance(20))
-                {
-                    await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(20))
-                {
-                    await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(20))
-                {
-                    await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(30))
-                {
-                    await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(25))
-                {
-                    await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(20))
-                {
-                    await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(15))
-                {
-                    await Prediction_MAX_FLAG_5(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(18))
-                {
-                    await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(20))
-                {
-                    await Prediction_MAX_KDA_5(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(5))
-                {
-                    await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(5))
-                {
-                    await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(4))
-                {
-                    await Prediction_MAX_FLAG(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(4))
-                {
-                    await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300).ConfigureAwait(false);
-                    break;
-                }
-                if (IntUtil.GetChance(5))
-                {
-                    await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300).ConfigureAwait(false);
-                    break;
-                }*/
             }
             IllSingleton.State.InMatch = false;
         }

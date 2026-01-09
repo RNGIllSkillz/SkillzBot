@@ -1,53 +1,37 @@
 ﻿using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks; 
 using IllSkillzBot;
 
 namespace SkillzBot.WRITERS
 {
     internal class dicWhiteListWriter
     {
-        readonly static Mutex mutexObj = new Mutex();
-        readonly static string dataPath = IllSkillzBotMain.GetDataPath().sharedPath;
-        readonly static string filePath = Path.Combine(dataPath, "dicWhiteList.txt");     
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private static readonly string dataPath = IllSkillzBotMain.GetDataPath().sharedPath;
+        private static readonly string filePath = Path.Combine(dataPath, "dicWhiteList.txt");
 
-        public void dicWhiteListWriterTask(string Message)
+        public async Task dicWhiteListWriterTask(string Message)
         {
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException();
-            }
-            mutexObj.WaitOne();
-            FileInfo file = new FileInfo(filePath);
-            while (IsFileLocked(file))
-            {
-                Thread.Sleep(100);
-            }
+            await _semaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                File.AppendAllText(filePath, Message + Environment.NewLine);
+                if (!File.Exists(filePath))
+                {
+                    await File.WriteAllTextAsync(filePath, string.Empty);
+                }
+
+                await File.AppendAllTextAsync(filePath, Message + Environment.NewLine).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
+                Console.WriteLine($"Error writing to whitelist: {e.Message}");
             }
-            mutexObj.ReleaseMutex();
-        }
-        protected virtual bool IsFileLocked(FileInfo file)
-        {
-            try
+            finally
             {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
-                {
-                    stream.Close();
-                }
+                _semaphore.Release();
             }
-            catch (IOException)
-            {
-                return true;
-            }
-            return false;
         }
     }
 }
