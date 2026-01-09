@@ -10,7 +10,6 @@ using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.API.StreamElements;
 using SkillzBot.MODELS;
-using SkillzBot.QuartZ;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Hosts;
 using Microsoft.Extensions.Logging;
@@ -32,16 +31,18 @@ namespace SkillzBot.TtvClient.TTVRewards
         private readonly ILogger<RewardsRedemption> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IllModeratorsInteractions _modInteractions;
+        private readonly ITwitchService _twitchService;
 
         private IllCommands _illCommands => _serviceProvider.GetRequiredService<IllCommands>();
 
-        public RewardsRedemption(IDatabaseService database, ITtvIRCClient ircClient, ILogger<RewardsRedemption> logger, IServiceProvider serviceProvider, IllModeratorsInteractions modInteractions)
+        public RewardsRedemption(IDatabaseService database, ITtvIRCClient ircClient, ILogger<RewardsRedemption> logger, IServiceProvider serviceProvider, IllModeratorsInteractions modInteractions, ITwitchService twitchService)
         {
             _database = database;
             _ircClient = ircClient;
             _logger = logger;
             _serviceProvider = serviceProvider;
             _modInteractions = modInteractions;
+            _twitchService = twitchService;
         }
 
         public async Task UvalSabReward(string UserName, string message, string redemID, string rewardID)
@@ -56,7 +57,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     if (user.dbID == -404)
                     {
                         await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName)).ConfigureAwait(false);
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                     else
                     {
@@ -67,44 +68,44 @@ namespace SkillzBot.TtvClient.TTVRewards
                                 double duration = 600;
                                 if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
                                     duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
-                                await TtvAPI.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutSub).ConfigureAwait(false);
+                                await _twitchService.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutSub).ConfigureAwait(false);
                                 await _ircClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1)).ConfigureAwait(false);
                                 if (UserName != IllSingleton.Config.RootUser)
-                                    await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                                    await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                                 else
-                                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                    await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             }
                             else
                             {
                                 await _ircClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName)).ConfigureAwait(false);
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             }
                         }
                         else
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                 }
                 else
                 {
-                    await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
                     if (UserName != IllSingleton.Config.RootUser)
-                        await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                     else
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 }
             }
             else
             {
                 if (!Convert.ToBoolean(qUser.isMod))
                 {
-                    await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
                     if (UserName != IllSingleton.Config.RootUser)
-                        await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                     else
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 }
                 else
-                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                    await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
             }
         }
         public async Task UvalVIPReward(string UserName, string message, string redemID, string rewardID)
@@ -122,7 +123,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (user.dbID == -404)
                         {
                             await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName)).ConfigureAwait(false);
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                         else
                         {
@@ -131,38 +132,38 @@ namespace SkillzBot.TtvClient.TTVRewards
                                 double duration = 600;
                                 if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
                                     duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
-                                await TtvAPI.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
+                                await _twitchService.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                                 await _ircClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1)).ConfigureAwait(false);
                                 if (UserName != IllSingleton.Config.RootUser)
-                                    await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                                    await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                                 else
-                                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                    await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             }
                             else
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                     }
                     else
                     {
-                        await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
+                        await _twitchService.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
                         if (UserName != IllSingleton.Config.RootUser)
-                            await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                 }
                 else
                 {
                     if (!Convert.ToBoolean(qUser.isMod))
                     {
-                        await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
+                        await _twitchService.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
                         if (UserName != IllSingleton.Config.RootUser)
-                            await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                     else
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -182,7 +183,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     if (user.dbID == -404)
                     {
                         await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName)).ConfigureAwait(false);
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                     else
                     {
@@ -191,25 +192,25 @@ namespace SkillzBot.TtvClient.TTVRewards
                             double duration = 600;
                             if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
                                 duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
-                            await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
+                            await _twitchService.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                             await _ircClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1)).ConfigureAwait(false);
                             if (UserName != IllSingleton.Config.RootUser)
-                                await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                                await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                             else
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             await TimeOutModerator(user, duration, STRINGS.TimeOutReason_TimeOutVIP).ConfigureAwait(false);
                         }
                         else
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                 }
                 else
                 {
-                    await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
                     if (UserName != IllSingleton.Config.RootUser)
-                        await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                     else
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -231,7 +232,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         if (user.dbID == -404)
                         {
                             await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, UserName, uName)).ConfigureAwait(false);
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                         else
                         {
@@ -242,44 +243,44 @@ namespace SkillzBot.TtvClient.TTVRewards
                                     double duration = 600;
                                     if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
                                         duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
-                                    await TtvAPI.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutUnsub).ConfigureAwait(false);
+                                    await _twitchService.TimeOutUser(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutUnsub).ConfigureAwait(false);
                                     await _ircClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1)).ConfigureAwait(false);
                                     if (UserName != IllSingleton.Config.RootUser)
-                                        await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                                        await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                                     else
-                                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                                 }
                                 else
                                 {
                                     await _ircClient.SendMessage(string.Format(STRINGS.Uval500_IsSub, UserName, uName));
-                                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                    await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                                 }
                             }
                             else
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         }
                     }
                     else
                     {
-                        await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
+                        await _twitchService.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutBroadcaster).ConfigureAwait(false);
                         if (UserName != IllSingleton.Config.RootUser)
-                            await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                 }
                 else
                 {
                     if (!Convert.ToBoolean(qUser.isMod))
                     {
-                        await TtvAPI.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
+                        await _twitchService.TimeOutUser(qUser, 600, STRINGS.TimeOutReason_TimeOutRootUser).ConfigureAwait(false);
                         if (UserName != IllSingleton.Config.RootUser)
-                            await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                         else
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     }
                     else
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -297,14 +298,14 @@ namespace SkillzBot.TtvClient.TTVRewards
                 {
                     await _ircClient.SendMessage(string.Format(STRINGS.Track500_bannedTrack, UserName)).ConfigureAwait(false);
                     if (rewardID == null) return false;
-                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                    await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     return false;
                 }
                 var response = await chatFilters.YouTubeFilter(yID).ConfigureAwait(false);
                 if (response == null)
                 {
                     if (rewardID != null)
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                     await _ircClient.SendMessage(string.Format(STRINGS.Track_Esception, IllSingleton.Config.RootUser)).ConfigureAwait(false);
                     _logger.LogError("{Link} -> {yID}", Link, yID);
                     return false;
@@ -317,7 +318,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         {
                             await _ircClient.SendMessage(string.Format(STRINGS.Track500_bannedTrack, UserName)).ConfigureAwait(false);
                             if (rewardID == null) return false;
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             return false;
                         }
 
@@ -326,7 +327,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         {
                             await _ircClient.SendMessage(string.Format(STRINGS.Track500_bannedUser, UserName)).ConfigureAwait(false);
                             if (rewardID == null) return false;
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             return false;
                         }
 
@@ -336,35 +337,35 @@ namespace SkillzBot.TtvClient.TTVRewards
                             await MediaqueueWriter.Write(user.TwitchID, yID).ConfigureAwait(false);
                             if (rewardID == null) return true;
                             if (UserName == IllSingleton.Config.RootUser)
-                                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             else
-                                await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                                await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                             return true;
                         }
                         else
                         {
                             await _ircClient.SendMessage(string.Format(STRINGS.Track400_ERROR, UserName)).ConfigureAwait(false);
                             if (rewardID == null) return false;
-                            await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                            await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                             return false;
                         }
 
                     case "age":
                         await _ircClient.SendMessage(string.Format(STRINGS.Track510_Age, UserName)).ConfigureAwait(false);
                         if (rewardID == null) return false;
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
 
                     case "duration":
                         await _ircClient.SendMessage(string.Format(STRINGS.Track510_Duration, UserName)).ConfigureAwait(false);
                         if (rewardID == null) return false;
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
 
                     case "view":
                         await _ircClient.SendMessage(string.Format(STRINGS.Track510_ViewCount, UserName)).ConfigureAwait(false);
                         if (rewardID == null) return false;
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
 
                     case "ZAP":
@@ -378,7 +379,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     case "Embeddable":
                         await _ircClient.SendMessage(string.Format(STRINGS.Track510_Embedded, UserName)).ConfigureAwait(false);
                         if (rewardID == null) return false;
-                        await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                        await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                         return false;
                 }
             }
@@ -386,7 +387,7 @@ namespace SkillzBot.TtvClient.TTVRewards
             {
                 await _ircClient.SendMessage(string.Format(STRINGS.Track404, UserName)).ConfigureAwait(false);
                 if (rewardID == null) return false;
-                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 return false;
             }
             return false;
@@ -395,7 +396,7 @@ namespace SkillzBot.TtvClient.TTVRewards
         {
             if (!CencelUvalIsWating)
             {
-                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
                 var uName = StringUtil.GetUserNameFromInput(message);
                 var user = await _database.GetUserAsync(uName).ConfigureAwait(false);
                 if (user.dbID == -404)
@@ -416,8 +417,8 @@ namespace SkillzBot.TtvClient.TTVRewards
                             [mods.Contains(user.Name)] = "IsMod"
                         };
                         string subscriptionType = subscriptionMap.GetValueOrDefault(true, "IsUnsub");
-                        var CenceleCost = await IntUtil.CalculateCancelUvalCost(subscriptionType, uvalTime).ConfigureAwait(false);
-                        await TtvAPI.UpdateReward(rewardID, string.Format(STRINGS.UpdateRewardTitleNew, uName), CenceleCost, "", true, false).ConfigureAwait(false);
+                        var CenceleCost = await IntUtil.CalculateCancelUvalCost(_twitchService, subscriptionType, uvalTime).ConfigureAwait(false);
+                        await _twitchService.UpdateReward(rewardID, string.Format(STRINGS.UpdateRewardTitleNew, uName), CenceleCost, "", true, false).ConfigureAwait(false);
                         await _ircClient.SendMessage(string.Format(STRINGS.CencelUval_ChatMessage, UserName, uName, uvalTime, CenceleCost)).ConfigureAwait(false);
 
                         _ = Task.Run(async () => {
@@ -425,7 +426,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                             if (CencelUvalIsWating)
                             {
                                 await _ircClient.SendMessage(STRINGS.CencelUval_TimeOut).ConfigureAwait(false);
-                                await TtvAPI.UpdateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
+                                await _twitchService.UpdateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                                 CencelUvalIsWating = false;
                             }
                         });
@@ -446,45 +447,45 @@ namespace SkillzBot.TtvClient.TTVRewards
                 }
                 else
                 {
-                    await TtvAPI.UnBanUser(user.TwitchID.ToString()).ConfigureAwait(false);
+                    await _twitchService.UnBanUser(user.TwitchID.ToString()).ConfigureAwait(false);
                 }
-                await TtvAPI.UpdateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
+                await _twitchService.UpdateReward(rewardID, STRINGS.UpdateRewardTitleOrig, 10000, STRINGS.UpdateRewardPromptOrig, true, true).ConfigureAwait(false);
                 CencelUvalUserName = "";
                 if (!IllAccess.MeetsLevel(user, IllEnums.AccessLevel.Root))
-                    await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                    await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
                 else
-                    await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                    await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
             }
         }
         public async Task Pi4kaReward(string UserName, string redemID, string rewardID)
         {
             if (UserName != IllSingleton.Config.RootUser)
-                await TtvAPI.ApproveReward(rewardID, redemID).ConfigureAwait(false);
+                await _twitchService.ApproveReward(rewardID, redemID).ConfigureAwait(false);
             else
-                await TtvAPI.CencelReward(rewardID, redemID).ConfigureAwait(false);
+                await _twitchService.CencelReward(rewardID, redemID).ConfigureAwait(false);
         }
         public async Task EmoteOnlyReward(string UserName, string redemID, string rewardID)
         {
-            await TtvAPI.SetEmoteOnlyMode(true);
+            await _twitchService.SetEmoteOnlyMode(true);
             if (UserName != IllSingleton.Config.RootUser)
-                await TtvAPI.ApproveReward(rewardID, redemID);
+                await _twitchService.ApproveReward(rewardID, redemID);
             else
-                await TtvAPI.CencelReward(rewardID, redemID);
+                await _twitchService.CencelReward(rewardID, redemID);
 
             _ = Task.Run(async () => {
                 await Task.Delay(180000);
-                await TtvAPI.SetEmoteOnlyMode(false);
+                await _twitchService.SetEmoteOnlyMode(false);
             });
         }
         public async Task ChatWithBot(string UserName, string message, string redemID, string rewardID)
         {
 
             await _ircClient.SendMessage($"@{UserName} GPT not implemented.").ConfigureAwait(false);
-            await TtvAPI.CencelReward(rewardID, redemID);
+            await _twitchService.CencelReward(rewardID, redemID);
         }
         public async Task TimeOutModerator(UserObject user, double duration, string reason)
         {
-            await TtvAPI.TimeOutModerator(user, Convert.ToInt32(duration), reason).ConfigureAwait(false);
+            await _twitchService.TimeOutModerator(user, Convert.ToInt32(duration), reason).ConfigureAwait(false);
             if (Convert.ToBoolean(user.isMod))
             {
                 Task backgroundTask = _modInteractions.UserUntimeoutTrigger(user.Name);

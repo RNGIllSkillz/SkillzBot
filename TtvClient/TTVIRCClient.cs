@@ -25,6 +25,7 @@ namespace SkillzBot.IRC
         private IDatabaseService _databaseService;
         private readonly IServiceProvider _serviceProvider;
         private IllChatMessageHandler _messageHandler;
+        private readonly ITwitchService _twitchService;
 
         private TwitchClient _client;
         private bool _isInitialized = false;
@@ -40,11 +41,13 @@ namespace SkillzBot.IRC
 
         public TtvIRCClientService(
             IDatabaseService database,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            ITwitchService twitchService)
         {
             _databaseService = database;
             _serviceProvider = serviceProvider;
             _logger.LogDebug("TtvIRCClient logger initialized");
+            _twitchService = twitchService;
         }
 
         public async Task<bool> InitializeAsync()
@@ -337,7 +340,7 @@ namespace SkillzBot.IRC
                 IllSingleton.State.BroadcasterIsOnline = true;
                 await SendMessage(string.Format(STRINGS.OnStreamUP, IllSingleton.Config.ChannelName));
 
-                var info = await TtvAPI.GetStreamInfo();
+                var info = await _twitchService.GetStreamInfo();
 
                 var illCommands = _serviceProvider.GetRequiredService<IllCommands>();
                 var lp = await illCommands.GetLpAsync();
@@ -349,7 +352,7 @@ namespace SkillzBot.IRC
                 }
                 else
                 {
-                    var cInfo = await TtvAPI.GetChannelInformationAsync();
+                    var cInfo = await _twitchService.GetChannelInformationAsync();
                     if (cInfo != null)
                     {
                         await DiscordClient.SendEmbedMsg(cInfo.Title, null,

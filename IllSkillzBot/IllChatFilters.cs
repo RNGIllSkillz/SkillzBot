@@ -23,6 +23,7 @@ namespace SkillzBot.IllSkillzBot
         private readonly ITtvIRCClient _ircClient;
         private readonly ILogger<IllChatFilters> _logger;
         private readonly ConfPathes _dataPaths;
+        private readonly ITwitchService _twitchService;
 
         private AhoCorasick _pichkaMatcher;
         private HashSet<string> _mediaBlacklist;
@@ -37,12 +38,13 @@ namespace SkillzBot.IllSkillzBot
         private const int ArabCharsInRow = 4;
         private const int RowsNum = 3;
 
-        public IllChatFilters(ITtvIRCClient ircClient, ILogger<IllChatFilters> logger)
+        public IllChatFilters(ITtvIRCClient ircClient, ILogger<IllChatFilters> logger, ITwitchService twitchService)
         {
             _ircClient = ircClient;
             _logger = logger;
             _dataPaths = IllSkillzBotMain.GetDataPath();
             ReloadFilters();
+            _twitchService = twitchService;
         }
 
         public void ReloadFilters()
@@ -164,15 +166,15 @@ namespace SkillzBot.IllSkillzBot
             if (detectedUrls.Count == 1)
             {
                 var clipId = StringUtil.ExtractClipId(e.ChatMessage.Message);
-                if (clipId == null || !await TtvAPI.CheckClipExistence(clipId).ConfigureAwait(false))
+                if (clipId == null || !await _twitchService.CheckClipExistence(clipId).ConfigureAwait(false))
                 {
-                    await TtvAPI.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
+                    await _twitchService.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
                     return true;
                 }
             }
             if (detectedUrls.Count > 1)
             {
-                await TtvAPI.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
+                await _twitchService.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
                 return true;
             }
             return false;

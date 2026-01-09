@@ -117,7 +117,7 @@ namespace IllSkillzBot
             CultureInfo.DefaultThreadCurrentUICulture = culture;
 
             // Legacy Static Init
-            TtvAPI.Initialize(_host.Services.GetRequiredService<ILogger<TtvAPI>>());
+            //TtvAPI.Initialize(_host.Services.GetRequiredService<ILogger<TtvAPI>>());
             
             await Task.CompletedTask;
         }
@@ -168,7 +168,8 @@ namespace IllSkillzBot
         {
             try
             {
-                bool isStreamLive = await TtvAPI.GetStreamStatus().ConfigureAwait(false);
+                var twitchService = _host.Services.GetRequiredService<ITwitchService>();
+                bool isStreamLive = await twitchService.GetStreamStatus().ConfigureAwait(false);
                 IllSingleton.State.BroadcasterIsOnline = isStreamLive;
                 string status = isStreamLive ? "LIVE" : "Offline";
                 Log.Information("{ChannelName} is {Status}!", IllSingleton.Config.ChannelName, status);

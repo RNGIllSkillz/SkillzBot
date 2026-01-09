@@ -39,6 +39,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly IllGames _illGames;
         private readonly QuartzBackgroundTaskManager _quartzManager;
         private readonly LoggingLevelSwitch _loggingSwitch;
+        private readonly ITwitchService _twitchService;
 
         private string _ludka = "";
 
@@ -52,7 +53,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             IRiotApiService riotApi,
             IllGames illGames,
             QuartzBackgroundTaskManager quartzManager,
-            LoggingLevelSwitch loggingSwitch)
+            LoggingLevelSwitch loggingSwitch,
+            ITwitchService twitchService)
         {
             _ircClient = ircClient;
             _modInteractions = modInteractions;
@@ -64,6 +66,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             _illGames = illGames;
             _quartzManager = quartzManager;
             _loggingSwitch = loggingSwitch;
+            _twitchService = twitchService;
         }
 
         public async Task Help(UserObject user)
@@ -173,7 +176,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var aUser = await _databaseService.GetUserAsync(UserInput[1]);
                 if (aUser.dbID != -404)
                 {
-                    await TtvAPI.AddChannelVIP(aUser.TwitchID.ToString());
+                    await _twitchService.AddChannelVIP(aUser.TwitchID.ToString());
                     await _ircClient.SendMessage(string.Format(STRINGS.AddVIPSuccess, aUser.Name));
                 }
                 else
@@ -190,7 +193,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var aUser = await _databaseService.GetUserAsync(UserInput[1]);
                 if (aUser.dbID != -404)
                 {
-                    await TtvAPI.DeleteChannelVIP(aUser.TwitchID.ToString());
+                    await _twitchService.DeleteChannelVIP(aUser.TwitchID.ToString());
                     await _ircClient.SendMessage(string.Format(STRINGS.DeleteVIPSuccess, aUser.Name));
                 }
                 else
@@ -232,7 +235,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (user.banCount == 35)
             {
-                await TtvAPI.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
+                await _twitchService.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
                 user.banCount = 0;
             }
             else
@@ -243,24 +246,24 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                         break;
                     case 1:
                         if (messageID != null)
-                            await TtvAPI.DeleteMessage(messageID);
+                            await _twitchService.DeleteMessage(messageID);
                         break;
                     case 2:
                         if (messageID != null)
-                            await TtvAPI.DeleteMessage(messageID);
+                            await _twitchService.DeleteMessage(messageID);
                         string ModsZapMsg = $"Найдена запретка на канале {IllSingleton.Config.ChannelName} от пользователя @{user.Name}. Модерам на проверку";
                         await _modInteractions.IllAllModsNotification(ModsZapMsg);
                         break;
                     case 3:
-                        await TtvAPI.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason);
+                        await _twitchService.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason);
                         user.banCount++;
                         break;
                     case 4:
-                        await TtvAPI.TimeOutUser(user, 604800, STRINGS.TimeOut1wReason);
+                        await _twitchService.TimeOutUser(user, 604800, STRINGS.TimeOut1wReason);
                         user.banCount++;
                         break;
                     case 5:
-                        await TtvAPI.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
+                        await _twitchService.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
                         user.banCount = 0;
                         break;
                     default:
@@ -412,7 +415,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task CreateClip(UserObject user)
         {
-            var response = await TtvAPI.CreateClip();
+            var response = await _twitchService.CreateClip();
             if (response != null && response.CreatedClips.Any())
             {
                 var clipUrl = response.CreatedClips[0].EditUrl.Replace("/edit", "");
@@ -426,7 +429,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task FlushChat(UserObject user)
         {
-            await TtvAPI.DeleteAllMessages();
+            await _twitchService.DeleteAllMessages();
         }
 
         public async Task<UserObject> QuizzMediaReward(UserObject user, string[] UserInput)
@@ -458,7 +461,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (userID != -1)
             {
                 var uUser = await _databaseService.GetUserAsync(userID);
-                await TtvAPI.TimeOutUser(uUser, 3600, STRINGS.TimeOutReason_Track);
+                await _twitchService.TimeOutUser(uUser, 3600, STRINGS.TimeOutReason_Track);
                 await UserBlackListWriter.Write(uUser.TwitchID.ToString());
                 await _ircClient.SendMessage(string.Format(STRINGS.BanUserForTrack_chatMessage, user.Name, uUser.Name));
             }
@@ -497,11 +500,11 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
 
             await _ircClient.SendMessage($"Disabling rewardID - {input[1]}");
-            var reward = await TtvAPI.GetReward(input[1]);
+            var reward = await _twitchService.GetReward(input[1]);
             if (reward == null)
                 await _ircClient.SendMessage("Error 404 - Награда не найденa");
             else
-                await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired);
+                await _twitchService.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired);
         }
 
         public async Task CreateReward(UserObject user, string[] args)
@@ -515,7 +518,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 {
                     string prompt = args[3];
                     await _ircClient.SendMessage($"title - {title}, cost - {cost}, prompt - {prompt}, enabled - {enabled}, userinput - {userinput}");
-                    var response = await TtvAPI.CreateReward(title, cost, prompt, enabled, userinput);
+                    var response = await _twitchService.CreateReward(title, cost, prompt, enabled, userinput);
                     if (response != null)
                         await _ircClient.SendMessage($"Reward created with ID: {response}");
                 }
@@ -548,7 +551,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     bool.TryParse(args[6], out bool userinput))
                 {
                     await _ircClient.SendMessage($"rewardID - {rewardID}, title - {title}, cost - {cost}, prompt - {prompt}, enabled - {enabled}, userinput - {userinput}");
-                    await TtvAPI.UpdateReward(rewardID, title, cost, prompt, enabled, userinput);
+                    await _twitchService.UpdateReward(rewardID, title, cost, prompt, enabled, userinput);
                 }
                 else
                 {
@@ -567,22 +570,22 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             {
                 string rewardID = args[1];
                 await _ircClient.SendMessage($"rewardID - {rewardID}");
-                var reward = await TtvAPI.GetReward(rewardID);
+                var reward = await _twitchService.GetReward(rewardID);
                 if (reward == null)
                     await _ircClient.SendMessage("Error 404 - Награда не найденa");
                 else
-                    await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired);
+                    await _twitchService.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired);
             }
             else if (args.Length == 3)
             {
                 string title = args[1];
                 string text = args[2];
                 await _ircClient.SendMessage($"Title - {title}");
-                var reward = await TtvAPI.GetReward(title, text);
+                var reward = await _twitchService.GetReward(title, text);
                 if (reward == null)
                     await _ircClient.SendMessage("Error 404 - Награда не найденa");
                 else
-                    await TtvAPI.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired);
+                    await _twitchService.UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired);
             }
             else
             {
@@ -619,7 +622,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task GetAllRewards(UserObject user)
         {
-            var rewards = await TtvAPI.GetAllRewards();
+            var rewards = await _twitchService.GetAllRewards();
             if (rewards == null) return;
             int rewardsCount = rewards.Data.Length;
             string rewardsTitle = string.Join(" | ", rewards.Data.Select(r => r.Title));
@@ -755,7 +758,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task GetMods(UserObject user)
         {
-            var mods = await TtvAPI.GetAllMods();
+            var mods = await _twitchService.GetAllMods();
             if (mods == null || !mods.Any())
             {
                 await _ircClient.SendMessage("Could not retrieve moderators.");
@@ -767,10 +770,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task Sheptun(UserObject user)
         {
-            var mods = await TtvAPI.GetAllMods();
+            var mods = await _twitchService.GetAllMods();
             foreach (var mod in mods)
             {
-                await TtvAPI.SendWhisper(mod.UserId, "Тестовый шептун");
+                await _twitchService.SendWhisper(mod.UserId, "Тестовый шептун");
                 await Task.Delay(100);
             }
         }

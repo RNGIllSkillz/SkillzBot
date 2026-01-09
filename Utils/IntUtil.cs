@@ -1,5 +1,5 @@
-﻿using SkillzBot.Singleton;
-using SkillzBot.API.Twitch;
+﻿using SkillzBot.API.Twitch;
+using SkillzBot.Singleton;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -37,7 +37,7 @@ namespace SkillzBot.Utils
             int precision = ((decimal)proBab == decimal.Truncate((decimal)proBab)) ? 0 : 4;
             return proBab.ToString($"F{precision}").TrimEnd('0').TrimEnd('.') + "%";
         }
-        public static async Task<int> CalculateCancelUvalCost(string subscriptionType, double remainingDuration)
+        public static async Task<int> CalculateCancelUvalCost(ITwitchService twitchService, string subscriptionType, double remainingDuration)
         {
             const int SecondsInTenMinutes = 600;
             var rewardsMap = new Dictionary<string, string>
@@ -50,7 +50,7 @@ namespace SkillzBot.Utils
 
             if (rewardsMap.TryGetValue(subscriptionType, out string rewardId))
             {
-                var reward = await TtvAPI.GetReward(rewardId).ConfigureAwait(false);
+                var reward = await twitchService.GetReward(rewardId).ConfigureAwait(false);
                 if (reward != null)
                     return CalculateCost(reward.Cost, remainingDuration, SecondsInTenMinutes);
             }

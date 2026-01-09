@@ -1,18 +1,18 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SkillzBot.Discord;
 using SkillzBot.Hosts;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
-using SkillzBot.IRC;
 using SkillzBot.Singleton;
 using SkillzBot.TtvClient.TTVRewards;
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
+using TwitchLib.Api.Core.Exceptions;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Websockets;
@@ -22,7 +22,7 @@ namespace SkillzBot.EventSub
 {
     internal class TTVEventSub : IHostedService
     {
-        private static readonly ILogger<TTVEventSub> _logger = IllServiceProvider.GetLogger<TTVEventSub>();
+        private readonly ILogger<TTVEventSub> _logger;
         private readonly IDatabaseService _databaseService;
         private readonly ITtvIRCClient _ircClient;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
@@ -35,12 +35,14 @@ namespace SkillzBot.EventSub
             EventSubWebsocketClient eventSubWebsocketClient, 
             IDatabaseService databaseService, 
             ITtvIRCClient ircClient,
-            RewardsRedemption rewardsRedemption)
+            RewardsRedemption rewardsRedemption,
+            ILogger<TTVEventSub> logger)
         {
             _ircClient = ircClient;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
+            _logger = logger;
 
             _logger.LogDebug("TTVEventSub initialized");
 
@@ -166,20 +168,50 @@ namespace SkillzBot.EventSub
         }
         private async Task SubscribeToChannelEvents(string _type, string _version)
         {
+            if (string.IsNullOrEmpty(_eventSubWebsocketClient.SessionId))
+            {
+                _logger.LogError("Cannot subscribe to {_type}: SessionId is null.", _type);
+                return;
+            }
+
             try
             {
-                var condition = new Dictionary<string, string> { { "broadcaster_user_id", IllSingleton.Config.BroadcasterId }, { "moderator_user_id", IllSingleton.Config.BroadcasterId } };
+                var condition = new Dictionary<string, string>
+                {
+                    { "broadcaster_user_id", IllSingleton.Config.BroadcasterId },
+                    { "moderator_user_id", IllSingleton.Config.BroadcasterId }
+                };
+
                 var subscription = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                     type: _type,
                     version: _version,
                     condition: condition,
                     method: EventSubTransportMethod.Websocket,
                     websocketSessionId: _eventSubWebsocketClient.SessionId).ConfigureAwait(false);
+
                 _logger.LogInformation("Subscribed to {_type}. Subscription ID: {Id}", _type, subscription.Subscriptions[0].Id);
+            }
+            catch (BadRequestException ex)
+            {
+                // 400 Bad Request: Usually means SessionId is dead or invalid
+                _logger.LogError("Failed to subscribe to {_type}: Bad Request (Invalid Session?): {Message}", _type, ex.Message);
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("409") || ex.Message.Contains("Conflict"))
+            {
+                // 409 Conflict: Subscription already exists. This is fine, effectively a success.
+                _logger.LogWarning("Subscription for {_type} already exists (Conflict 409). Skipping.", _type);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to subscribe to {_type} event.", _type);
+                // Check inner exception for 409 Conflict just in case it's wrapped
+                if (ex.Message.Contains("Conflict") || (ex.InnerException != null && ex.InnerException.Message.Contains("Conflict")))
+                {
+                    _logger.LogWarning("Subscription for {_type} already exists (Conflict). Skipping.", _type);
+                }
+                else
+                {
+                    _logger.LogError(ex, "Failed to subscribe to {_type} event.", _type);
+                }
             }
         }
         #endregion

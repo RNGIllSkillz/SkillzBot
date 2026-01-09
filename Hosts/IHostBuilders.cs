@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Core;
+using SkillzBot.API.Twitch;
 using SkillzBot.EventSub;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
@@ -34,6 +35,7 @@ namespace SkillzBot.Hosts
 
                     // Core Services
                     services.AddSingleton<ITtvIRCClient, TtvIRCClientService>();
+                    services.AddSingleton<ITwitchService, TwitchApiService>();
                     services.AddSingleton<API.RiotGames.IRiotApiService, API.RiotGames.RiotApiService>();
 
                     // Logic Services
@@ -55,6 +57,8 @@ namespace SkillzBot.Hosts
                     // Hosted Services
                     services.AddHostedService<TTVEventSub>();
                     services.AddHostedService<TwitchIrcHostedService>();
+
+                    services.AddSingleton<IllPredictions>();
 
                     services.AddSingleton(_levelSwitch);
                 })

@@ -1,4 +1,5 @@
 ﻿using Quartz;
+using SkillzBot.IllSkillzBot;
 using System;
 using System.Threading.Tasks;
 
@@ -8,11 +9,11 @@ namespace SkillzBot.QuartZ
     internal class BGTasks : IJob
     {
         private readonly BackGroundTasks _taskService;
-
-        // Injected via DI now!
-        public BGTasks(BackGroundTasks taskService)
+        private readonly IllPredictions _illPredictions;
+        public BGTasks(BackGroundTasks taskService, IllPredictions illPredictions)
         {
             _taskService = taskService;
+            _illPredictions = illPredictions;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -21,8 +22,7 @@ namespace SkillzBot.QuartZ
             switch (key)
             {
                 case "GetCurrentMatchTask":
-                    // Assuming IllPredictions is still static for now, or you can refactor it too.
-                    await IllSkillzBot.IllPredictions.GetCurrentMatchTask().ConfigureAwait(false);
+                    await _illPredictions.GetCurrentMatchTask().ConfigureAwait(false);
                     break;
                 case "RunEvery5Min":
                     await _taskService.RunEvery5Min().ConfigureAwait(false);

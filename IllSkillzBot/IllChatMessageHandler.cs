@@ -30,13 +30,14 @@ namespace SkillzBot.IllSkillzBot
         private readonly IllCommandHandler _commandHandler;
         private readonly IllGames _illGames;
         private readonly IllCommands _illCommands;
+        private readonly ITwitchService _twitchService;
 
         private const int HardTimeoutSec = 600;
         private const int TimeoutSec = 300;
         private const int LightTimeoutSec = 10;
         private const int SaveBufferCount = 100;
 
-        public IllChatMessageHandler(ILogger<IllChatMessageHandler> logger, IllChatFilters chatFilters, ITtvIRCClient ircClient, IDatabaseService database, IllCommandHandler commandHandler, IllGames illGames, IllCommands illCommands)
+        public IllChatMessageHandler(ILogger<IllChatMessageHandler> logger, IllChatFilters chatFilters, ITtvIRCClient ircClient, IDatabaseService database, IllCommandHandler commandHandler, IllGames illGames, IllCommands illCommands, ITwitchService twitchService)
         {
             _logger = logger;
             _chatFilters = chatFilters;
@@ -45,6 +46,7 @@ namespace SkillzBot.IllSkillzBot
             _commandHandler = commandHandler;
             _illGames = illGames;
             _illCommands = illCommands;
+            _twitchService = twitchService;
         }
 
         public async Task<UserObject> MessageHandler(OnMessageReceivedArgs e)
@@ -63,13 +65,13 @@ namespace SkillzBot.IllSkillzBot
             {
                 if (_chatFilters.CheckBooB(e.ChatMessage.Message))
                 {
-                    await TtvAPI.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic).ConfigureAwait(false);
                     return user;
                 }
 
                 if (_chatFilters.FilterASCII(e))
                 {
-                    await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutPic).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutPic).ConfigureAwait(false);
                 }
 
                 if (await _chatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName).ConfigureAwait(false))
@@ -81,14 +83,14 @@ namespace SkillzBot.IllSkillzBot
 
                 if (CheckSpam(tracker, e.ChatMessage.Message))
                 {
-                    await TtvAPI.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam).ConfigureAwait(false);
                     return user;
                 }
 
                 string normalizedMsg = StringUtil.Normalize(e.ChatMessage.Message);
                 if (normalizedMsg.Contains("хохол") || normalizedMsg.Contains("хахол"))
                 {
-                    await TtvAPI.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason).ConfigureAwait(false);
                     return user;
                 }
 

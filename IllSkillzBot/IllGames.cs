@@ -16,20 +16,20 @@ namespace SkillzBot.IllSkillzBot
 {
     internal sealed class IllGames
     {
-        private readonly ILogger<IllGames> _logger;
         private readonly ITtvIRCClient _ircClient;
         private readonly IDatabaseService _database;
+        private readonly ITwitchService _twitchService;
 
         private static QuizzObject _Quizz = new QuizzObject();
         private static readonly List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
         private static readonly object _ActiveUsers_ListLock = new object();
 
-        public IllGames(ILogger<IllGames> logger, ITtvIRCClient ircClient, IDatabaseService database)
+        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _ircClient = ircClient ?? throw new ArgumentNullException(nameof(ircClient));
             _database = database ?? throw new ArgumentNullException(nameof(database));
             IllSingleton.State.QuizIsRunning = false;
+            _twitchService = twitchService;
         }
         public async Task<UserObject> Rulette(UserObject user)
         {
@@ -47,9 +47,9 @@ namespace SkillzBot.IllSkillzBot
                         await _ircClient.SendMessage(string.Format(STRINGS.RouletteLoose, user.Name)).ConfigureAwait(false);
                     user.roulettCon = 0;
                     if (Convert.ToBoolean(user.isMod))
-                        await TtvAPI.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                        await _twitchService.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
                     else
-                        await TtvAPI.TimeOutUser(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                        await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
                 }
                 else
                 {
