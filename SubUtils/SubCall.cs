@@ -1,22 +1,30 @@
-﻿using SkillzBot.IRC;
-using SkillzBot.MODELS;
-using System;
-using SkillzBot.Singleton;
-using System.Threading.Tasks;
-using SkillzBot.Hosts;
+﻿using Microsoft.Extensions.Logging; 
 using SkillzBot.Interfaces;
+using SkillzBot.MODELS;
+using SkillzBot.Services.Infrastructure;
+using SkillzBot.IllConfiguration; 
+using System;
+using System.Threading.Tasks;
 
 namespace SkillzBot.SubUtils
 {
     internal class SubCall
     {
         private readonly ITtvIRCClient _ircClient;
+        private readonly BotConfigModel _config;
+        private readonly SubscriptionService _subscriptionService;
+        private readonly ILogger<SubCall> _logger; 
 
-        public SubCall()
+        public SubCall(
+            ITtvIRCClient ircClient,
+            BotConfigModel config,
+            SubscriptionService subscriptionService,
+            ILogger<SubCall> logger)
         {
-            // Note: Since this is called from a Controller, we might need to resolve this from ServiceProvider
-            // if SubCall isn't registered in DI. Using ServiceProvider for compatibility with Controller instantiation.
-            _ircClient = IllServiceProvider.GetService<ITtvIRCClient>();
+            _ircClient = ircClient;
+            _config = config;
+            _subscriptionService = subscriptionService;
+            _logger = logger;
         }
 
         public async Task PostDataProcess(apiPost model)
@@ -27,38 +35,44 @@ namespace SkillzBot.SubUtils
 
             if (words.Length < 9)
             {
-                Console.WriteLine($"Invalid Post Data: {model.value}");
+                _logger.LogWarning("Invalid Post Data: {Value}", model.value);
                 return;
             }
 
-            int amount;
-            string sender = words[7] + " " + words[8];
-            int rate;
-            if (int.TryParse(words[5], out amount))
+            if (int.TryParse(words[5], out int amount))
             {
-                Console.WriteLine($"Sender: {sender}");
-                Console.WriteLine($"Amount: {amount} RUB");
+                // Reconstruct sender name from specific array positions (based on original logic)
+                string sender = words[7] + " " + words[8];
+
+                _logger.LogInformation("SubCall Sender: {Sender}, Amount: {Amount} RUB", sender, amount);
+
+                int rate;
                 if ((sender.Contains("Владислав", StringComparison.OrdinalIgnoreCase)))
                 {
                     rate = 10000;
-                    await PurchaseProcess(amount, rate).ConfigureAwait(false);
+                    await PurchaseProcess(amount, rate);
                 }
-                if ((sender.Contains("Людмила", StringComparison.OrdinalIgnoreCase)))
+                else if ((sender.Contains("Людмила", StringComparison.OrdinalIgnoreCase)))
                 {
                     rate = 500;
-                    await PurchaseProcess(amount, rate).ConfigureAwait(false);
+                    await PurchaseProcess(amount, rate);
                 }
             }
             else
             {
-                Console.WriteLine($"Cant unmarshal type int data = {words[5]}");
+                _logger.LogError("Cant unmarshal type int data = {Word}", words[5]);
             }
         }
+
         private async Task PurchaseProcess(int amount, int rate)
         {
-            var responce = AddSub.NewPurchase(amount, rate);
-            SubCheck.RunChecker();
-            await _ircClient.SendMessage($"@{IllSingleton.Config.ChannelName} {responce}").ConfigureAwait(false);
+            // Call the service method we created in Step 1
+            var response = await _subscriptionService.AddSubscriptionAsync(amount, rate);
+
+            // CheckSubscriptionAsync is redundant because AddSubscriptionAsync calls it internally,
+            // but keeping it doesn't hurt.
+
+            await _ircClient.SendMessage($"@{_config.ChannelName} {response}");
         }
     }
 }

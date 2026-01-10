@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using MySql.Data.MySqlClient;
-using SkillzBot.WRITERS;
 using System.Threading.Tasks;
 using SkillzBot.MODELS;
 using SkillzBot.Utils;
 using System.Linq;
-using SkillzBot.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SkillzBot.MySQL;
 using System.Data;
+using SkillzBot.Interfaces;
+using SkillzBot.Services.Writers;
 
 namespace SkillzBot.MYSQL
 {
@@ -18,15 +18,19 @@ namespace SkillzBot.MYSQL
     {
         private readonly DatabaseConfiguration _config;
         private readonly ILogger<MySqlDatabaseService> _logger;
+        private readonly ExtractMessageService _extractMessageService;
         private readonly string _connectionString;
         private bool _isInitialized = false;
         private bool _disposed = false;
 
-        public MySqlDatabaseService(IOptions<DatabaseConfiguration> config, ILogger<MySqlDatabaseService> logger)
+        public MySqlDatabaseService(IOptions<DatabaseConfiguration> config, 
+            ILogger<MySqlDatabaseService> logger, 
+            ExtractMessageService extractMessageService)
         {
             _config = config.Value ?? throw new ArgumentNullException(nameof(config));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _connectionString = BuildConnectionString();
+            _extractMessageService = extractMessageService;
         }
 
         private string BuildConnectionString()
@@ -689,12 +693,10 @@ namespace SkillzBot.MYSQL
                 }
 
                 var sortedMessages = allMessages.OrderBy(m => m.TimeStamp).ToList();
-
-                var extractMessage = new ExtractMessage();
                 foreach (var message in sortedMessages)
                 {
                     var formattedMessage = $"{IntUtil.UnixTimeStampToDateTime(message.TimeStamp)}, Channel: {message.ChannelName}, Message: {message.Message}";
-                    await ExtractMessage.ExtractMessageTask(formattedMessage);
+                    await _extractMessageService.WriteAsync(formattedMessage);
                 }
 
                 return trackInfo;

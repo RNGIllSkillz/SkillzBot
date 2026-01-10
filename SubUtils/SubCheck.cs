@@ -1,61 +1,74 @@
-﻿using IllSkillzBot;
+﻿using Microsoft.Extensions.Logging;
+using SkillzBot.IllConfiguration; 
 using System;
 using System.IO;
-using SkillzBot.Singleton;
+using System.Threading.Tasks;
 
 namespace SkillzBot.SubUtils
 {
-    internal class SubCheck
+    public class SubCheck
     {
-        private static readonly string _FilePath;
-        static SubCheck()
+        private readonly IBotStateService _botState;
+        private readonly ILogger<SubCheck> _logger;
+        private readonly string _filePath;
+
+        public SubCheck(IPathProvider pathProvider, IBotStateService botState, ILogger<SubCheck> logger, BotConfigModel config)
         {
-            string dataPath = IllSkillzBotMain.GetDataPath().uniquePath;
-            _FilePath = Path.Combine(dataPath, "Subscription.txt");
+            _botState = botState;
+            _logger = logger;
+            _filePath = Path.GetFullPath(config.FilePaths.SubscriptionFileName);
         }
-        public static bool RunChecker()
+
+        public async Task<bool> RunCheckerAsync()
         {
-            if (TryReadDateTimeFromFile(_FilePath, out DateTime savedDateTime))
+            bool isActive;
+            var (success, savedDateTime) = await TryReadDateTimeFromFileAsync();
+
+            if (success)
             {
                 DateTime currentDateTime = DateTime.Now;
-                IllSingleton.State.isSubActive = currentDateTime < savedDateTime;
-                return IllSingleton.State.isSubActive;
+                isActive = currentDateTime < savedDateTime;
             }
             else
             {
-                IllSingleton.State.isSubActive = true;
-                Console.WriteLine("Failed to read DateTime from file.");
-                return IllSingleton.State.isSubActive;
+                // Fallback behavior from original code: Default to true if file missing/corrupt
+                isActive = true;
+                _logger.LogWarning("Subscription check failed to read file. Defaulting IsSubActive to True.");
             }
+
+            // Update the global state safely
+            await _botState.UpdateStateAsync(state => state.IsSubActive = isActive);
+
+            return isActive;
         }
-        private static bool TryReadDateTimeFromFile(string filePath, out DateTime result)
+
+        private async Task<(bool success, DateTime result)> TryReadDateTimeFromFileAsync()
         {
-            result = default;
             try
             {
-                if (File.Exists(filePath))
+                if (File.Exists(_filePath))
                 {
-                    string dateTimeString = File.ReadAllText(filePath);
-                    if (DateTime.TryParse(dateTimeString, out result))
+                    string dateTimeString = await File.ReadAllTextAsync(_filePath);
+                    if (DateTime.TryParse(dateTimeString, out DateTime result))
                     {
-                        return true; // Successfully read DateTime from file
+                        return (true, result);
                     }
                     else
                     {
-                        Console.WriteLine("Failed to parse DateTime from file content.");
-                        return false;
+                        _logger.LogError("Failed to parse DateTime from file content: {Content}", dateTimeString);
+                        return (false, DateTime.MinValue);
                     }
                 }
                 else
                 {
-                    Console.WriteLine("File does not exist.");
-                    return false;
+                    _logger.LogWarning("Subscription file not found at: {Path}", _filePath);
+                    return (false, DateTime.MinValue);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                return false;
+                _logger.LogError(ex, "Error occurred while reading subscription file.");
+                return (false, DateTime.MinValue);
             }
         }
     }

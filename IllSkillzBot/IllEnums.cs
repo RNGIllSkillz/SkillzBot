@@ -2,7 +2,7 @@
 {
     public class IllEnums
     {
-        internal enum AccessLevel
+        public enum AccessLevel
         {
             Any,
             Vip,

@@ -3,11 +3,8 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Linq;
-using System.Threading.Tasks;
-using SkillzBot.WRITERS;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
-using SkillzBot.Readers;
 
 namespace SkillzBot.Utils
 {

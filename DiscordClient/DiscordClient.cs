@@ -5,29 +5,33 @@ using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
 using System;
 using System.Threading.Tasks;
-using SkillzBot.Singleton;
-using SkillzBot.Interfaces;
+using SkillzBot.IllConfiguration; 
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using Microsoft.Extensions.DependencyInjection;
+using SkillzBot.Interfaces;
+using SkillzBot.IllSkillzBot;
 
 namespace SkillzBot.Discord
 {
     internal class DiscordClient
     {
-        private static DiscordSocketClient _client;
-        private static CommandService _commands;
-        private static IServiceProvider _services;
-        private static readonly ILogger<DiscordClient> _logger = IllServiceProvider.GetLogger<DiscordClient>();
-        private static bool _IsTokenValid = true;
-        private readonly ITtvIRCClient _ircClient;
-        public DiscordClient(ITtvIRCClient ircClient, IServiceProvider services)
+        private DiscordSocketClient _client;
+        private CommandService _commands;
+        private readonly IServiceProvider _services; 
+        private readonly ILogger<DiscordClient> _logger;
+        private bool _IsTokenValid = true;
+        private readonly BotConfigModel _config;
+
+        public DiscordClient(IServiceProvider services, BotConfigModel config, ILogger<DiscordClient> logger)
         {
-            _ircClient = ircClient;
             _services = services;
+            _config = config;
+            _logger = logger;
         }
+
         public async Task InitializeAsync()
         {
-            if (IllSingleton.Config.DiscordNoteID == 0 || string.IsNullOrEmpty(IllSingleton.Config.DiscordBotToken))
+            if (_config.DiscordNoteID == 0 || string.IsNullOrEmpty(_config.DiscordBotToken))
             {
                 _logger.LogWarning("Discord config is invalid! Discord bot is disabled");
                 _IsTokenValid = false;
@@ -36,10 +40,11 @@ namespace SkillzBot.Discord
 
             if (_IsTokenValid)
             {
-                await StartUp(IllSingleton.Config.DiscordBotToken).ConfigureAwait(false);
+                await StartUp(_config.DiscordBotToken);
             }
         }
-        private static async Task StartUp(string token)
+
+        private async Task StartUp(string token)
         {
             try
             {
@@ -51,28 +56,29 @@ namespace SkillzBot.Discord
                 _client = new DiscordSocketClient(config);
                 _commands = new CommandService();
 
-                await RegisterCommandsAsync().ConfigureAwait(false);
+                await RegisterCommandsAsync();
                 _client.Log += DisLog;
                 _client.Ready += OnReady;
                 _client.Disconnected += OnDisconnected;
 
-                await _client.LoginAsync(TokenType.Bot, token).ConfigureAwait(false);
-                await _client.StartAsync().ConfigureAwait(false);
+                await _client.LoginAsync(TokenType.Bot, token);
+                await _client.StartAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to start Discord Client");
             }
         }
-        private static async Task OnDisconnected(Exception exception)
+
+        private async Task OnDisconnected(Exception exception)
         {
             _logger.LogWarning(exception, "Discord Bot has been disconnected! Attempting to restart...");
-            await Task.Delay(5000).ConfigureAwait(false);
+            await Task.Delay(5000);
             _client.Dispose();
-            await StartUp(IllSingleton.Config.DiscordBotToken).ConfigureAwait(false);
+            await StartUp(_config.DiscordBotToken);
         }
 
-        private static Task DisLog(LogMessage arg)
+        private Task DisLog(LogMessage arg)
         {
             var severity = arg.Severity switch
             {
@@ -88,30 +94,32 @@ namespace SkillzBot.Discord
             return Task.CompletedTask;
         }
 
-        private static async Task OnReady()
+        private async Task OnReady()
         {
             _logger.LogInformation("Discord Bot is connected and ready.");
             await Task.CompletedTask;
         }
-        public static async Task SendMessage(string message, ulong? DiscordNoteID = null)
+
+        public async Task SendMessage(string message, ulong? DiscordNoteID = null)
         {
             if (!_IsTokenValid) return;
-            DiscordNoteID ??= IllSingleton.Config.DiscordNoteID;
+            DiscordNoteID ??= _config.DiscordNoteID;
             if (_client.GetChannel((ulong)DiscordNoteID) is SocketTextChannel channel)
-                await channel.SendMessageAsync(message).ConfigureAwait(false);
+                await channel.SendMessageAsync(message);
             else
                 _logger.LogWarning("Discord channel with ID {ChannelId} not found.", DiscordNoteID);
         }
-        public static async Task SendEmbedMsg(string Description, string ImageUrl = "", string summoner = "", string rank = "", string lp = "", ulong? DiscordNoteID = null, bool isUp = true, string stats = null)
+
+        public async Task SendEmbedMsg(string Description, string ImageUrl = "", string summoner = "", string rank = "", string lp = "", ulong? DiscordNoteID = null, bool isUp = true, string stats = null)
         {
             if (!_IsTokenValid) return;
             EmbedBuilder embedBuilder = new EmbedBuilder();
             if (isUp)
             {
-                embedBuilder.Title = $"На канале {IllSingleton.Config.ChannelName} начался стрим!";
+                embedBuilder.Title = $"На канале {_config.ChannelName} начался стрим!";
                 embedBuilder.Description = Description;
                 embedBuilder.ImageUrl = ImageUrl;
-                embedBuilder.Url = $"https://www.twitch.tv/{IllSingleton.Config.ChannelName}";
+                embedBuilder.Url = $"https://www.twitch.tv/{_config.ChannelName}";
                 embedBuilder.Color = Color.Blue;
             }
             else
@@ -127,35 +135,47 @@ namespace SkillzBot.Discord
             if (!isUp)
                 if (stats != null)
                     embedBuilder.AddField("За сегодня", stats);
-            embedBuilder.WithUrl($"https://www.twitch.tv/{IllSingleton.Config.ChannelName}");
+            embedBuilder.WithUrl($"https://www.twitch.tv/{_config.ChannelName}");
 
             var builtEmbed = embedBuilder.Build();
-            DiscordNoteID ??= IllSingleton.Config.DiscordNoteID;
+            DiscordNoteID ??= _config.DiscordNoteID;
             if (_client.GetChannel((ulong)DiscordNoteID) is SocketTextChannel channel)
-                await channel.SendMessageAsync(embed: builtEmbed).ConfigureAwait(false);
+                await channel.SendMessageAsync(embed: builtEmbed);
             else
                 _logger.LogWarning("Discord channel with ID {ChannelId} not found.", DiscordNoteID);
         }
 
-        public static async Task RegisterCommandsAsync()
+        public async Task RegisterCommandsAsync()
         {
             _client.MessageReceived += HandleCommandAsync;
             await _commands.AddModulesAsync(typeof(DiscordCommands).Assembly, _services);
-            //await Task.CompletedTask;
         }
-        private static async Task HandleCommandAsync(SocketMessage arg)
+
+        private async Task HandleCommandAsync(SocketMessage arg)
         {
             var message = arg as SocketUserMessage;
             if (message == null || message.Author.IsBot) return;
-            if (message.Channel.Id != IllSingleton.Config.DiscordSpamID) return;
+            if (message.Channel.Id != _config.DiscordSpamID) return;
 
             if (message.Content.StartsWith("!"))
             {
+                // Resolve dependencies from the container
                 var ircClient = _services.GetRequiredService<ITtvIRCClient>();
                 var illCommands = _services.GetRequiredService<IllCommands>();
+                var gameState = _services.GetRequiredService<IGameStateService>();
+                var illGames = _services.GetRequiredService<IllGames>();
 
-                var discordCommands = new DiscordCommands(ircClient, illCommands);
-                await discordCommands.CommandHandler(message.Content).ConfigureAwait(false);
+                // Instantiate DiscordCommands with all required dependencies
+                var discordCommands = new DiscordCommands(
+                    ircClient,
+                    illCommands,
+                    _config,
+                    gameState,
+                    this, // Passing 'this' instance of DiscordClient
+                    illGames
+                );
+
+                await discordCommands.CommandHandler(message.Content);
             }
         }
     }

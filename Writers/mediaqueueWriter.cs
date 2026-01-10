@@ -1,4 +1,4 @@
-﻿using IllSkillzBot;
+﻿/*using IllSkillzBot;
 using Microsoft.Extensions.Logging;
 using SkillzBot.API.StreamElements;
 using SkillzBot.Hosts;
@@ -36,7 +36,7 @@ namespace SkillzBot.WRITERS
             await _semaphore.WaitAsync();
             try
             {
-                var checkqueue = await StreamElementsAPI.GetCurrentSong().ConfigureAwait(false);
+                var checkqueue = await StreamElementsAPI.GetCurrentSong();
                 if (checkqueue == null)
                 {
                     await File.WriteAllTextAsync(filePath, String.Empty);
@@ -48,4 +48,4 @@ namespace SkillzBot.WRITERS
             }
         }
     }
-}
+}*/

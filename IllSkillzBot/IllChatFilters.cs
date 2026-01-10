@@ -1,20 +1,18 @@
-﻿using SkillzBot.Utils;
-using SkillzBot.WRITERS;
+﻿using Microsoft.Extensions.Logging;
+using SkillzBot.API.Twitch;
+using SkillzBot.Interfaces;
+using SkillzBot.MODELS;
+using SkillzBot.Services.Writers;
+using SkillzBot.IllConfiguration; 
+using SkillzBot.Utils;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using IllSkillzBot;
-using SkillzBot.API.YouTube;
-using System.Threading.Tasks;
-using SkillzBot.MODELS;
-using TwitchLib.Client.Events;
-using SkillzBot.API.Twitch;
 using System.Linq;
+using System.Threading.Tasks;
+using TwitchLib.Client.Events;
 using urldetector.detection;
-using SkillzBot.Singleton;
-using SkillzBot.IRC;
-using SkillzBot.Interfaces;
-using Microsoft.Extensions.Logging;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -22,8 +20,12 @@ namespace SkillzBot.IllSkillzBot
     {
         private readonly ITtvIRCClient _ircClient;
         private readonly ILogger<IllChatFilters> _logger;
-        private readonly ConfPathes _dataPaths;
+        private readonly IPathProvider _paths;
         private readonly ITwitchService _twitchService;
+        private readonly BotConfigModel _config;
+        private readonly IBotStateService _botState;
+        private readonly FlagWriterService _flagWriter;
+        private readonly IYouTubeService _youTubeService;
 
         private AhoCorasick _pichkaMatcher;
         private HashSet<string> _mediaBlacklist;
@@ -31,20 +33,31 @@ namespace SkillzBot.IllSkillzBot
         private HashSet<string> _dictionary;
         private readonly BannedWordsTrie _bannedWordsTrie = new();
         private HashSet<string> _whitelist;
-        private HashSet<string> _userBlacklist;
+        private ConcurrentDictionary<string, byte> _userBlacklist;
 
         private static readonly int[] Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
         private const int CharsInRow = 29;
         private const int ArabCharsInRow = 4;
         private const int RowsNum = 3;
 
-        public IllChatFilters(ITtvIRCClient ircClient, ILogger<IllChatFilters> logger, ITwitchService twitchService)
+        public IllChatFilters(ITtvIRCClient ircClient, 
+            ILogger<IllChatFilters> logger, 
+            ITwitchService twitchService, 
+            BotConfigModel config, 
+            IBotStateService botState,
+            FlagWriterService flagWriter,
+            IYouTubeService youTubeService,
+            IPathProvider paths)
         {
             _ircClient = ircClient;
-            _logger = logger;
-            _dataPaths = IllSkillzBotMain.GetDataPath();
-            ReloadFilters();
+            _logger = logger; 
             _twitchService = twitchService;
+            _config = config ?? throw new ArgumentNullException(nameof(config));
+            _botState = botState;
+            _flagWriter = flagWriter;
+            _youTubeService = youTubeService;
+            _paths = paths ?? throw new ArgumentNullException(nameof(paths));
+            ReloadFilters();
         }
 
         public void ReloadFilters()
@@ -52,15 +65,20 @@ namespace SkillzBot.IllSkillzBot
             _logger.LogInformation("Reloading chat filters from files...");
             try
             {
-                _mediaBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.MediaListFileName)));
-                _channelBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.ChannelListFileName)));
-                _dictionary = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.DicFileName)));
-                _whitelist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.DicWhiteListFileName)));
-                _userBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_dataPaths.uniquePath, IllSingleton.Config.FilePaths.UserBlacklistFileName)));
+                _mediaBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.MediaListFileName)));
+                _channelBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.ChannelListFileName)));
+                _dictionary = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.DicFileName)));
+                _whitelist = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.DicWhiteListFileName)));
+                _userBlacklist = new ConcurrentDictionary<string, byte>(
+                    File.ReadLines(Path.Combine(_paths.DataPath, _config.FilePaths.UserBlacklistFileName))
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct()
+                        .Select(x => new KeyValuePair<string, byte>(x, 0))
+                );
 
                 _bannedWordsTrie.BuildTrie(_dictionary);
 
-                var pichkaLines = File.ReadLines(Path.Combine(_dataPaths.sharedPath, IllSingleton.Config.FilePaths.PichkaListFileName));
+                var pichkaLines = File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.PichkaListFileName));
                 _pichkaMatcher = new AhoCorasick();
                 foreach (var line in pichkaLines)
                 {
@@ -120,9 +138,9 @@ namespace SkillzBot.IllSkillzBot
 
             if (bannedWord != null)
             {
-                await FlagWriter.FlagWriterTask($"{name} : {message} (detected: {bannedWord})").ConfigureAwait(false);
-                if (IllSingleton.State.Debug)
-                    await _ircClient.SendMessage($"Filter: {bannedWord}").ConfigureAwait(false);
+                await _flagWriter.WriteAsync($"{name} : {message} (detected: {bannedWord})");
+                if (_botState.Current.Debug)
+                    await _ircClient.SendMessage($"Filter: {bannedWord}");
                 return true;
             }
             return false;
@@ -130,7 +148,7 @@ namespace SkillzBot.IllSkillzBot
         public async Task<List<string>> YouTubeFilter(string ID)
         {
             List<string> output = new List<string>();
-            var yRes = await YouTubeSearch.YouTubeSearchByIDTask(ID).ConfigureAwait(false);
+            var yRes = await _youTubeService.SearchByIdAsync(ID);
             if (yRes == null) return null;
             if (yRes[0] != "view" && yRes[0] != "duration" && yRes[0] != "age" && yRes[0] != "Embeddable")
             {
@@ -155,7 +173,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public bool IsUserBlacklisted(string userID)
         {
-            return _userBlacklist.Contains(userID);
+            return _userBlacklist.ContainsKey(userID);
         }
         public async Task<bool> DeleteLinks(UserObject user, OnMessageReceivedArgs e)
         {
@@ -168,20 +186,20 @@ namespace SkillzBot.IllSkillzBot
                 var clipId = StringUtil.ExtractClipId(e.ChatMessage.Message);
                 if (clipId == null || !await _twitchService.CheckClipExistence(clipId).ConfigureAwait(false))
                 {
-                    await _twitchService.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
+                    await _twitchService.DeleteMessage(e.ChatMessage.Id);
                     return true;
                 }
             }
             if (detectedUrls.Count > 1)
             {
-                await _twitchService.DeleteMessage(e.ChatMessage.Id).ConfigureAwait(false);
+                await _twitchService.DeleteMessage(e.ChatMessage.Id);
                 return true;
             }
             return false;
         }
         public bool FilterASCII(OnMessageReceivedArgs e)
         {
-            if (e.ChatMessage.CustomRewardId != IllSingleton.Config.ChannelIds.Pi4KaId)
+            if (e.ChatMessage.CustomRewardId != _config.ChannelIds.Pi4KaId)
             {
                 int count = StringUtil.CheckASCII(e.ChatMessage.Message);
                 if (count / CharsInRow >= RowsNum && e.ChatMessage.Message.Length / CharsInRow > RowsNum)
@@ -196,7 +214,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public void EditUserBlackList(string UserTtvID)
         {
-            _userBlacklist.Remove(UserTtvID);
+            _userBlacklist.TryRemove(UserTtvID, out _);
         }
         public void AddToWhiteList(string WordToAdd)
         {

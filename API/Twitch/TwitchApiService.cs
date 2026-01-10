@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using SkillzBot.MODELS;
-using SkillzBot.Singleton;
+using SkillzBot.IllConfiguration; 
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomRewardRedemptionStatus;
@@ -22,6 +21,7 @@ namespace SkillzBot.API.Twitch
     {
         private readonly TwitchAPI _api;
         private readonly ILogger<TwitchApiService> _logger;
+        private readonly BotConfigModel _config;
 
         // Internal State matching original static fields
         private string _predID;
@@ -30,16 +30,17 @@ namespace SkillzBot.API.Twitch
         private readonly string _broadcasterID;
         private readonly bool _isValidToken;
 
-        public TwitchApiService(ILogger<TwitchApiService> logger)
+        public TwitchApiService(BotConfigModel config, ILogger<TwitchApiService> logger)
         {
+            _config = config;
             _logger = logger;
-            _broadcasterID = IllSingleton.Config.BroadcasterId;
+            _broadcasterID = _config.BroadcasterId;
 
             _logger.LogInformation("Initializing Twitch API Service...");
 
             _api = new TwitchAPI();
-            _api.Settings.ClientId = IllSingleton.Config.TApiClientId;
-            _api.Settings.AccessToken = IllSingleton.Config.TApiAccessToken;
+            _api.Settings.ClientId = _config.TApiClientId;
+            _api.Settings.AccessToken = _config.TApiAccessToken;
 
             if (!StringUtil.IsValidApiToken(_api.Settings.ClientId) || !StringUtil.IsValidApiToken(_api.Settings.AccessToken))
             {
@@ -71,7 +72,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID).ConfigureAwait(false);
+                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
                 if (predictions.Data.Length > 0)
                 {
                     var current = predictions.Data.First();
@@ -102,8 +103,8 @@ namespace SkillzBot.API.Twitch
             };
             try
             {
-                await _api.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
-                await GetCurrentPred().ConfigureAwait(false);
+                await _api.Helix.Predictions.CreatePredictionAsync(request);
+                await GetCurrentPred();
             }
             catch (Exception ex)
             {
@@ -132,8 +133,8 @@ namespace SkillzBot.API.Twitch
             }
             try
             {
-                await _api.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
-                await GetCurrentPred().ConfigureAwait(false);
+                await _api.Helix.Predictions.CreatePredictionAsync(request);
+                await GetCurrentPred();
             }
             catch (Exception ex)
             {
@@ -164,8 +165,8 @@ namespace SkillzBot.API.Twitch
             }
             try
             {
-                await _api.Helix.Predictions.CreatePredictionAsync(request).ConfigureAwait(false);
-                await GetCurrentPred().ConfigureAwait(false);
+                await _api.Helix.Predictions.CreatePredictionAsync(request);
+                await GetCurrentPred();
             }
             catch (Exception ex)
             {
@@ -178,7 +179,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return "Invalid AccessToken";
             try
             {
-                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID).ConfigureAwait(false);
+                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
                 if (predictions.Data.Length == 0) return "ERR";
 
                 string currentPredID = predictions.Data.First().Id;
@@ -196,7 +197,7 @@ namespace SkillzBot.API.Twitch
 
                 if (currentPredID == _predID)
                 {
-                    await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, predictionStatus, outcomeID).ConfigureAwait(false);
+                    await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, predictionStatus, outcomeID);
                     return "OK";
                 }
                 else
@@ -223,14 +224,14 @@ namespace SkillzBot.API.Twitch
 
             try
             {
-                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID).ConfigureAwait(false);
+                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
                 if (predictions.Data.Length == 0) return;
 
                 string currentPredID = predictions.Data.First().Id;
                 if (currentPredID == _predID)
                 {
                     var status = PredictionEndStatus.RESOLVED;
-                    await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, status, win ? _winID : _looseID).ConfigureAwait(false);
+                    await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, status, win ? _winID : _looseID);
                 }
                 else
                 {
@@ -241,7 +242,7 @@ namespace SkillzBot.API.Twitch
             {
                 _logger.LogError(ex, "End_WinLoose_Prediction()");
                 await Task.Delay(1000);
-                await End_WinLoose_Prediction(win, tryes + 1).ConfigureAwait(false);
+                await End_WinLoose_Prediction(win, tryes + 1);
             }
         }
 
@@ -250,13 +251,13 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID).ConfigureAwait(false);
+                var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
                 if (predictions.Data.Length == 0) return;
 
                 string currentPredID = predictions.Data.First().Id;
                 if (currentPredID == _predID)
                 {
-                    await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, PredictionEndStatus.CANCELED).ConfigureAwait(false);
+                    await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, PredictionEndStatus.CANCELED);
                 }
             }
             catch (Exception ex)
@@ -270,7 +271,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                return await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID).ConfigureAwait(false);
+                return await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
             }
             catch (Exception ex)
             {
@@ -288,7 +289,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                return await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID).ConfigureAwait(false);
+                return await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID);
             }
             catch (Exception ex)
             {
@@ -302,7 +303,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var rewards = await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID, new List<string> { id }).ConfigureAwait(false);
+                var rewards = await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID, new List<string> { id });
                 return rewards.Data.FirstOrDefault();
             }
             catch (Exception ex)
@@ -317,7 +318,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var rewards = await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID).ConfigureAwait(false);
+                var rewards = await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID);
                 return rewards.Data.FirstOrDefault(r => r.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception ex)
@@ -340,7 +341,7 @@ namespace SkillzBot.API.Twitch
                     IsEnabled = enable,
                     IsUserInputRequired = isUserInputRequired,
                     ShouldRedemptionsSkipRequestQueue = false
-                }).ConfigureAwait(false);
+                });
             }
             catch (Exception ex)
             {
@@ -353,7 +354,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.ChannelPoints.DeleteCustomRewardAsync(_broadcasterID, rewardID).ConfigureAwait(false);
+                await _api.Helix.ChannelPoints.DeleteCustomRewardAsync(_broadcasterID, rewardID);
             }
             catch (Exception ex)
             {
@@ -374,7 +375,7 @@ namespace SkillzBot.API.Twitch
                     IsEnabled = enabled,
                     IsUserInputRequired = userinput,
                     ShouldRedemptionsSkipRequestQueue = false
-                }).ConfigureAwait(false);
+                });
                 return response.Data.FirstOrDefault()?.Id;
             }
             catch (Exception ex)
@@ -392,7 +393,7 @@ namespace SkillzBot.API.Twitch
                 await _api.Helix.ChannelPoints.UpdateRedemptionStatusAsync(_broadcasterID, rewardID, new List<string> { redemID }, new UpdateCustomRewardRedemptionStatusRequest
                 {
                     Status = CustomRewardRedemptionStatus.CANCELED
-                }).ConfigureAwait(false);
+                });
             }
             catch (Exception ex)
             {
@@ -408,7 +409,7 @@ namespace SkillzBot.API.Twitch
                 await _api.Helix.ChannelPoints.UpdateRedemptionStatusAsync(_broadcasterID, rewardID, new List<string> { redemID }, new UpdateCustomRewardRedemptionStatusRequest
                 {
                     Status = CustomRewardRedemptionStatus.FULFILLED
-                }).ConfigureAwait(false);
+                });
             }
             catch (Exception ex)
             {
@@ -421,7 +422,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var redemption = await _api.Helix.ChannelPoints.GetCustomRewardRedemptionAsync(_broadcasterID, rewardID).ConfigureAwait(false);
+                var redemption = await _api.Helix.ChannelPoints.GetCustomRewardRedemptionAsync(_broadcasterID, rewardID);
                 return redemption.Data.FirstOrDefault(r => r.UserId == userID)?.Id;
             }
             catch (Exception ex)
@@ -434,10 +435,10 @@ namespace SkillzBot.API.Twitch
         public async Task DisableRewardAsync(string rewardID)
         {
             if (!IsReady()) return;
-            var reward = await GetReward(rewardID).ConfigureAwait(false);
+            var reward = await GetReward(rewardID);
             if (reward != null)
             {
-                await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired).ConfigureAwait(false);
+                await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, false, reward.IsUserInputRequired);
             }
             else
                 _logger.LogError("DisableRewardAsync -> null. Id: {RewardID}", rewardID);
@@ -446,10 +447,10 @@ namespace SkillzBot.API.Twitch
         public async Task EnableRewardAsync(string rewardID)
         {
             if (!IsReady()) return;
-            var reward = await GetReward(rewardID).ConfigureAwait(false);
+            var reward = await GetReward(rewardID);
             if (reward != null)
             {
-                await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired).ConfigureAwait(false);
+                await UpdateReward(reward.Id, reward.Title, reward.Cost, reward.Prompt, true, reward.IsUserInputRequired);
             }
             else
                 _logger.LogError("EnableRewardAsync -> null. Id: {RewardID}", rewardID);
@@ -470,7 +471,7 @@ namespace SkillzBot.API.Twitch
                     UserId = userId,
                     Duration = duration,
                     Reason = reason
-                }).ConfigureAwait(false);
+                });
             }
             catch (Exception ex)
             {
@@ -484,7 +485,7 @@ namespace SkillzBot.API.Twitch
             if (user.isMod == 1) return;
             try
             {
-                await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason).ConfigureAwait(false);
+                await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
             }
             catch (Exception ex)
             {
@@ -497,7 +498,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason).ConfigureAwait(false);
+                await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
             }
             catch (Exception ex)
             {
@@ -514,7 +515,7 @@ namespace SkillzBot.API.Twitch
                 {
                     UserId = userID,
                     Reason = reason
-                }).ConfigureAwait(false);
+                });
             }
             catch (Exception ex)
             {
@@ -527,7 +528,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.Moderation.UnbanUserAsync(_broadcasterID, _broadcasterID, userID).ConfigureAwait(false);
+                await _api.Helix.Moderation.UnbanUserAsync(_broadcasterID, _broadcasterID, userID);
             }
             catch (Exception ex)
             {
@@ -540,7 +541,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return true; // Original logic returns true on IsReady check failure? Preserving behavior.
             try
             {
-                await _api.Helix.Moderation.AddChannelModeratorAsync(_broadcasterID, userID).ConfigureAwait(false);
+                await _api.Helix.Moderation.AddChannelModeratorAsync(_broadcasterID, userID);
                 return true;
             }
             catch (Exception ex)
@@ -555,7 +556,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.Moderation.DeleteChannelModeratorAsync(_broadcasterID, userID).ConfigureAwait(false);
+                await _api.Helix.Moderation.DeleteChannelModeratorAsync(_broadcasterID, userID);
             }
             catch (Exception ex)
             {
@@ -568,7 +569,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var response = await _api.Helix.Moderation.GetModeratorsAsync(_broadcasterID, null, 100).ConfigureAwait(false);
+                var response = await _api.Helix.Moderation.GetModeratorsAsync(_broadcasterID, null, 100);
                 return response.Data;
             }
             catch (Exception ex)
@@ -583,7 +584,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var response = await _api.Helix.Users.GetUsersAsync(null, new List<string> { userLogin }).ConfigureAwait(false);
+                var response = await _api.Helix.Users.GetUsersAsync(null, new List<string> { userLogin });
                 return response.Users?.FirstOrDefault()?.Id;
             }
             catch (Exception ex)
@@ -598,7 +599,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.Whispers.SendWhisperAsync(_broadcasterID, toUserID, message, newRec).ConfigureAwait(false);
+                await _api.Helix.Whispers.SendWhisperAsync(_broadcasterID, toUserID, message, newRec);
             }
             catch (Exception ex)
             {
@@ -611,7 +612,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                return await _api.Helix.Channels.GetVIPsAsync(_broadcasterID, null, 100).ConfigureAwait(false);
+                return await _api.Helix.Channels.GetVIPsAsync(_broadcasterID, null, 100);
             }
             catch (Exception ex)
             {
@@ -625,7 +626,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.Channels.AddChannelVIPAsync(_broadcasterID, userID).ConfigureAwait(false);
+                await _api.Helix.Channels.AddChannelVIPAsync(_broadcasterID, userID);
             }
             catch (Exception ex)
             {
@@ -638,7 +639,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.Channels.RemoveChannelVIPAsync(_broadcasterID, userID).ConfigureAwait(false);
+                await _api.Helix.Channels.RemoveChannelVIPAsync(_broadcasterID, userID);
             }
             catch (Exception ex)
             {
@@ -670,7 +671,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var response = await _api.Helix.Streams.GetStreamsAsync(null, 1, null, null, new List<string> { _broadcasterID }).ConfigureAwait(false);
+                var response = await _api.Helix.Streams.GetStreamsAsync(null, 1, null, null, new List<string> { _broadcasterID });
                 return response.Streams?.FirstOrDefault();
             }
             catch (Exception ex)
@@ -685,7 +686,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                var response = await _api.Helix.Channels.GetChannelInformationAsync(_broadcasterID).ConfigureAwait(false);
+                var response = await _api.Helix.Channels.GetChannelInformationAsync(_broadcasterID);
                 return response.Data?.FirstOrDefault();
             }
             catch (Exception ex)
@@ -714,7 +715,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.Moderation.DeleteChatMessagesAsync(_broadcasterID, _broadcasterID, messageID).ConfigureAwait(false);
+                await _api.Helix.Moderation.DeleteChatMessagesAsync(_broadcasterID, _broadcasterID, messageID);
             }
             catch (Exception ex)
             {
@@ -727,7 +728,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return;
             try
             {
-                await _api.Helix.Moderation.DeleteChatMessagesAsync(_broadcasterID, _broadcasterID).ConfigureAwait(false);
+                await _api.Helix.Moderation.DeleteChatMessagesAsync(_broadcasterID, _broadcasterID);
             }
             catch (Exception ex)
             {
@@ -740,7 +741,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return false;
             try
             {
-                await _api.Helix.Chat.SendChatAnnouncementAsync(_broadcasterID, _broadcasterID, message).ConfigureAwait(false);
+                await _api.Helix.Chat.SendChatAnnouncementAsync(_broadcasterID, _broadcasterID, message);
                 return true;
             }
             catch (Exception ex)
@@ -755,7 +756,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return null;
             try
             {
-                return await _api.Helix.Clips.CreateClipAsync(_broadcasterID).ConfigureAwait(false);
+                return await _api.Helix.Clips.CreateClipAsync(_broadcasterID);
             }
             catch (Exception ex)
             {
@@ -769,7 +770,7 @@ namespace SkillzBot.API.Twitch
             if (!IsReady()) return false;
             try
             {
-                var clips = await _api.Helix.Clips.GetClipsAsync(new List<string> { clipID }).ConfigureAwait(false);
+                var clips = await _api.Helix.Clips.GetClipsAsync(new List<string> { clipID });
                 if (clips.Clips.Length == 0 || clips.Clips[0].BroadcasterId != _broadcasterID)
                     return false;
                 return true;
@@ -789,7 +790,7 @@ namespace SkillzBot.API.Twitch
                 await _api.Helix.Chat.UpdateChatSettingsAsync(_broadcasterID, _broadcasterID, new ChatSettings
                 {
                     EmoteMode = isEmoteOnly
-                }).ConfigureAwait(false);
+                });
             }
             catch (Exception ex)
             {

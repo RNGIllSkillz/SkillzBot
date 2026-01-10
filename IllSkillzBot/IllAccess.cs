@@ -1,17 +1,28 @@
-﻿using SkillzBot.MODELS;
+﻿using SkillzBot.Interfaces;
+using SkillzBot.MODELS;
+using SkillzBot.IllConfiguration; 
 using static SkillzBot.IllSkillzBot.IllEnums;
-using SkillzBot.Singleton;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal static class IllAccess
+    internal class IllAccess : IIllAccess
     {
-        public static bool Root(UserObject user) => user.Name == IllSingleton.Config.RootUser;
-        public static bool Broadcaster(UserObject user) => user.IsBroadcaster == 1 || Root(user);
-        public static bool Mod(UserObject user) => user.isMod == 1 || Broadcaster(user);
-        public static bool Vip(UserObject user) => user.isVip == 1 || Mod(user);
+        private readonly BotConfigModel _config;
 
-        public static bool MeetsLevel(UserObject user, AccessLevel level) => level switch
+        public IllAccess(BotConfigModel config)
+        {
+            _config = config;
+        }
+
+        public bool Root(UserObject user) => user.Name == _config.RootUser;
+
+        public bool Broadcaster(UserObject user) => user.IsBroadcaster == 1 || Root(user);
+
+        public bool Mod(UserObject user) => user.isMod == 1 || Broadcaster(user);
+
+        public bool Vip(UserObject user) => user.isVip == 1 || Mod(user);
+
+        public bool MeetsLevel(UserObject user, AccessLevel level) => level switch
         {
             AccessLevel.Any => true,
             AccessLevel.Vip => Vip(user),

@@ -1,4 +1,4 @@
-﻿namespace SkillzBot.Singleton
+﻿namespace SkillzBot.IllConfiguration
 {
     public class BotConfigModel
     {

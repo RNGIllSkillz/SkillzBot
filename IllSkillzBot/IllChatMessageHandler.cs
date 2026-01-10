@@ -9,103 +9,116 @@ using SkillzBot.API.Twitch;
 using SkillzBot.MODELS;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
-using SkillzBot.Singleton;
-using SkillzBot.Hosts;
 using SkillzBot.Utils;
 using F23.StringSimilarity;
-using SkillzBot.IRC;
 using SkillzBot.Interfaces;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal class IllChatMessageHandler
+    public class IllChatMessageHandler
     {
         private readonly ConcurrentDictionary<string, UserChatTracker> _userTrackers = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentQueue<MessageBuffer> _messagesBuffer = new();
         private readonly NormalizedLevenshtein _levenshtein = new();
         private readonly ILogger<IllChatMessageHandler> _logger;
         private readonly IllChatFilters _chatFilters;
-        private readonly ITtvIRCClient _ircClient;
         private readonly IDatabaseService _database;
         private readonly IllCommandHandler _commandHandler;
         private readonly IllGames _illGames;
-        private readonly IllCommands _illCommands;
         private readonly ITwitchService _twitchService;
+        private readonly IBotStateService _botState;
+        private readonly IllModeratorsInteractions _modInteractions;
 
         private const int HardTimeoutSec = 600;
         private const int TimeoutSec = 300;
         private const int LightTimeoutSec = 10;
         private const int SaveBufferCount = 100;
 
-        public IllChatMessageHandler(ILogger<IllChatMessageHandler> logger, IllChatFilters chatFilters, ITtvIRCClient ircClient, IDatabaseService database, IllCommandHandler commandHandler, IllGames illGames, IllCommands illCommands, ITwitchService twitchService)
+        public IllChatMessageHandler
+            (
+            ILogger<IllChatMessageHandler> logger, 
+            IllChatFilters chatFilters,
+            IDatabaseService database, 
+            IllCommandHandler commandHandler, 
+            IllGames illGames, 
+            IllCommands illCommands, 
+            ITwitchService twitchService, 
+            IBotStateService botState,
+            IllModeratorsInteractions modInteractions
+            )
         {
             _logger = logger;
             _chatFilters = chatFilters;
-            _ircClient = ircClient;
             _database = database;
             _commandHandler = commandHandler;
             _illGames = illGames;
-            _illCommands = illCommands;
             _twitchService = twitchService;
+            _botState = botState;
+            _modInteractions = modInteractions;
         }
 
-        public async Task<UserObject> MessageHandler(OnMessageReceivedArgs e)
+        public async Task HandleMessage(OnMessageReceivedArgs e)
         {
-            if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return null;
+            if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return;
 
             SaveToBuffer(e);
             var tracker = AddToTracker(e.ChatMessage.Username, e.ChatMessage.Message);
-            var user = await GetAddUser(e.ChatMessage).ConfigureAwait(false);
-            if (user == null) return null;
+            var user = await GetAddUser(e.ChatMessage);
+            if (user == null) return;
 
             user.messageCon++;
             await SaveBuffer(false);
 
-            if (IllSingleton.State.isSubActive)
+            if (_botState.Current.IsSubActive)
             {
                 if (_chatFilters.CheckBooB(e.ChatMessage.Message))
                 {
-                    await _twitchService.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic).ConfigureAwait(false);
-                    return user;
+                    await _twitchService.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic);
+                    await _database.UpdateUserAsync(user);
+                    return;
                 }
 
                 if (_chatFilters.FilterASCII(e))
                 {
-                    await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutPic).ConfigureAwait(false);
+                    await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutPic);
                 }
 
                 if (await _chatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName).ConfigureAwait(false))
                 {
-                    return await _illCommands.IllFilterTrigger(user, e.ChatMessage.Id).ConfigureAwait(false);
+                    user = await _modInteractions.IllFilterTrigger(user, e.ChatMessage.Id);
+                    await _database.UpdateUserAsync(user);
+                    return;
                 }
 
-                await _chatFilters.DeleteLinks(user, e).ConfigureAwait(false);
+                await _chatFilters.DeleteLinks(user, e);
 
                 if (CheckSpam(tracker, e.ChatMessage.Message))
                 {
-                    await _twitchService.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam).ConfigureAwait(false);
-                    return user;
+                    await _twitchService.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam);
+                    await _database.UpdateUserAsync(user);
+                    return;
                 }
 
                 string normalizedMsg = StringUtil.Normalize(e.ChatMessage.Message);
                 if (normalizedMsg.Contains("хохол") || normalizedMsg.Contains("хахол"))
                 {
-                    await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason).ConfigureAwait(false);
-                    return user;
+                    await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason);
+                    await _database.UpdateUserAsync(user);
+                    return;
                 }
 
-                if (IllSingleton.State.QuizIsRunning)
-                    user = await _illGames.UserGuessAnswer(user, e.ChatMessage.Message).ConfigureAwait(false);
+                if (_botState.Current.QuizIsRunning)
+                    user = await _illGames.UserGuessAnswer(user, e.ChatMessage.Message);
                 else
                     _illGames.QuizzActiveUser(user.TwitchID.ToString());
             }
 
             if (e.ChatMessage.Message.StartsWith("!"))
             {
-                user = await _commandHandler.CommandHandler(user, e.ChatMessage.Message).ConfigureAwait(false);
+                user = await _commandHandler.CommandHandler(user, e.ChatMessage.Message);
             }
-
-            return user;
+            await _database.UpdateUserAsync(user);
+            return;
         }
 
         private void SaveToBuffer(OnMessageReceivedArgs e)
@@ -132,7 +145,7 @@ namespace SkillzBot.IllSkillzBot
 
             if (temp.Count > 0)
             {
-                await _database.SaveMessagesAsync(temp).ConfigureAwait(false);
+                await _database.SaveMessagesAsync(temp);
             }
         }
 
@@ -155,7 +168,7 @@ namespace SkillzBot.IllSkillzBot
                 return null;
             }
 
-            UserObject user = await _database.GetUserAsync(ttvid).ConfigureAwait(false);
+            UserObject user = await _database.GetUserAsync(ttvid);
 
             bool needsUpdate = false;
 
@@ -182,7 +195,7 @@ namespace SkillzBot.IllSkillzBot
 
             if (needsUpdate)
             {
-                await _database.AddOrUpdateUserAsync(user).ConfigureAwait(false);
+                await _database.AddOrUpdateUserAsync(user);
             }
 
             return user;

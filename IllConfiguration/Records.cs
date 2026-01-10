@@ -1,4 +1,4 @@
-﻿namespace SkillzBot.Singleton
+﻿namespace SkillzBot.IllConfiguration
 {
     public record DatabaseConfig(
         string Host,
@@ -15,7 +15,9 @@
         string DicWhiteListFileName,
         string UserBlacklistFileName,
         string GameStateFileName,
-        string BotStateFileName
+        string BotStateFileName,
+        string MediaQueueFileName,
+        string SubscriptionFileName
     );
 
     public record ChannelIdsConfig(

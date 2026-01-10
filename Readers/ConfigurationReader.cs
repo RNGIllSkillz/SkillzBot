@@ -2,19 +2,16 @@
 using Newtonsoft.Json;
 using System;
 using System.IO;
-using Microsoft.Extensions.Logging;
-using SkillzBot.Hosts;
 
 namespace SkillzBot.Readers
 {
     public class Config
     {
-        private static readonly ILogger<Config> _logger = IllServiceProvider.GetLogger<Config>();
-        readonly private string _ConfigPath;
+        private readonly string _ConfigPath;
 
-        public Config(string ConfigPath)
+        public Config(string configPath)
         {
-            _ConfigPath = ConfigPath;
+            _ConfigPath = configPath;
         }
 
         public SettingsJson GetBotConfigs()
@@ -27,10 +24,9 @@ namespace SkillzBot.Readers
                     return JsonConvert.DeserializeObject<SettingsJson>(json);
                 }
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                _logger.LogCritical(e, "Error reading bot configuration file");
-                throw;
+                throw new InvalidOperationException($"Error reading config file at {_ConfigPath}", ex);
             }
         }
     }

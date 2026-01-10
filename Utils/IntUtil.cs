@@ -1,5 +1,5 @@
 ﻿using SkillzBot.API.Twitch;
-using SkillzBot.Singleton;
+using SkillzBot.IllConfiguration; 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -36,31 +36,7 @@ namespace SkillzBot.Utils
             proBab *= 100;
             int precision = ((decimal)proBab == decimal.Truncate((decimal)proBab)) ? 0 : 4;
             return proBab.ToString($"F{precision}").TrimEnd('0').TrimEnd('.') + "%";
-        }
-        public static async Task<int> CalculateCancelUvalCost(ITwitchService twitchService, string subscriptionType, double remainingDuration)
-        {
-            const int SecondsInTenMinutes = 600;
-            var rewardsMap = new Dictionary<string, string>
-            {
-                ["IsSub"] = IllSingleton.Config.ChannelIds.UvalSabId,
-                ["IsVip"] = IllSingleton.Config.ChannelIds.UvalVipId,
-                ["IsUnsub"] = IllSingleton.Config.ChannelIds.UvalId,
-                ["IsMod"] = IllSingleton.Config.ChannelIds.UvalMod
-            };
-
-            if (rewardsMap.TryGetValue(subscriptionType, out string rewardId))
-            {
-                var reward = await twitchService.GetReward(rewardId).ConfigureAwait(false);
-                if (reward != null)
-                    return CalculateCost(reward.Cost, remainingDuration, SecondsInTenMinutes);
-            }
-            return 10000000;
-        }
-        private static int CalculateCost(double rewardCost, double remainingDuration, int secondsInTenMinutes)
-        {
-            var costPerSecond = rewardCost / secondsInTenMinutes;
-            return (int)Math.Ceiling(costPerSecond * remainingDuration);
-        }
+        }        
         public static string CalculateTopPercentage(int[] data)
         {
             var rank = data[0];

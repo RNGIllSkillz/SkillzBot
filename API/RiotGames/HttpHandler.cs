@@ -3,26 +3,31 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Camille.Enums;
 using Camille.RiotGames.LeagueV4;
-using SkillzBot.Singleton;
-using System;
+using SkillzBot.IllConfiguration;
 
 namespace SkillzBot.API.RiotGames
 {
-    internal class HttpHandler
+    public class RiotHttpHandler
     {
-        private static readonly HttpClient _client = new HttpClient();
+        private readonly BotConfigModel _config;
+        private readonly HttpClient _client;
 
-        public static async Task<LeagueEntry[]> GetLeagueEntriesByPUUIDAsync(PlatformRoute platformRoute, string puuid)
+        public RiotHttpHandler(BotConfigModel config, HttpClient client)
+        {
+            _config = config;
+            _client = client;
+        }
+
+        public async Task<LeagueEntry[]> GetLeagueEntriesByPUUIDAsync(PlatformRoute platformRoute, string puuid)
         {
             string splatformRoute = platformRoute.ToString().ToLower();
-
             var request = new HttpRequestMessage(HttpMethod.Get, $"https://{splatformRoute}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}");
-            request.Headers.Add("X-Riot-Token", IllSingleton.Config.RiotApiToken);
 
-            using var response = await _client.SendAsync(request).ConfigureAwait(false);
+            request.Headers.Add("X-Riot-Token", _config.RiotApiToken);
 
+            using var response = await _client.SendAsync(request);
             response.EnsureSuccessStatusCode();
-            string jsonString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            string jsonString = await response.Content.ReadAsStringAsync();
             return JsonConvert.DeserializeObject<LeagueEntry[]>(jsonString);
         }
     }

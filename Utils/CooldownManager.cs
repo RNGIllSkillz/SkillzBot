@@ -1,9 +1,10 @@
 ﻿using SkillzBot.IllSkillzBot;
+using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
+using SkillzBot.IllConfiguration; 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using SkillzBot.Singleton;
 
 namespace SkillzBot.Utils
 {
@@ -16,6 +17,15 @@ namespace SkillzBot.Utils
         private readonly Dictionary<string, TimeSpan> _cooldownDurations = new();
         private readonly Dictionary<string, bool> _allowBypassCooldown = new();
         private readonly Dictionary<string, bool> _isGlobal = new();
+
+        private readonly IBotStateService _botState;
+        private readonly IIllAccess _access;
+        
+        public CooldownManager(IBotStateService botState, IIllAccess access)
+        {
+            _botState = botState;
+            _access = access;
+        }
 
         public void RegisterCooldown(string methodName, TimeSpan cooldown, bool allowBypassCooldown = true, bool isGlobal = false)
         {
@@ -36,17 +46,17 @@ namespace SkillzBot.Utils
             bool isGlobal = _isGlobal.TryGetValue(methodName, out var global) && global;
 
             
-            if (IllSingleton.State.GodMode)
-                if (IllAccess.Root(user))
+            if (_botState.Current.GodMode)
+                if (_access.Root(user))
                 {
-                    await InvokeDelegate(methodLogic, user, command).ConfigureAwait(false);
+                    await InvokeDelegate(methodLogic, user, command);
                     return null;
                 }
 
             // If elevated users can bypass cooldowns and user is VIP, execute immediately
-            if (canBypass && IllAccess.Vip(user))
+            if (canBypass && _access.Vip(user))
             {
-                await InvokeDelegate(methodLogic, user, command).ConfigureAwait(false);
+                await InvokeDelegate(methodLogic, user, command);
                 return null;
             }
 
@@ -65,7 +75,7 @@ namespace SkillzBot.Utils
             }
 
             _cooldowns[key] = now;
-            await InvokeDelegate(methodLogic, user, command).ConfigureAwait(false);
+            await InvokeDelegate(methodLogic, user, command);
             return null;
         }
 

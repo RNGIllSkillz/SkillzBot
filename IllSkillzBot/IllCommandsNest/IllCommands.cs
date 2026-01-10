@@ -12,12 +12,13 @@ using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.Readers;
-using SkillzBot.Singleton;
+using SkillzBot.Services.Infrastructure;
+using SkillzBot.Services.Writers;
+using SkillzBot.IllConfiguration; 
 using SkillzBot.SubUtils;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
 using SkillzBot.Writers;
-using SkillzBot.WRITERS;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -27,7 +28,7 @@ using System.Threading.Tasks;
 
 namespace SkillzBot.IllSkillzBot.IllCommandsNest
 {
-    internal class IllCommands
+    public class IllCommands
     {
         private readonly ITtvIRCClient _ircClient;
         private readonly IllModeratorsInteractions _modInteractions;
@@ -40,6 +41,17 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly QuartzBackgroundTaskManager _quartzManager;
         private readonly LoggingLevelSwitch _loggingSwitch;
         private readonly ITwitchService _twitchService;
+        private readonly BotConfigModel _config;
+        private readonly IBotStateService _botState;
+        private readonly IGameStateService _gameState;
+        private readonly IPathProvider _pathProvider;
+        private readonly IStreamElementsService _streamElementsService;
+        private readonly IIllAccess _illAccess;
+        private readonly ConfigWriterService _configWriter;
+        private readonly MediaQueueService _mediaQueueService;
+        private readonly BlacklistService _blacklistService;
+        private readonly SubscriptionService _subscriptionService;
+        private readonly IMmrService _mmrService;
 
         private string _ludka = "";
 
@@ -54,7 +66,18 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             IllGames illGames,
             QuartzBackgroundTaskManager quartzManager,
             LoggingLevelSwitch loggingSwitch,
-            ITwitchService twitchService)
+            ITwitchService twitchService,
+            BotConfigModel config,
+            IGameStateService gameState,
+            IBotStateService botState,
+            IPathProvider pathProvider,
+            IStreamElementsService streamElementsService,
+            IIllAccess illAccess, 
+            ConfigWriterService configWriter,
+            MediaQueueService mediaQueueService,
+            BlacklistService blacklistService,
+            SubscriptionService subscriptionService,
+            IMmrService mmrService)
         {
             _ircClient = ircClient;
             _modInteractions = modInteractions;
@@ -67,6 +90,17 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             _quartzManager = quartzManager;
             _loggingSwitch = loggingSwitch;
             _twitchService = twitchService;
+            _config = config;
+            _gameState = gameState;
+            _botState = botState;
+            _pathProvider = pathProvider;
+            _streamElementsService = streamElementsService;
+            _illAccess = illAccess;
+            _subscriptionService = subscriptionService;
+            _mediaQueueService = mediaQueueService;
+            _configWriter = configWriter;
+            _blacklistService = blacklistService;
+            _mmrService = mmrService;
         }
 
         public async Task Help(UserObject user)
@@ -89,13 +123,13 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 switch (command[1])
                 {
                     case "off":
-                        IllSingleton.State.AutoPred = false;
+                        _botState.Current.AutoPred = false;
                         await _ircClient.SendMessage($"@{user.Name} Автоставки Выключены!");
                         _logger.LogInformation("{Name} Выключил ставки!", user.Name);
                         break;
 
                     case "on":
-                        IllSingleton.State.AutoPred = true;
+                        _botState.Current.AutoPred = true;
                         await _ircClient.SendMessage($"@{user.Name} Автоставки Включены!");
                         _logger.LogInformation("{Name} Включил ставки!", user.Name);
                         break;
@@ -113,39 +147,44 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (command.Length > 2)
             {
-                if (!IllAccess.Mod(user)) return;
-                if (!IllSingleton.State.InMatch)
+                if (!_illAccess.Mod(user)) return;
+                if (!_botState.Current.InMatch)
                 {
-                    switch (command.Last())
+                    string region = command.Last();
+                    if (region != "ru" && region != "euw" && region != "na")
                     {
-                        case "ru":
-                        case "euw":
-                        case "na":
-                            break;
-                        default:
-                            await _ircClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
-                            return;
+                        await _ircClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
+                        return;
                     }
 
-                    var result = await _riotApi.UpdateSummonerByNameAsync(command[1], command[2], command.Last());
+                    var result = await _riotApi.UpdateSummonerByNameAsync(command[1], command[2], region);
                     if (result == null)
                     {
-                        IllSingleton.Game.SummonerName = command[1] + "#" + command[2];
-                        IllSingleton.Game.SummonerRegion = command.Last();
-                        _riotApi.UpdateConfig();
+                        // Update Game State via Service
+                        await _gameState.UpdateStateAsync(state =>
+                        {
+                            state.SummonerName = command[1] + "#" + command[2];
+                            state.SummonerRegion = region;
+                        });
+
+                        _riotApi.UpdateConfig(); // Ensure API refreshes its internal state
 
                         var Rank = await _riotApi.GetRankBySummonerAsync();
-                        if (Rank != null)
+
+                        // Update Rank Data
+                        await _gameState.UpdateStateAsync(state =>
                         {
-                            if (int.TryParse(Rank[1], out int buffStartLP))
-                                IllSingleton.Game.StartLP = buffStartLP;
-                            else
-                                IllSingleton.Game.StartLP = 0;
-                            IllSingleton.Game.Elo = Rank[0];
-                            IllSingleton.Game.Tier = Rank[2];
-                        }
-                        await IllSingleton.Game.SaveAsync();
-                        await BotConfigWriter.WriteAsync();
+                            if (Rank != null)
+                            {
+                                if (int.TryParse(Rank[1], out int buffStartLP))
+                                    state.StartLP = buffStartLP;
+                                else
+                                    state.StartLP = 0;
+                                state.Elo = Rank[0];
+                                state.Tier = Rank[2];
+                            }
+                        });
+                        await _configWriter.WriteAsync();
                         await ShowLPAsync(user.Name);
                     }
                     else
@@ -229,49 +268,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 }
             }
             return null;
-        }
-
-        public async Task<UserObject> IllFilterTrigger(UserObject user, string messageID = null)
-        {
-            if (user.banCount == 35)
-            {
-                await _twitchService.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
-                user.banCount = 0;
-            }
-            else
-            {
-                switch (IllSingleton.State.ChatFilterLvl)
-                {
-                    case 0:
-                        break;
-                    case 1:
-                        if (messageID != null)
-                            await _twitchService.DeleteMessage(messageID);
-                        break;
-                    case 2:
-                        if (messageID != null)
-                            await _twitchService.DeleteMessage(messageID);
-                        string ModsZapMsg = $"Найдена запретка на канале {IllSingleton.Config.ChannelName} от пользователя @{user.Name}. Модерам на проверку";
-                        await _modInteractions.IllAllModsNotification(ModsZapMsg);
-                        break;
-                    case 3:
-                        await _twitchService.TimeOutUser(user, 86400, STRINGS.TimeOut1wReason);
-                        user.banCount++;
-                        break;
-                    case 4:
-                        await _twitchService.TimeOutUser(user, 604800, STRINGS.TimeOut1wReason);
-                        user.banCount++;
-                        break;
-                    case 5:
-                        await _twitchService.BanUser(user.TwitchID.ToString(), STRINGS.PermaBanReason);
-                        user.banCount = 0;
-                        break;
-                    default:
-                        break;
-                }
-            }
-            return user;
-        }
+        }        
 
         public async Task<LP> GetLpAsync(string summonerName = null, string region = null)
         {
@@ -327,11 +324,11 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
             if (lpData.RANK.StartsWith("ПРОМО"))
             {
-                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, IllSingleton.Game.SummonerName, lpData.RANK, lpData.LPoints));
+                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, _gameState.Current.SummonerName, lpData.RANK, lpData.LPoints));
             }
             else if (lpData.RANK == "Калибровка")
             {
-                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, IllSingleton.Game.SummonerName, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
+                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, _gameState.Current.SummonerName, _gameState.Current.NumGames, _gameState.Current.NumWins, _gameState.Current.NumLosses, _gameState.Current.EarnedLP));
             }
             else
             {
@@ -347,7 +344,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 }
 
                 int WR = (wins + losses > 0) ? (int)Math.Ceiling(wins * 100.0 / (wins + losses)) : 0;
-                await _ircClient.SendMessage(string.Format(STRINGS.ShowLP, sender, IllSingleton.Game.SummonerName, rankParts[0], rankParts[1], lpData.LPoints, WR, IllSingleton.Game.NumGames, IllSingleton.Game.NumWins, IllSingleton.Game.NumLosses, IllSingleton.Game.EarnedLP));
+                await _ircClient.SendMessage(string.Format(STRINGS.ShowLP, sender, _gameState.Current.SummonerName, rankParts[0], rankParts[1], lpData.LPoints, WR, _gameState.Current.NumGames, _gameState.Current.NumWins, _gameState.Current.NumLosses, _gameState.Current.EarnedLP));
             }
         }
 
@@ -402,7 +399,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task GetMMR(UserObject user)
         {
-            var result = await MyLOLMMRApi.GetMMR(IllSingleton.Game.SummonerName);
+            var result = await _mmrService.GetMMR(_gameState.Current.SummonerName);
             if (result == null) return;
             if (result.Count == 2)
                 await _ircClient.SendMessage($"@{user.Name} {result[0]}: mmr:{result[1]}");
@@ -410,7 +407,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task OpGG(UserObject user)
         {
-            await _ircClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, IllSingleton.Game.SummonerName.Replace('#', '-')));
+            await _ircClient.SendMessage(string.Format(STRINGS.OpGGMessage, user.Name, _gameState.Current.SummonerName.Replace('#', '-')));
         }
 
         public async Task CreateClip(UserObject user)
@@ -452,21 +449,22 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task BanUserForTrack(UserObject user)
         {
-            var history = await StreamElementsAPI.GetHistory();
+            var history = await _streamElementsService.GetHistory();
             if (history == null || !history.History.Any()) return;
             var lastSong = history.History[0].Song;
-
-            int userID = TempDataReader.GetUserIDByTreckID(lastSong.VideoId);
-            await MediaBlackListWriter.Write(lastSong.VideoId);
+            int userID = await _mediaQueueService.GetUserIdByTrackIdAsync(lastSong.VideoId);
+            await _blacklistService.AddToMediaBlacklistAsync(lastSong.VideoId);
             if (userID != -1)
             {
                 var uUser = await _databaseService.GetUserAsync(userID);
                 await _twitchService.TimeOutUser(uUser, 3600, STRINGS.TimeOutReason_Track);
-                await UserBlackListWriter.Write(uUser.TwitchID.ToString());
+                await _blacklistService.AddToUserBlacklistAsync(uUser.TwitchID.ToString());
                 await _ircClient.SendMessage(string.Format(STRINGS.BanUserForTrack_chatMessage, user.Name, uUser.Name));
             }
             else
+            {
                 await _ircClient.SendMessage(string.Format(STRINGS.BanUserForTrack_DonatedTrack, user.Name));
+            }
         }
 
         public async Task FindUser(UserObject user, string[] input)
@@ -597,8 +595,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (input.Length > 1 && int.TryParse(input[1], out int level) && level >= 0 && level <= 2)
             {
-                IllSingleton.State.AntiBotProtectionLvl = level;
-                await _ircClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, IllSingleton.State.AntiBotProtectionLvl));
+                _botState.Current.AntiBotProtectionLvl = level;
+                await _ircClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, _botState.Current.AntiBotProtectionLvl));
             }
             else
             {
@@ -610,9 +608,9 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (input.Length == 2 && int.TryParse(input[1], out int level) && level >= 0 && level <= 5)
             {
-                IllSingleton.State.ChatFilterLvl = level;
-                await BotConfigWriter.WriteAsync();
-                await _ircClient.SendMessage($"Уровень модерации чата установлен в значение {IllSingleton.State.ChatFilterLvl}!");
+                await _botState.UpdateStateAsync(s => s.ChatFilterLvl = level);
+                await _configWriter.WriteAsync();
+                await _ircClient.SendMessage($"Уровень модерации чата установлен в значение {level}!");
             }
             else
             {
@@ -665,19 +663,19 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task ToggleDebug(UserObject user)
         {
-            IllSingleton.State.Debug = !IllSingleton.State.Debug;
-            if (IllSingleton.State.Debug)
+            _botState.Current.Debug = !_botState.Current.Debug;
+            if (_botState.Current.Debug)
                 _loggingSwitch.MinimumLevel = LogEventLevel.Debug;
             else
                 _loggingSwitch.MinimumLevel = LogEventLevel.Warning;
 
-            await _ircClient.SendMessage($"Debug mode is now {IllSingleton.State.Debug}");
+            await _ircClient.SendMessage($"Debug mode is now {_botState.Current.Debug}");
         }
 
         public async Task ToggleSilentMode(UserObject user)
         {
-            IllSingleton.State.IsSilent = !IllSingleton.State.IsSilent;
-            await _ircClient.SendMessage($"SilentMode mode is {IllSingleton.State.IsSilent}");
+            _botState.Current.IsSilent = !_botState.Current.IsSilent;
+            await _ircClient.SendMessage($"SilentMode mode is {_botState.Current.IsSilent}");
         }
 
         public async Task Ttvgg(UserObject user)
@@ -718,8 +716,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 await _ircClient.SendMessage(STRINGS.FindUser_ERROR404);
                 return;
             }
-            var path = IllSkillzBotMain.GetDataPath().uniquePath;
-            path = Path.Combine(path, IllSingleton.Config.FilePaths.UserBlacklistFileName);
+            var path = _pathProvider.GetFullPath(_config.FilePaths.UserBlacklistFileName);
             if (await FileManipulator.DeleteLineFromFileAsync(path, UserToUnban.TwitchID.ToString()))
             {
                 _chatFilters.EditUserBlackList(UserToUnban.TwitchID.ToString());
@@ -736,21 +733,21 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 await _ircClient.SendMessage(STRINGS.InputERROR);
                 return;
             }
-            var path = IllSkillzBotMain.GetDataPath().sharedPath;
-            path = Path.Combine(path, IllSingleton.Config.FilePaths.DicWhiteListFileName);
+            var path = _pathProvider.GetFullPath(_config.FilePaths.DicWhiteListFileName, isShared: true); 
             await FileManipulator.AddLineToFileAsync(path, input[1]);
             _chatFilters.AddToWhiteList(input[1]);
         }
 
         public async Task AddSubscription(UserObject user)
         {
-            await _ircClient.SendMessage(AddSub.NewPurchase().ToString());
-            SubCheck.RunChecker();
+            var t = await _subscriptionService.AddSubscriptionAsync();
+            await _ircClient.SendMessage(t.ToString());
+            await _subscriptionService.CheckSubscriptionAsync(); //run the check right away to apply new subscription
         }
 
         public async Task CheckSubscription(UserObject user)
         {
-            if (SubCheck.RunChecker())
+            if (await _subscriptionService.CheckSubscriptionAsync())
                 await _ircClient.SendMessage("Valid!");
             else
                 await _ircClient.SendMessage("Expired!");

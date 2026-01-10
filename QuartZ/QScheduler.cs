@@ -49,7 +49,7 @@ public class QuartzBackgroundTaskManager
             .WithCronSchedule(cronExpression, x => x.InTimeZone(TimeZoneInfo.Local))
             .Build();
 
-        await _scheduler.ScheduleJob(job, trigger).ConfigureAwait(false);
+        await _scheduler.ScheduleJob(job, trigger);
     }
     public async Task UpdateJobSchedule(string taskName, string triggerName, string cronExpression)
     {
@@ -64,7 +64,7 @@ public class QuartzBackgroundTaskManager
 
         try
         {
-            await _scheduler.RescheduleJob(triggerKey, updatedTrigger).ConfigureAwait(false);
+            await _scheduler.RescheduleJob(triggerKey, updatedTrigger);
         }
         catch (Exception ex)
         {
@@ -73,7 +73,7 @@ public class QuartzBackgroundTaskManager
     }
     public async Task<string> GetRunningJobs()
     {
-        var executingJobs = await _scheduler.GetCurrentlyExecutingJobs().ConfigureAwait(false);
+        var executingJobs = await _scheduler.GetCurrentlyExecutingJobs();
         if (executingJobs == null || executingJobs.Count == 0)
         {
             return "No running jobs found.";
@@ -97,7 +97,7 @@ public class QuartzBackgroundTaskManager
 
         if (await _scheduler.CheckExists(jobKey).ConfigureAwait(false))
         {
-            await _scheduler.DeleteJob(jobKey).ConfigureAwait(false);
+            await _scheduler.DeleteJob(jobKey);
             return true;
         }
         else
@@ -107,7 +107,7 @@ public class QuartzBackgroundTaskManager
     }
     public async Task<string> GetAllJobsNames()
     {
-        var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup()).ConfigureAwait(false);
+        var jobKeys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
         if (jobKeys == null || jobKeys.Count == 0)
         {
             return "No jobs found.";

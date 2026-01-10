@@ -1,6 +1,5 @@
 ﻿using Quartz;
 using SkillzBot.IllSkillzBot;
-using System;
 using System.Threading.Tasks;
 
 namespace SkillzBot.QuartZ
@@ -22,22 +21,22 @@ namespace SkillzBot.QuartZ
             switch (key)
             {
                 case "GetCurrentMatchTask":
-                    await _illPredictions.GetCurrentMatchTask().ConfigureAwait(false);
+                    await _illPredictions.GetCurrentMatchTask();
                     break;
                 case "RunEvery5Min":
-                    await _taskService.RunEvery5Min().ConfigureAwait(false);
+                    await _taskService.RunEvery5Min();
                     break;
                 case "RunDaily":
-                    await _taskService.RunDaily().ConfigureAwait(false);
+                    await _taskService.RunDaily();
                     break;
                 case "TopRuleteTask":
-                    await _taskService.TopRuleteTask().ConfigureAwait(false);
+                    await _taskService.TopRuleteTask();
                     break;
                 case "MediaQueueFlush":
-                    await _taskService.MediaQueueFlush().ConfigureAwait(false);
+                    await _taskService.MediaQueueFlush();
                     break;
                 case "CronTest":
-                    await _taskService.CronTest().ConfigureAwait(false);
+                    await _taskService.CronTest();
                     break;
                 default:
                     // Log unknown job

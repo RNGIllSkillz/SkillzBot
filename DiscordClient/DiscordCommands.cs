@@ -1,7 +1,7 @@
 ﻿using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Utils;
-using SkillzBot.Singleton;
+using SkillzBot.IllConfiguration; 
 using System.Linq;
 using System.Threading.Tasks;
 using SkillzBot.Interfaces;
@@ -12,11 +12,26 @@ namespace SkillzBot.Discord
     {
         private readonly ITtvIRCClient _ircClient;
         private readonly IllCommands _illCommands;
+        private readonly BotConfigModel _config;
+        private readonly IGameStateService _gameState;
 
-        public DiscordCommands(ITtvIRCClient ircClient, IllCommands illCommands)
+        private readonly DiscordClient _discordClient;
+        private readonly IllGames _illGames;
+
+        public DiscordCommands(
+            ITtvIRCClient ircClient,
+            IllCommands illCommands,
+            BotConfigModel config,
+            IGameStateService gameState,
+            DiscordClient discordClient, 
+            IllGames illGames)           
         {
             _ircClient = ircClient;
             _illCommands = illCommands;
+            _config = config;
+            _gameState = gameState;
+            _discordClient = discordClient;
+            _illGames = illGames;
         }
 
         public async Task CommandHandler(string UserInput)
@@ -36,29 +51,33 @@ namespace SkillzBot.Discord
                             case "na":
                                 break;
                             default:
-                                await DiscordClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na").ConfigureAwait(false);
+                                // 3. Use instance _discordClient
+                                await _discordClient.SendMessage("Ошибка ввода (не указан регион). Поддерживаемые регионы - euw, ru, na");
                                 return;
                         }
                         var sNameTemp = StringUtil.RemoveWhitespace(StringUtil.GetCommandFromUserInput(command.Take(command.Count() - 1).ToArray()));
-                        lp = await _illCommands.GetLpAsync(sNameTemp, command.Last()).ConfigureAwait(false);
-                        await DiscordClient.SendMessage($"Призыватель {sNameTemp} - {lp.RANK} {lp.LPoints} LP", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
+                        lp = await _illCommands.GetLpAsync(sNameTemp, command.Last());
+
+                        // Use instance _discordClient
+                        await _discordClient.SendMessage($"Призыватель {sNameTemp} - {lp.RANK} {lp.LPoints} LP", _config.DiscordSpamID);
                     }
                     else
                     {
-                        lp = await _illCommands.GetLpAsync().ConfigureAwait(false);
-                        await DiscordClient.SendMessage($"Призыватель {IllSingleton.Game.SummonerName} - {lp.RANK} {lp.LPoints} LP", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
+                        lp = await _illCommands.GetLpAsync();
+                        // Use instance _discordClient and _gameState.Current
+                        await _discordClient.SendMessage($"Призыватель {_gameState.Current.SummonerName} - {lp.RANK} {lp.LPoints} LP", _config.DiscordSpamID);
                     }
                     break;
 
                 case "!8ball":
                     if (command.Length < 2)
-                        await DiscordClient.SendMessage("Нет вопроса - нет ответа.", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
+                        await _discordClient.SendMessage("Нет вопроса - нет ответа.", _config.DiscordSpamID);
                     else
-                        await DiscordClient.SendMessage(IllGames.GetMagic8BallAnswer(), IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
+                        // 4. Use instance _illGames
+                        await _discordClient.SendMessage(_illGames.GetMagic8BallAnswer(), _config.DiscordSpamID);
                     break;
                 case "!gpt":
-
-                    await DiscordClient.SendMessage("в разработке...").ConfigureAwait(false);
+                    await _discordClient.SendMessage("в разработке...");
                     break;
 
                 case "!say":
@@ -70,7 +89,7 @@ namespace SkillzBot.Discord
                     break;
 
                 default:
-                    await DiscordClient.SendMessage("Unknown command.", IllSingleton.Config.DiscordSpamID).ConfigureAwait(false);
+                    await _discordClient.SendMessage("Unknown command.", _config.DiscordSpamID);
                     break;
             }
         }

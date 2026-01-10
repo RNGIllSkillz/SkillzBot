@@ -3,9 +3,7 @@ using SkillzBot.API.RiotGames;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Interfaces;
-using SkillzBot.Singleton;
-using SkillzBot.SubUtils;
-using SkillzBot.WRITERS;
+using SkillzBot.Services.Infrastructure;
 using System;
 using System.Threading.Tasks;
 
@@ -14,62 +12,71 @@ namespace SkillzBot.QuartZ
     internal class BackGroundTasks
     {
         private readonly ILogger<BackGroundTasks> _logger;
-        private readonly IDatabaseService _database;
         private readonly ITtvIRCClient _ircClient;
         private readonly IllChatMessageHandler _chatMessageHandler;
         private readonly IRiotApiService _riotApi;
         private readonly IllCommands _illCommands;
+        private readonly IBotStateService _botState; 
+        private readonly IGameStateService _gameState;
+        private readonly MediaQueueService _mediaQueueService;
+        private readonly SubscriptionService _subscriptionService;
 
         public BackGroundTasks(
             ILogger<BackGroundTasks> logger,
-            IDatabaseService database,
             ITtvIRCClient ircClient,
             IllChatMessageHandler chatMessageHandler,
             IRiotApiService riotApi,
-            IllCommands illCommands)
+            IllCommands illCommands,
+            IBotStateService botState,
+            IGameStateService gameState,
+            MediaQueueService mediaQueueService,
+            SubscriptionService subscriptionService)
         {
             _logger = logger;
-            _database = database;
             _ircClient = ircClient;
             _chatMessageHandler = chatMessageHandler;
             _riotApi = riotApi;
             _illCommands = illCommands;
+            _botState = botState;
+            _gameState = gameState;
+            _mediaQueueService = mediaQueueService;
+            _subscriptionService = subscriptionService;
         }
 
         public async Task RunDaily()
         {
             _logger.LogInformation("Running Daily Tasks...");
-            var t = await _riotApi.GetRankBySummonerAsync().ConfigureAwait(false);
+            var t = await _riotApi.GetRankBySummonerAsync();
             if (t != null)
             {
                 if (int.TryParse(t[1], out int startLP))
-                    IllSingleton.Game.StartLP = startLP;
+                    _gameState.Current.StartLP = startLP;
                 else
-                    IllSingleton.Game.StartLP = 0;
-                IllSingleton.Game.Elo = t[0];
-                IllSingleton.Game.Tier = t[2];
+                    _gameState.Current.StartLP = 0;
+                _gameState.Current.Elo = t[0];
+                _gameState.Current.Tier = t[2];
             }            
-            IllSingleton.Game.EarnedLP = 0;
-            IllSingleton.Game.NumLosses = 0;
-            IllSingleton.Game.NumGames = 0;
-            IllSingleton.Game.NumWins = 0;
+            _gameState.Current.EarnedLP = 0;
+            _gameState.Current.NumLosses = 0;
+            _gameState.Current.NumGames = 0;
+            _gameState.Current.NumWins = 0;
 
-            await IllSingleton.Game.SaveAsync().ConfigureAwait(false);
+            await _gameState.SaveAsync();
         }
 
         public async Task RunEvery5Min()
         {
-            await _chatMessageHandler.SaveBuffer(true).ConfigureAwait(false);
-            SubCheck.RunChecker();
+            await _chatMessageHandler.SaveBuffer(true);
+            await _subscriptionService.CheckSubscriptionAsync();
         }
 
         public async Task TopRuleteTask()
         {
-            if (IllSingleton.State.BroadcasterIsOnline)
+            if (_botState.Current.BroadcasterIsOnline)
             {
                 try
                 {
-                    await _illCommands.TopRulete().ConfigureAwait(false);
+                    await _illCommands.TopRulete();
                 }
                 catch (Exception ex)
                 {
@@ -80,12 +87,12 @@ namespace SkillzBot.QuartZ
 
         public async Task MediaQueueFlush()
         {
-            await MediaqueueWriter.MediaQueueFlush().ConfigureAwait(false);
+            await _mediaQueueService.FlushQueueAsync();
         }
 
         public async Task CronTest()
         {
-            await _ircClient.SendMessage("Cron test message.").ConfigureAwait(false);
+            await _ircClient.SendMessage("Cron test message.");
         }
     }
 }

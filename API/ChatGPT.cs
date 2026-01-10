@@ -1,17 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using OpenAI;
-using OpenAI.Chat;
-using System.Threading.Tasks;
-using OpenAI.Models;
-using TwitchLib.Api.Helix;
-using SkillzBot.Singleton;
-using SkillzBot.Utils;
-using SkillzBot.WRITERS;
-using SkillzBot.Discord;
-
-namespace SkillzBot.API.OpenAI
+﻿namespace SkillzBot.API.OpenAI
 {
     internal sealed class ChatGPT
     {
@@ -55,7 +42,7 @@ namespace SkillzBot.API.OpenAI
             chat.AppendUserInput(input);
             try
             {
-                return await chat.GetResponseFromChatbotAsync().ConfigureAwait(false);
+                return await chat.GetResponseFromChatbotAsync();
             }
             catch (Exception ex)
             {

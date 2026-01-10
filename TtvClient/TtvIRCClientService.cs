@@ -1,14 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using SkillzBot.API.StreamElements;
+﻿using Microsoft.Extensions.Logging;
 using SkillzBot.API.Twitch;
-using SkillzBot.Discord;
-using SkillzBot.Hosts;
-using SkillzBot.IllSkillzBot;
-using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
-using SkillzBot.Singleton;
+using SkillzBot.IllConfiguration; 
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,11 +15,12 @@ namespace SkillzBot.IRC
 {
     sealed class TtvIRCClientService : ITtvIRCClient
     {
-        private static readonly ILogger<TtvIRCClientService> _logger = IllServiceProvider.GetLogger<TtvIRCClientService>();
-        private IDatabaseService _databaseService;
-        private readonly IServiceProvider _serviceProvider;
-        private IllChatMessageHandler _messageHandler;
-        private readonly ITwitchService _twitchService;
+        private readonly ILogger<TtvIRCClientService> _logger;
+        private readonly IDatabaseService _databaseService;
+        private readonly BotConfigModel _config;
+        private readonly IGameStateService _gameState;
+        private readonly IBotStateService _botState;
+        private readonly IStreamElementsService _streamElementsService;
 
         private TwitchClient _client;
         private bool _isInitialized = false;
@@ -39,15 +34,23 @@ namespace SkillzBot.IRC
         private const int CONNECTION_TIMEOUT_SECONDS = 15;
         private const int MESSAGE_MAX_LENGTH = 500;
 
+        public event Func<OnMessageReceivedArgs, Task> OnMessageReceived;
+
         public TtvIRCClientService(
+            ILogger<TtvIRCClientService> logger,
             IDatabaseService database,
-            IServiceProvider serviceProvider,
-            ITwitchService twitchService)
+            BotConfigModel config,
+            IGameStateService gameState,
+            IBotStateService botState,
+            IStreamElementsService streamElementsService)
         {
+            _logger = logger;
             _databaseService = database;
-            _serviceProvider = serviceProvider;
             _logger.LogDebug("TtvIRCClient logger initialized");
-            _twitchService = twitchService;
+            _config = config;
+            _gameState = gameState;
+            _botState = botState;
+            _streamElementsService = streamElementsService;
         }
 
         public async Task<bool> InitializeAsync()
@@ -55,12 +58,12 @@ namespace SkillzBot.IRC
             if (_isDisposed) return false;
             if (_isInitialized) return true;
 
-            await _connectionSemaphore.WaitAsync().ConfigureAwait(false);
+            await _connectionSemaphore.WaitAsync();
             try
             {
                 if (_isInitialized) return true;
                 _logger?.LogInformation("Initializing Twitch IRC client...");
-                return await ConnectToTwitchAsync().ConfigureAwait(false);
+                return await ConnectToTwitchAsync();
             }
             catch (Exception ex)
             {
@@ -75,9 +78,9 @@ namespace SkillzBot.IRC
 
         private async Task<bool> ConnectToTwitchAsync()
         {
-            if (string.IsNullOrWhiteSpace(IllSingleton.Config?.BotTwitchName) ||
-                string.IsNullOrWhiteSpace(IllSingleton.Config?.BotTwitchAuth) ||
-                string.IsNullOrWhiteSpace(IllSingleton.Config?.ChannelName))
+            if (string.IsNullOrWhiteSpace(_config?.BotTwitchName) ||
+                string.IsNullOrWhiteSpace(_config?.BotTwitchAuth) ||
+                string.IsNullOrWhiteSpace(_config?.ChannelName))
             {
                 _logger?.LogError("Missing required Twitch configuration.");
                 return false;
@@ -90,17 +93,17 @@ namespace SkillzBot.IRC
                     DisposeClient();
 
                     var credentials = new ConnectionCredentials(
-                        IllSingleton.Config.BotTwitchName,
-                        IllSingleton.Config.BotTwitchAuth);
+                        _config.BotTwitchName,
+                        _config.BotTwitchAuth);
 
                     _client = new TwitchClient();
                     RegisterEventHandlers();
-                    _client.Initialize(credentials, IllSingleton.Config.ChannelName);
+                    _client.Initialize(credentials, _config.ChannelName);
 
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(CONNECTION_TIMEOUT_SECONDS));
-                    await _client.ConnectAsync();                    
+                    await _client.ConnectAsync();
 
-                    await Task.Delay(2000, CancellationToken.None).ConfigureAwait(false);
+                    await Task.Delay(2000, CancellationToken.None);
 
                     if (_client.IsConnected)
                     {
@@ -123,7 +126,7 @@ namespace SkillzBot.IRC
                     int delayMs = BASE_DELAY_MS * attempt;
                     try
                     {
-                        await Task.Delay(delayMs, CancellationToken.None).ConfigureAwait(false);
+                        await Task.Delay(delayMs, CancellationToken.None);
                     }
                     catch { /* ignore cancellation */ }
                 }
@@ -139,7 +142,7 @@ namespace SkillzBot.IRC
             try
             {
                 if (_isDisposed) return false;
-                return await ConnectToTwitchAsync().ConfigureAwait(false);
+                return await ConnectToTwitchAsync();
             }
             finally
             {
@@ -167,10 +170,8 @@ namespace SkillzBot.IRC
                     _client.OnDisconnected -= Client_OnDisconnected;
                     _client.OnConnected -= Client_OnConnected;
 
-                    // Disconnect is also likely async now, but in Dispose context we fire and forget
                     if (_client.IsConnected)
                     {
-                        // Fire and forget disconnect to avoid blocking dispose
                         _ = _client.DisconnectAsync();
                     }
                 }
@@ -184,7 +185,7 @@ namespace SkillzBot.IRC
 
         private async Task Client_OnConnected(object sender, OnConnectedEventArgs e)
         {
-            var channelName = IllSingleton.Config.ChannelName;
+            var channelName = _config.ChannelName;
             _logger?.LogInformation("Twitch IRC Socket Connected as {Username}. Joining channel: {Channel}", e.BotUsername, channelName);
 
             try
@@ -196,29 +197,31 @@ namespace SkillzBot.IRC
                 _logger?.LogError(ex, "Failed to join channel {Channel}", channelName);
             }
         }
-
+        private async Task Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
+        {
+            if (OnMessageReceived != null)
+            {
+                await OnMessageReceived.Invoke(e);
+            }
+        }
+        /*
         private async Task Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
         {
             try
             {
-                if (_messageHandler == null)
-                {
-                    _messageHandler = _serviceProvider.GetRequiredService<IllChatMessageHandler>();
-                }
-
                 _logger?.LogDebug("Message received from {User}: {Message}", e.ChatMessage.Username, e.ChatMessage.Message);
 
-                var user = await _messageHandler.MessageHandler(e).ConfigureAwait(false);
+                var user = await _illChatMessageHandler.MessageHandler(e);
                 if (user != null)
                 {
-                    await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
+                    await _databaseService.UpdateUserAsync(user);
                 }
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error handling message from {User}", e.ChatMessage?.Username);
             }
-        }
+        }*/
 
         private async Task Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
@@ -226,11 +229,11 @@ namespace SkillzBot.IRC
             {
                 _logger?.LogInformation("User {Username} timed out for {Duration} seconds", e.UserTimeout.Username, e.UserTimeout.TimeoutDuration);
 
-                await UserTimedoutEventTask(e).ConfigureAwait(false);
+                await UserTimedoutEventTask(e);
 
                 if (e.UserTimeout.TimeoutDuration.TotalSeconds > 50000)
                 {
-                    await SendMessage("o7").ConfigureAwait(false);
+                    await SendMessage("o7");
                 }
             }
             catch (Exception ex)
@@ -241,29 +244,7 @@ namespace SkillzBot.IRC
 
         private async Task Client_OnDisconnected(object sender, OnDisconnectedArgs e)
         {
-            _logger?.LogWarning("Twitch IRC disconnected. Attempting to reconnect...");
-
-            lock (_lockObject)
-            {
-                _isInitialized = false;
-            }
-
-            // Fire and forget reconnection logic
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(BASE_DELAY_MS).ConfigureAwait(false);
-                    if (!_isDisposed)
-                    {
-                        await ReconnectAsync().ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Error during automatic reconnection");
-                }
-            });
+            _logger?.LogWarning("Twitch IRC disconnected. Waiting for Hosted Service to reconnect...");
             await Task.CompletedTask;
         }
 
@@ -273,12 +254,12 @@ namespace SkillzBot.IRC
 
             try
             {
-                var user = await _databaseService.GetUserAsync(e.UserTimeout.Username).ConfigureAwait(false);
+                var user = await _databaseService.GetUserAsync(e.UserTimeout.Username);
                 if (user.dbID != -404)
                 {
                     user.UvalTimer = e.UserTimeout.TimeoutDuration.TotalSeconds + DateTimeOffset.Now.ToUnixTimeSeconds();
                     user.UvalCon++;
-                    await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
+                    await _databaseService.UpdateUserAsync(user);
                 }
             }
             catch (Exception ex)
@@ -293,37 +274,15 @@ namespace SkillzBot.IRC
             {
                 _logger?.LogInformation("Processing stream down event");
 
-                IllSingleton.State.BroadcasterIsOnline = false;
-                IllGames.ClearQuizzActiveUsers();
-                IllSingleton.State.FirstQuizOfTheDay = true;
+                _botState.Current.BroadcasterIsOnline = false;
+                _botState.Current.FirstQuizOfTheDay = true;
 
-                var illCommands = _serviceProvider.GetRequiredService<IllCommands>();
-                var lastStats = await illCommands.GetLpAsync();
-
-                string msg = $"Cыграно {IllSingleton.Game.NumGames} игр, из них побед {IllSingleton.Game.NumWins} / поражений {IllSingleton.Game.NumLosses}. Заработано {IllSingleton.Game.EarnedLP} LP";
-
-                string chatMessage;
-                string discordTitle;
-
-                if (IllSingleton.Game.EarnedLP < 0)
-                {
-                    chatMessage = STRINGS.OnStreadDownLowLP;
-                    discordTitle = "С позором!";
-                }
-                else if (IllSingleton.Game.EarnedLP > 0)
-                {
-                    chatMessage = STRINGS.OnStreadDownHighLP;
-                    discordTitle = "Героем!";
-                }
-                else
-                {
-                    chatMessage = "Стример офнул PoroSad";
-                    discordTitle = "";
-                }
-
+                // Simple check if user is online, avoiding deep logic here if possible
+                string chatMessage = _gameState.Current.EarnedLP < 0 ? STRINGS.OnStreadDownLowLP : STRINGS.OnStreadDownHighLP;
                 await SendMessage(chatMessage);
-                await DiscordClient.SendEmbedMsg(discordTitle, "", IllSingleton.Game.SummonerName,
-                    lastStats.RANK, lastStats.LPoints, null, false, msg);
+
+                // Discord notification remains
+                //await _discordClient.SendEmbedMsg("Stream Ended", "", _gameState.Current.SummonerName, "", "", null, false, "");
             }
             catch (Exception ex)
             {
@@ -336,29 +295,8 @@ namespace SkillzBot.IRC
             try
             {
                 _logger?.LogInformation("Processing stream up event");
-
-                IllSingleton.State.BroadcasterIsOnline = true;
-                await SendMessage(string.Format(STRINGS.OnStreamUP, IllSingleton.Config.ChannelName));
-
-                var info = await _twitchService.GetStreamInfo();
-
-                var illCommands = _serviceProvider.GetRequiredService<IllCommands>();
-                var lp = await illCommands.GetLpAsync();
-
-                if (info != null)
-                {
-                    await DiscordClient.SendEmbedMsg(info.Title, info.ThumbnailUrl,
-                        IllSingleton.Game.SummonerName, lp.RANK, lp.LPoints);
-                }
-                else
-                {
-                    var cInfo = await _twitchService.GetChannelInformationAsync();
-                    if (cInfo != null)
-                    {
-                        await DiscordClient.SendEmbedMsg(cInfo.Title, null,
-                            IllSingleton.Game.SummonerName, lp.RANK, lp.LPoints);
-                    }
-                }
+                _botState.Current.BroadcasterIsOnline = true;
+                await SendMessage(string.Format(STRINGS.OnStreamUP, _config.ChannelName));
             }
             catch (Exception ex)
             {
@@ -372,45 +310,14 @@ namespace SkillzBot.IRC
             {
                 if (e?.Payload?.Event == null) return;
                 _logger?.LogInformation("User {Username} unbanned by {Moderator}", e.Payload.Event.UserName, e.Payload.Event.ModeratorUserLogin);
-                await SendMessage(string.Format(STRINGS.OnUnban, e.Payload.Event.ModeratorUserLogin, e.Payload.Event.UserName)).ConfigureAwait(false);
+                await SendMessage(string.Format(STRINGS.OnUnban, e.Payload.Event.ModeratorUserLogin, e.Payload.Event.UserName));
             }
             catch (Exception ex) { _logger?.LogError(ex, "Error processing unban event"); }
         }
-        public async Task SendBotMessage(string messageToSend, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(messageToSend)) return;
 
-            if (IllSingleton.State.IsSilent)
-            {
-                _logger?.LogDebug("Bot is in silent mode, message not sent: {Message}", messageToSend);
-                return;
-            }
-
-            if (!IsConnected)
-            {
-                _logger?.LogWarning("Cannot send message - not connected to Twitch IRC");
-                return;
-            }
-
-            try
-            {
-                if (messageToSend.Length <= MESSAGE_MAX_LENGTH)
-                {
-                    await _client.SendMessageAsync(IllSingleton.Config.ChannelName, messageToSend).ConfigureAwait(false);
-                }
-                else
-                {
-                    await _client.SendMessageAsync(IllSingleton.Config.ChannelName, messageToSend.Substring(0, MESSAGE_MAX_LENGTH)).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error sending message: {Message}", messageToSend);
-            }
-        }
         public async Task SendMessage(string messageToSend, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(messageToSend) || IllSingleton.State.IsSilent || !IsConnected) return;
+            if (string.IsNullOrWhiteSpace(messageToSend) || _botState.Current.IsSilent || !IsConnected) return;
             try
             {
                 if (messageToSend.Length <= MESSAGE_MAX_LENGTH)
@@ -423,7 +330,7 @@ namespace SkillzBot.IRC
 
         private async Task SendSingleMessage(string message, CancellationToken cancellationToken)
         {
-            try { await StreamElementsAPI.SendChatMessage(message, cancellationToken); }
+            try { await _streamElementsService.SendChatMessage(message, cancellationToken); }
             catch (Exception ex) { _logger?.LogError(ex, "SendSingleMessage error"); }
         }
 

@@ -1,20 +1,23 @@
-﻿using SkillzBot.Readers;
+﻿using SkillzBot.IllConfiguration;
+using SkillzBot.Readers;
 using System;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 
-namespace SkillzBot.Singleton
+namespace SkillzBot.Configuration 
 {
     public static class BotConfigurationFactory
     {
-        public static async Task<BotConfigModel> CreateAsync(string configPath)
+        public static BotConfigModel Create(string configPath)
         {
+            // 1. Read JSON (Synchronous)
             var configReader = new Config(configPath);
             var botConfigs = configReader.GetBotConfigs();
 
             if (botConfigs == null)
                 throw new InvalidOperationException("Configuration file is empty or invalid JSON.");
 
-            var missingFields = new System.Collections.Generic.List<string>();
+            // 2. Validate
+            var missingFields = new List<string>();
             if (string.IsNullOrWhiteSpace(botConfigs.BotTwitchAuth)) missingFields.Add("BotTwitchAuth");
             if (string.IsNullOrWhiteSpace(botConfigs.ChannelName)) missingFields.Add("ChannelName");
             if (string.IsNullOrWhiteSpace(botConfigs.RiotApiToken)) missingFields.Add("RiotApiToken");
@@ -24,7 +27,8 @@ namespace SkillzBot.Singleton
                 throw new InvalidOperationException($"Critical configuration missing: {string.Join(", ", missingFields)}");
             }
 
-            var configuration = new BotConfigModel
+            // 3. Map to Model
+            return new BotConfigModel
             {
                 BotTwitchName = botConfigs.BotTwitchName,
                 BotTwitchAuth = botConfigs.BotTwitchAuth,
@@ -41,7 +45,7 @@ namespace SkillzBot.Singleton
                 DiscordBotToken = botConfigs.DiscordBotToken,
                 DiscordNoteID = botConfigs.DiscordNoteID,
                 DiscordSpamID = botConfigs.DiscordSpamID,
-                RootUser = "rng_backtrack", 
+                RootUser = "rng_backtrack",
 
                 Database = new DatabaseConfig(
                     botConfigs.MySQL_IP,
@@ -58,7 +62,9 @@ namespace SkillzBot.Singleton
                     "dicWhiteList.txt",
                     "userblacklist.txt",
                     "GameState.txt",
-                    "BotState.txt"
+                    "BotState.txt",
+                    "mediaqueue.txt",
+                    "Subscription.txt"
                 ),
 
                 ChannelIds = new ChannelIdsConfig(
@@ -72,9 +78,6 @@ namespace SkillzBot.Singleton
                     botConfigs.UvalVipId
                 )
             };
-
-            await Task.CompletedTask;
-            return configuration;
         }
     }
 }

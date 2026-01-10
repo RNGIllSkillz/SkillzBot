@@ -13,12 +13,12 @@ namespace SkillzBot.Writers
 
         public static async Task<bool> DeleteLineFromFileAsync(string filePath, string lineToDelete)
         {
-            await _semaphore.WaitAsync().ConfigureAwait(false);
+            await _semaphore.WaitAsync();
             try
             {
                 if (!File.Exists(filePath)) return false;
 
-                string[] lines = await File.ReadAllLinesAsync(filePath).ConfigureAwait(false);
+                string[] lines = await File.ReadAllLinesAsync(filePath);
                 var updatedLines = new List<string>();
                 bool fileChanged = false;
                 foreach (string line in lines)
@@ -34,7 +34,7 @@ namespace SkillzBot.Writers
                 }
                 if (fileChanged)
                 {
-                    await File.WriteAllLinesAsync(filePath, updatedLines.ToArray()).ConfigureAwait(false);
+                    await File.WriteAllLinesAsync(filePath, updatedLines.ToArray());
                 }
                 return fileChanged;
             }
@@ -46,10 +46,10 @@ namespace SkillzBot.Writers
 
         public static async Task AddLineToFileAsync(string filePath, string lineToAdd)
         {
-            await _semaphore.WaitAsync().ConfigureAwait(false);
+            await _semaphore.WaitAsync();
             try
             {
-                await File.AppendAllTextAsync(filePath, lineToAdd + Environment.NewLine).ConfigureAwait(false);
+                await File.AppendAllTextAsync(filePath, lineToAdd + Environment.NewLine);
             }
             finally
             {

@@ -22,7 +22,6 @@
   
   <ItemGroup>
     <None Include="IllSkillzBot\IllCommandsNest\IllCommands.cs" />
-    <None Include="IllSkillzBot\IllCommandsNest\IllCommands_WIP.cs" />
   </ItemGroup>
   
   <ItemGroup>

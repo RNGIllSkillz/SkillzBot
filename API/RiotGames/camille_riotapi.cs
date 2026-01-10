@@ -10,13 +10,15 @@ using Camille.RiotGames.LeagueV4;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.AccountV1;
 using Microsoft.Extensions.Logging;
-using SkillzBot.Singleton;
+using SkillzBot.IllConfiguration; 
 using System.Linq;
 
 namespace SkillzBot.API.RiotGames
 {
     public class RiotApiService : IRiotApiService
     {
+        private readonly BotConfigModel _config; 
+        private readonly IGameStateService _gameState; 
         private RiotGamesApi _riotApi;
         private readonly ILogger<RiotApiService> _logger;
         private PlatformRoute _platformRoute;
@@ -27,15 +29,23 @@ namespace SkillzBot.API.RiotGames
         private static string lastErrorMessage = null;
         private Account account;
         private string _normalizedSummonerName;
+        private readonly RiotHttpHandler _httpHandler;
 
-        public RiotApiService(ILogger<RiotApiService> logger)
+        public RiotApiService(
+        BotConfigModel config,
+        IGameStateService gameState,
+        ILogger<RiotApiService> logger,
+        RiotHttpHandler httpHandler)
         {
+            _config = config;
+            _gameState = gameState;
             _logger = logger;
+            _httpHandler = httpHandler;
         }
 
         public async Task<bool> InitializeAsync()
         {
-            _isValidToken = StringUtil.IsValidApiToken(IllSingleton.Config.RiotApiToken);
+            _isValidToken = StringUtil.IsValidApiToken(_config.RiotApiToken);
             if (!_isValidToken)
             {
                 _logger.LogWarning("No valid Riot API token. Functionality offline.");
@@ -45,22 +55,17 @@ namespace SkillzBot.API.RiotGames
             UpdateConfig();
 
             _riotApi = RiotGamesApi.NewInstance(
-                new RiotGamesApiConfig.Builder(IllSingleton.Config.RiotApiToken)
+                new RiotGamesApiConfig.Builder(_config.RiotApiToken)
                 {
                     MaxConcurrentRequests = 200,
                     Retries = 3,
                 }.Build()
             );
-
-            // Attempt to fetch summoner. If it fails (503, etc), we don't crash, 
-            // we just leave _summoner null. It will be retried on the first command call.
             _summoner = await GetSummonerInternalAsync();
 
             if (_summoner == null)
             {
                 _logger.LogWarning("Riot API Warning: Initial Summoner fetch failed for {GameName}#{TagLine}. Service will attempt to reconnect on next command usage.", _gameName, _tagLine);
-                // We return true here to allow the rest of the bot to start up. 
-                // The service is "Initialized" in terms of config, but "Not Ready" in terms of data.
                 return true;
             }
 
@@ -68,16 +73,17 @@ namespace SkillzBot.API.RiotGames
             return true;
         }
 
-        /// <summary>
-        /// Checks if the service has valid summoner data. If not, attempts to fetch it.
-        /// </summary>
         private async Task<bool> EnsureServiceReadyAsync()
         {
+            if (_riotApi == null)
+            {
+                await InitializeAsync();
+            }
             if (_summoner != null) return true;
             if (!_isValidToken) return false;
 
             // Attempt to re-fetch if previously failed
-            _summoner = await GetSummonerInternalAsync().ConfigureAwait(false);
+            _summoner = await GetSummonerInternalAsync();
 
             if (_summoner != null)
             {
@@ -114,7 +120,7 @@ namespace SkillzBot.API.RiotGames
 
             try
             {
-                var currentGame = await _riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
+                var currentGame = await _riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(_platformRoute, _summoner.Puuid);
                 lastErrorMessage = null;
                 return currentGame;
             }
@@ -139,7 +145,6 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<List<string>> GetRankBySummonerAsync()
         {
-            // FIX: Added lazy retry here
             if (!await EnsureServiceReadyAsync())
             {
                 _logger.LogWarning("GetRankBySummonerAsync: Service not ready.");
@@ -148,7 +153,7 @@ namespace SkillzBot.API.RiotGames
 
             try
             {
-                var rank = await HttpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
+                var rank = await _httpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid);
                 var soloQueueRank = rank?.FirstOrDefault(mType => mType.QueueType == QueueType.RANKED_SOLO_5x5);
 
                 if (soloQueueRank != null)
@@ -170,10 +175,10 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<Match> GetMatchAsync(string matchID)
         {
-            if (!_isValidToken) return null; // No need to check summoner for generic match lookup, just token
+            if (!_isValidToken) return null; 
             try
             {
-                return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID).ConfigureAwait(false);
+                return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID);
             }
             catch (Exception ex)
             {
@@ -189,17 +194,18 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<LeagueEntry[]> GetLeagueEntriesBySummonerAsync(string SummonerName = null, string sRegion = null)
         {
-            if (!_isValidToken) return null;
-
-            // If looking up CURRENT user, ensure service is ready
             if (SummonerName == null && !await EnsureServiceReadyAsync()) return null;
 
             try
             {
                 if (SummonerName == null || sRegion == null)
-                    return await HttpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
+                    return await _httpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid);
                 else
                 {
+                    // Ensure API is ready even for external lookups
+                    if (_riotApi == null) await InitializeAsync();
+                    if (_riotApi == null) return null;
+
                     var nameParts = SummonerName.Split('#');
                     if (nameParts.Length < 2)
                     {
@@ -215,7 +221,7 @@ namespace SkillzBot.API.RiotGames
                         "na" => PlatformRoute.NA1,
                         _ => PlatformRoute.EUW1,
                     };
-                    return await HttpHandler.GetLeagueEntriesByPUUIDAsync(tempPlatform, tempAccount.Puuid).ConfigureAwait(false);
+                    return await _httpHandler.GetLeagueEntriesByPUUIDAsync(tempPlatform, tempAccount.Puuid);
                 }
             }
             catch (Exception ex)
@@ -235,7 +241,7 @@ namespace SkillzBot.API.RiotGames
                     return participant;
                 }
             }
-            _logger.LogWarning("Could not find participant {SummonerName} in match {MatchId}", IllSingleton.Game.SummonerName, match.Metadata.MatchId);
+            _logger.LogWarning("Could not find participant {SummonerName} in match {MatchId}", _gameState.Current.SummonerName, match.Metadata.MatchId);
             return null;
         }
 
@@ -250,10 +256,10 @@ namespace SkillzBot.API.RiotGames
                     "na" => PlatformRoute.NA1,
                     _ => PlatformRoute.EUW1,
                 };
-                account = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, gameName, tagLine).ConfigureAwait(false);
+                account = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, gameName, tagLine);
                 if (account == null)
                     throw new InvalidOperationException("Account not found for the given gameName and tagLine.");
-                _summoner = await _riotApi.SummonerV4().GetByPUUIDAsync(newRegion, account.Puuid).ConfigureAwait(false);
+                _summoner = await _riotApi.SummonerV4().GetByPUUIDAsync(newRegion, account.Puuid);
                 return null;
             }
             catch (Exception ex)
@@ -265,13 +271,11 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<Summoner> GetSummonerByNameAsync(string tagLine, string inRegion)
         {
-            // Note: This method seems partially implemented in original code (uses class-level 'account' which might be stale),
-            // but keeping signature as requested.
             if (!_isValidToken) return null;
             try
             {
                 if (account == null) return null;
-                return await _riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid).ConfigureAwait(false);
+                return await _riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid);
             }
             catch (Exception ex)
             {
@@ -282,22 +286,22 @@ namespace SkillzBot.API.RiotGames
 
         public void UpdateConfig()
         {
-            _platformRoute = IllSingleton.Game.SummonerRegion switch
+            _platformRoute = _gameState.Current.SummonerRegion switch
             {
                 "ru" => PlatformRoute.RU,
                 "na" => PlatformRoute.NA1,
                 _ => PlatformRoute.EUW1,
             };
-            var name = IllSingleton.Game.SummonerName.Split('#');
+            var name = _gameState.Current.SummonerName.Split('#');
             if (name.Length < 2)
             {
-                _logger.LogError("Invalid Summoner Name format in config (Name#Tag): {SummonerName}", IllSingleton.Game.SummonerName);
+                _logger.LogError("Invalid Summoner Name format in config (Name#Tag): {SummonerName}", _gameState.Current.SummonerName);
                 _isValidToken = false;
                 return;
             }
             _gameName = name[0];
             _tagLine = name[1];
-            _normalizedSummonerName = StringUtil.RemoveWhitespace(IllSingleton.Game.SummonerName);
+            _normalizedSummonerName = StringUtil.RemoveWhitespace(_gameState.Current.SummonerName);
         }
     }
 }

@@ -1,9 +1,8 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SkillzBot.Hosts;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
-using SkillzBot.Singleton;
+using SkillzBot.IllConfiguration; 
 using SkillzBot.TtvClient.TTVRewards;
 using System;
 using System.Collections.Generic;
@@ -28,6 +27,8 @@ namespace SkillzBot.EventSub
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly RewardsRedemption _rewardsRedemption;
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
+        private readonly BotConfigModel _config;
+        private readonly IBotStateService _botState;
         private int tryes = 0;
         private readonly Dictionary<string, string> SubscriptionsTypes;
 
@@ -36,13 +37,17 @@ namespace SkillzBot.EventSub
             IDatabaseService databaseService, 
             ITtvIRCClient ircClient,
             RewardsRedemption rewardsRedemption,
-            ILogger<TTVEventSub> logger)
+            ILogger<TTVEventSub> logger,
+            BotConfigModel config,
+            IBotStateService botState)
         {
             _ircClient = ircClient;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
             _logger = logger;
+            _config = config;
+            _botState = botState;
 
             _logger.LogDebug("TTVEventSub initialized");
 
@@ -59,8 +64,8 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelUnban += OnUnban;
             _eventSubWebsocketClient.ChannelBan += OnChannelBan;
 
-            _twitchApi.Settings.ClientId = IllSingleton.Config.TApiClientId;
-            _twitchApi.Settings.AccessToken = IllSingleton.Config.TApiAccessToken;
+            _twitchApi.Settings.ClientId = _config.TApiClientId;
+            _twitchApi.Settings.AccessToken = _config.TApiAccessToken;
 
             SubscriptionsTypes = new Dictionary<string, string>
             {
@@ -76,12 +81,12 @@ namespace SkillzBot.EventSub
         private async Task OnErrorOccurred(object sender, ErrorOccuredArgs e)
         {
             _logger.LogError("Websocket error: {Message} , Session ID: {SessionId}", e.Message, _eventSubWebsocketClient.SessionId);
-            await Task.CompletedTask.ConfigureAwait(false);
+            await Task.CompletedTask;
         }
 
         private async Task OnChannelFollow(object sender, ChannelFollowArgs e)
         {
-            await Task.CompletedTask.ConfigureAwait(false);
+            await Task.CompletedTask;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -108,7 +113,7 @@ namespace SkillzBot.EventSub
             _logger.LogInformation("Stopping Twitch EventSub service...");
             try
             {
-                await _eventSubWebsocketClient.DisconnectAsync().ConfigureAwait(false);
+                await _eventSubWebsocketClient.DisconnectAsync();
             }
             catch (Exception ex)
             {
@@ -121,7 +126,7 @@ namespace SkillzBot.EventSub
             _logger.LogInformation("Websocket connected. Session ID: {SessionId}, Reconnect: {IsRequestedReconnect}", _eventSubWebsocketClient.SessionId, e.IsRequestedReconnect);
             if (!e.IsRequestedReconnect)
             {
-                await Subscribe().ConfigureAwait(false);
+                await Subscribe();
             }
         }
 
@@ -149,7 +154,7 @@ namespace SkillzBot.EventSub
                 }
 
                 retryCount++;
-                await Task.Delay(baseDelayMs * (int)Math.Pow(2, retryCount)).ConfigureAwait(false);
+                await Task.Delay(baseDelayMs * (int)Math.Pow(2, retryCount));
             }
             _logger.LogCritical("Failed to reconnect after maximum retries. Please restart the service.");
         }
@@ -157,13 +162,13 @@ namespace SkillzBot.EventSub
         private async Task OnWebsocketReconnected(object sender, EventArgs e)
         {
             _logger.LogInformation("Websocket reconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
-            await Task.CompletedTask.ConfigureAwait(false);
+            await Task.CompletedTask;
         }
         private async Task Subscribe()
         {
             foreach (var type in SubscriptionsTypes)
             {
-                await SubscribeToChannelEvents(type.Key, type.Value).ConfigureAwait(false);
+                await SubscribeToChannelEvents(type.Key, type.Value);
             }
         }
         private async Task SubscribeToChannelEvents(string _type, string _version)
@@ -178,8 +183,8 @@ namespace SkillzBot.EventSub
             {
                 var condition = new Dictionary<string, string>
                 {
-                    { "broadcaster_user_id", IllSingleton.Config.BroadcasterId },
-                    { "moderator_user_id", IllSingleton.Config.BroadcasterId }
+                    { "broadcaster_user_id", _config.BroadcasterId },
+                    { "moderator_user_id", _config.BroadcasterId }
                 };
 
                 var subscription = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -187,7 +192,7 @@ namespace SkillzBot.EventSub
                     version: _version,
                     condition: condition,
                     method: EventSubTransportMethod.Websocket,
-                    websocketSessionId: _eventSubWebsocketClient.SessionId).ConfigureAwait(false);
+                    websocketSessionId: _eventSubWebsocketClient.SessionId);
 
                 _logger.LogInformation("Subscribed to {_type}. Subscription ID: {Id}", _type, subscription.Subscriptions[0].Id);
             }
@@ -219,11 +224,11 @@ namespace SkillzBot.EventSub
         #region Events
         private async Task OnStreamUp(object sender, StreamOnlineArgs e)
         {
-            await _ircClient.OnStreamUp().ConfigureAwait(false);
+            await _ircClient.OnStreamUp();
         }
         private async Task OnStreamDown(object sender, StreamOfflineArgs e)
         {
-            await _ircClient.OnStreamDown().ConfigureAwait(false);
+            await _ircClient.OnStreamDown();
         }
         private async Task OnChannelBan(object sender, ChannelBanArgs e)
         {
@@ -232,20 +237,20 @@ namespace SkillzBot.EventSub
             {
                 await _ircClient.SendMessage($"o7");
             }
-            await Task.CompletedTask.ConfigureAwait(false);
+            await Task.CompletedTask;
         }
         private async Task OnPrediction(object sender, ChannelPredictionBeginArgs e)
         {
-            if (!IllSingleton.State.isSubActive) return;
+            if (!_botState.Current.IsSubActive) return;
             await _ircClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Payload.Event.Title));
         }
         private async Task OnUnban(object sender, ChannelUnbanArgs e)
         {
-            if (!IllSingleton.State.isSubActive) return;
+            if (!_botState.Current.IsSubActive) return;
 
             try
             {
-                var user = await _databaseService.GetUserAsync(e.Payload.Event.UserLogin).ConfigureAwait(false);
+                var user = await _databaseService.GetUserAsync(e.Payload.Event.UserLogin);
                 if (user.dbID == -404)
                 {
                     _logger.LogCritical("UserTimedoutEventTask id = -1 username:{UserLogin}", e.Payload.Event.UserLogin);
@@ -253,7 +258,7 @@ namespace SkillzBot.EventSub
                 else
                 {
                     user.UvalTimer = 0;
-                    await _databaseService.UpdateUserAsync(user).ConfigureAwait(false);
+                    await _databaseService.UpdateUserAsync(user);
                 }
             }
             catch (Exception ex)
@@ -263,54 +268,54 @@ namespace SkillzBot.EventSub
         }
         private async Task OnChannelPointsCustomRewardRedemptionAdd(object sender, ChannelPointsCustomRewardRedemptionArgs e)
         {
-            if (!IllSingleton.State.isSubActive) return;
+            if (!_botState.Current.IsSubActive) return;
             await RewardProcess
             (
                 e.Payload.Event.Reward.Id,
                 e.Payload.Event.UserLogin,
                 e.Payload.Event.UserInput,
                 e.Payload.Event.Id
-            ).ConfigureAwait(false);
+            );
         }
 
         #endregion
 
         private async Task RewardProcess(string rewardID, string userName, string message, string redemID)
         {
-            if (!IllSingleton.State.isSubActive) return;
+            if (!_botState.Current.IsSubActive) return;
             try
             {
-                if (rewardID == IllSingleton.Config.ChannelIds.ZakazTrekaId)
+                if (rewardID == _config.ChannelIds.ZakazTrekaId)
                 {
-                    await _rewardsRedemption.ZakazTrekaReward(userName, message, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.ZakazTrekaReward(userName, message, redemID, rewardID);
                 }
-                else if (rewardID == IllSingleton.Config.ChannelIds.Pi4KaId)
+                else if (rewardID == _config.ChannelIds.Pi4KaId)
                 {
-                    await _rewardsRedemption.Pi4kaReward(userName, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.Pi4kaReward(userName, redemID, rewardID);
                 }
-                else if (rewardID == IllSingleton.Config.ChannelIds.UvalId)
+                else if (rewardID == _config.ChannelIds.UvalId)
                 {
-                    await _rewardsRedemption.UvalReward(userName, message, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.UvalReward(userName, message, redemID, rewardID);
                 }
-                else if (rewardID == IllSingleton.Config.ChannelIds.UvalSabId)
+                else if (rewardID == _config.ChannelIds.UvalSabId)
                 {
-                    await _rewardsRedemption.UvalSabReward(userName, message, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.UvalSabReward(userName, message, redemID, rewardID);
                 }
-                else if (rewardID == IllSingleton.Config.ChannelIds.UvalVipId)
+                else if (rewardID == _config.ChannelIds.UvalVipId)
                 {
-                    await _rewardsRedemption.UvalVIPReward(userName, message, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.UvalVIPReward(userName, message, redemID, rewardID);
                 }
-                else if (rewardID == IllSingleton.Config.ChannelIds.EmoteModeId)
+                else if (rewardID == _config.ChannelIds.EmoteModeId)
                 {
-                    await _rewardsRedemption.EmoteOnlyReward(userName, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.EmoteOnlyReward(userName, redemID, rewardID);
                 }
-                else if (rewardID == IllSingleton.Config.ChannelIds.CenceleUval)
+                else if (rewardID == _config.ChannelIds.CenceleUval)
                 {
-                    await _rewardsRedemption.CenceleUvalReward(userName, message, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.CenceleUvalReward(userName, message, redemID, rewardID);
                 }
-                else if (rewardID == IllSingleton.Config.ChannelIds.UvalMod)
+                else if (rewardID == _config.ChannelIds.UvalMod)
                 {
-                    await _rewardsRedemption.UvalModReward(userName, message, redemID, rewardID).ConfigureAwait(false);
+                    await _rewardsRedemption.UvalModReward(userName, message, redemID, rewardID);
                 }
 
             }
@@ -321,9 +326,9 @@ namespace SkillzBot.EventSub
                     if (e.Message.Contains("500"))
                     {
                         _logger.LogError(e, "Cant perform ttv reward operation! Num of tryes: {tryes}", tryes);
-                        await Task.Delay(2000).ConfigureAwait(false);
+                        await Task.Delay(2000);
                         tryes++;
-                        await RewardProcess(rewardID, userName, message, redemID).ConfigureAwait(false);
+                        await RewardProcess(rewardID, userName, message, redemID);
                         return;
                     }
                 }

@@ -1,21 +1,47 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SkillzBot.Interfaces;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using SkillzBot.Interfaces;
+using SkillzBot.IllSkillzBot;
 
 namespace SkillzBot.Hosts
 {
     public class TwitchIrcHostedService : BackgroundService
     {
         private readonly ITtvIRCClient _ircClient;
+        private readonly IllChatMessageHandler _messageHandler;
         private readonly ILogger<TwitchIrcHostedService> _logger;
 
-        public TwitchIrcHostedService(ITtvIRCClient ircClient, ILogger<TwitchIrcHostedService> logger)
+        public TwitchIrcHostedService(
+            ITtvIRCClient ircClient, 
+            IllChatMessageHandler messageHandler, 
+            ILogger<TwitchIrcHostedService> logger)
         {
             _ircClient = ircClient;
+            _messageHandler = messageHandler;
             _logger = logger;
+        }
+        public override async Task StartAsync(CancellationToken cancellationToken)
+        {
+            _ircClient.OnMessageReceived += _messageHandler.HandleMessage;
+            await base.StartAsync(cancellationToken);
+        }
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
+            // Unsubscribe to allow GC
+            _ircClient.OnMessageReceived -= _messageHandler.HandleMessage;
+            _logger.LogInformation("Stopping Twitch IRC service...");
+            try
+            {
+                _ircClient?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing IRC client during stop");
+            }
+            await base.StopAsync(cancellationToken);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -29,7 +55,7 @@ namespace SkillzBot.Hosts
                 {
                     if (!_ircClient.IsConnected)
                     {
-                        bool success = await _ircClient.InitializeAsync().ConfigureAwait(false);
+                        bool success = await _ircClient.InitializeAsync();
                         if (success)
                         {
                             _logger.LogInformation("Twitch IRC connected successfully.");
@@ -58,19 +84,14 @@ namespace SkillzBot.Hosts
             {
                 try
                 {
-                    // Check every 10 seconds
                     await Task.Delay(10000, stoppingToken);
-
-                    if (!_ircClient.IsConnected && _ircClient.IsInitialized)
+                    if (_ircClient.IsInitialized && !_ircClient.IsConnected)
                     {
-                        _logger.LogWarning("IRC client disconnected, attempting reconnect...");
-                        await _ircClient.ReconnectAsync().ConfigureAwait(false);
+                        _logger.LogWarning("Monitor detected disconnect. Forcing reconnect...");
+                        await _ircClient.ReconnectAsync();
                     }
                 }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
+                catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error during IRC health check");
@@ -78,18 +99,5 @@ namespace SkillzBot.Hosts
             }
         }
 
-        public override async Task StopAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("Stopping Twitch IRC service...");
-            try
-            {
-                _ircClient?.Dispose();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error disposing IRC client during stop");
-            }
-            await base.StopAsync(cancellationToken);
-        }
     }
 }

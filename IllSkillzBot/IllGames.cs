@@ -5,7 +5,7 @@ using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.Singleton;
+using SkillzBot.IllConfiguration; 
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
@@ -14,22 +14,24 @@ using System.Threading.Tasks;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal sealed class IllGames
+    public class IllGames
     {
         private readonly ITtvIRCClient _ircClient;
         private readonly IDatabaseService _database;
         private readonly ITwitchService _twitchService;
+        private readonly IBotStateService _botState;
 
         private static QuizzObject _Quizz = new QuizzObject();
         private static readonly List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
         private static readonly object _ActiveUsers_ListLock = new object();
 
-        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService)
+        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService, IBotStateService botState)
         {
             _ircClient = ircClient ?? throw new ArgumentNullException(nameof(ircClient));
-            _database = database ?? throw new ArgumentNullException(nameof(database));
-            IllSingleton.State.QuizIsRunning = false;
+            _database = database ?? throw new ArgumentNullException(nameof(database));            
             _twitchService = twitchService;
+            _botState = botState;
+            _botState.Current.QuizIsRunning = false;
         }
         public async Task<UserObject> Rulette(UserObject user)
         {
@@ -42,24 +44,24 @@ namespace SkillzBot.IllSkillzBot
                 if (!IntUtil.GetChance(winChanse))
                 {
                     if (user.roulettCon > 1)
-                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteLooseWs, user.Name, user.roulettCon)).ConfigureAwait(false);
+                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteLooseWs, user.Name, user.roulettCon));
                     else
-                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteLoose, user.Name)).ConfigureAwait(false);
+                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteLoose, user.Name));
                     user.roulettCon = 0;
                     if (Convert.ToBoolean(user.isMod))
-                        await _twitchService.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                        await _twitchService.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut);
                     else
-                        await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut).ConfigureAwait(false);
+                        await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut);
                 }
                 else
                 {
                     user.roulettCon++;
                     if (user.roulettCon <= 1)
-                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteWin, user.Name)).ConfigureAwait(false);
+                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteWin, user.Name));
                     else
                     {
-                        var pos = await _database.GetUserPositionAsync(user.Name, "roulettCon").ConfigureAwait(false);
-                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteWinStreak, user.Name, user.roulettCon, pos[0], pos[1], IntUtil.RulProbability(user.roulettCon, winChanse))).ConfigureAwait(false);
+                        var pos = await _database.GetUserPositionAsync(user.Name, "roulettCon");
+                        await _ircClient.SendMessage(string.Format(STRINGS.RouletteWinStreak, user.Name, user.roulettCon, pos[0], pos[1], IntUtil.RulProbability(user.roulettCon, winChanse)));
                     }
                 }
             }
@@ -67,12 +69,12 @@ namespace SkillzBot.IllSkillzBot
             {
                 if (Convert.ToBoolean(user.isVip) || Convert.ToBoolean(user.isMod))
                 {
-                    await _ircClient.SendMessage(string.Format(STRINGS.RouletteCD, user.Name, user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds())).ConfigureAwait(false);
+                    await _ircClient.SendMessage(string.Format(STRINGS.RouletteCD, user.Name, user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds()));
                 }
             }
             return user;
         }
-        public static string GetMagic8BallAnswer()
+        public string GetMagic8BallAnswer()
         {
             string[] answers = {
             "Да, определенно!",
@@ -116,14 +118,14 @@ namespace SkillzBot.IllSkillzBot
         #region Quizz
         public async Task Quizz(bool isForced)
         {
-            await _ircClient.SendMessage("Need to upgrade SQLReader logic at Quizz()").ConfigureAwait(false);
-            await Task.CompletedTask.ConfigureAwait(false);
+            await _ircClient.SendMessage("Need to upgrade SQLReader logic at Quizz()");
+            await Task.CompletedTask;
         }
-        private static bool CheckQuizzAnswer(string message)
+        private bool CheckQuizzAnswer(string message)
         {
             if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return false;
-            IllSingleton.State.QuizIsRunning = false;
-            if (IllSingleton.State.AntiBotProtectionLvl == 2)
+            _botState.Current.QuizIsRunning = false;
+            if (_botState.Current.AntiBotProtectionLvl == 2)
                 lock (_ActiveUsers_ListLock)
                     Quizz_ActiveUsers_List.Clear();
             return true;
@@ -147,14 +149,14 @@ namespace SkillzBot.IllSkillzBot
                 }
             }
         }
-        private static bool CheckQuizzActiveUser(string ttvID)
+        private bool CheckQuizzActiveUser(string ttvID)
         {
             lock (_ActiveUsers_ListLock)
             {
                 var user = Quizz_ActiveUsers_List.FirstOrDefault(u => u.TwitchID == ttvID);
                 if (user == null) return false;
 
-                if (IllSingleton.State.AntiBotProtectionLvl == 0) return true;
+                if (_botState.Current.AntiBotProtectionLvl == 0) return true;
                 if (user.MessageCount > 0) return true;
 
                 return false;
@@ -162,16 +164,16 @@ namespace SkillzBot.IllSkillzBot
         }
         public async Task<UserObject> UserGuessAnswer(UserObject user, string message)
         {
-            if (!IllSingleton.State.FirstQuizOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
+            if (!_botState.Current.FirstQuizOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
             if (!CheckQuizzAnswer(message)) return user;
             if (StringUtil.CountUpperCaseLetters(message) > 3) return user;
-            IllSingleton.State.FirstQuizOfTheDay = false;
+            _botState.Current.FirstQuizOfTheDay = false;
             user.QuizPoints += _Quizz.QuizzCost;
             user.QuizTotal += _Quizz.QuizzCost;
-            await _ircClient.SendMessage(string.Format(STRINGS.QuizWin, _Quizz.QuizzAnswer, user.Name, _Quizz.QuizzCost, user.QuizPoints, user.QuizTotal)).ConfigureAwait(false);
+            await _ircClient.SendMessage(string.Format(STRINGS.QuizWin, _Quizz.QuizzAnswer, user.Name, _Quizz.QuizzCost, user.QuizPoints, user.QuizTotal));
             return user;
         }
-        public static void ClearQuizzActiveUsers()
+        public void ClearQuizzActiveUsers()
         {
             lock (_ActiveUsers_ListLock)
                 Quizz_ActiveUsers_List.Clear();

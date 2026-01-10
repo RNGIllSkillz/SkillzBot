@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
-using SkillzBot.Singleton;
-using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
@@ -12,13 +10,15 @@ using static SkillzBot.IllSkillzBot.IllEnums;
 namespace SkillzBot.IllSkillzBot.IllCommandsNest
 {
 #nullable enable
-    internal class IllCommandHandler
+    public class IllCommandHandler
     {
         private readonly ILogger<IllCommandHandler> _logger;
         private readonly ITtvIRCClient _ircClient;
         private readonly Dictionary<string, IllCommand> _commandRegistry = new();
-        private readonly CooldownManager _cooldownManager = new();
+        private readonly CooldownManager _cooldownManager;
         private readonly List<IllCommand> _commands;
+        private readonly IBotStateService _botState;
+        private readonly IIllAccess _access;
 
         internal record IllCommand
             (
@@ -36,10 +36,22 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             public TimeSpan? Cooldown => CooldownSeconds > 0 ? TimeSpan.FromSeconds(CooldownSeconds) : null;
         };
 
-        public IllCommandHandler(ILogger<IllCommandHandler> logger, ITtvIRCClient ircClient, IllGames illGames, IllModeratorsInteractions modInteractions, IllCommands illCommands)
+        public IllCommandHandler(
+            ILogger<IllCommandHandler> logger,
+            ITtvIRCClient ircClient,
+            IllGames illGames,
+            IllModeratorsInteractions modInteractions,
+            IllCommands illCommands,
+            IBotStateService botState,
+            IIllAccess access,
+            CooldownManager cooldownManager)
         {
             _logger = logger;
             _ircClient = ircClient;
+            _botState = botState;
+            _access = access;
+            _cooldownManager = cooldownManager;
+
             _commands = new()
             {
                 new("!test", illCommands.TestingMethod, RequiredAccessLevel: AccessLevel.Root),
@@ -110,31 +122,34 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (command.RequiresCooldown && command.CooldownKey != null && command.Cooldown.HasValue)
                 _cooldownManager.RegisterCooldown(command.CooldownKey, command.Cooldown.Value, command.BypassCooldown, command.IsGlobal);
         }
+
         private async Task CallWithCooldownAsync(UserObject user, string CommandName, Delegate methodLogic, string[]? command = null)
         {
-            var result = await _cooldownManager.TryInvokeAsync(user, CommandName, methodLogic, methodLogic is Func<UserObject, string[], Task> ? command : null).ConfigureAwait(false);
+            var result = await _cooldownManager.TryInvokeAsync(user, CommandName, methodLogic, methodLogic is Func<UserObject, string[], Task> ? command : null);
             if (result != null)
             {
-                if (IllAccess.Vip(user))
+                if (_access.Vip(user))
                     await _ircClient.SendMessage($"@{user.Name}, команда {CommandName} будет доступна через {result.Value.TotalSeconds:F1} сек.");
             }
         }
+
         public async Task<UserObject> CommandHandler(UserObject user, string message)
         {
-            if (!IllSingleton.State.isSubActive && !IllAccess.Root(user)) return user;
+            // Use injected state and access
+            if (!_botState.Current.IsSubActive && !_access.Root(user)) return user;
 
             var commandParts = StringUtil.SplitAllWords(message);
             var commandName = commandParts[0].ToLower();
 
             if (_commandRegistry.TryGetValue(commandName, out var command))
             {
-                if (!IllAccess.MeetsLevel(user, command.RequiredAccessLevel)) return user;
+                if (!_access.MeetsLevel(user, command.RequiredAccessLevel)) return user;
                 try
                 {
                     if (command.RequiresCooldown && command.CooldownKey != null)
-                        await CallWithCooldownAsync(user, command.CooldownKey, command.Method, commandParts).ConfigureAwait(false);
+                        await CallWithCooldownAsync(user, command.CooldownKey, command.Method, commandParts);
                     else
-                        await CooldownManager.InvokeDelegate(command.Method, user, commandParts).ConfigureAwait(false);
+                        await CooldownManager.InvokeDelegate(command.Method, user, commandParts);
                 }
                 catch (Exception e)
                 {
