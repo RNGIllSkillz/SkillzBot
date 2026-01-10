@@ -65,6 +65,7 @@ namespace SkillzBot.QuartZ
 
         public async Task RunEvery5Min()
         {
+            _chatMessageHandler.PruneTrackers();
             await _chatMessageHandler.SaveBuffer(true);
             await _subscriptionService.CheckSubscriptionAsync();
         }

@@ -25,6 +25,8 @@ using SkillzBot.Services.Writers;
 using SkillzBot.SubUtils;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
+using System;
+using System.Net.Http;
 using TwitchLib.EventSub.Websockets.Extensions;
 
 namespace SkillzBot.Hosts
@@ -97,9 +99,26 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<IRiotApiService, RiotApiService>();
 
                     // HTTP Clients
-                    services.AddHttpClient<IStreamElementsService, StreamElementsService>();
-                    services.AddHttpClient<RiotHttpHandler>();
-                    services.AddHttpClient<IMmrService, MmrApiService>();
+                    services.AddHttpClient<IStreamElementsService, StreamElementsService>()
+                        .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+                        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+                        {
+                            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+                        });
+
+                    services.AddHttpClient<RiotHttpHandler>()
+                        .SetHandlerLifetime(TimeSpan.FromMinutes(5)) 
+                        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+                        {
+                            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+                        });
+
+                    services.AddHttpClient<IMmrService, MmrApiService>()
+                        .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+                        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+                        {
+                            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+                        });
 
                     // 6. Bot Logic / Features
                     services.AddSingleton<IllChatFilters>();

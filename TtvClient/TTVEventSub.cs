@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SkillzBot.API.Twitch;
+using SkillzBot.IllConfiguration; 
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
-using SkillzBot.IllConfiguration; 
 using SkillzBot.TtvClient.TTVRewards;
 using System;
 using System.Collections.Generic;
@@ -29,6 +30,8 @@ namespace SkillzBot.EventSub
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
         private readonly BotConfigModel _config;
         private readonly IBotStateService _botState;
+        private readonly ITwitchService _twitchService;
+
         private int tryes = 0;
         private readonly Dictionary<string, string> SubscriptionsTypes;
 
@@ -37,6 +40,7 @@ namespace SkillzBot.EventSub
             IDatabaseService databaseService, 
             ITtvIRCClient ircClient,
             RewardsRedemption rewardsRedemption,
+            ITwitchService twitchService,
             ILogger<TTVEventSub> logger,
             BotConfigModel config,
             IBotStateService botState)
@@ -45,9 +49,10 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
+            _twitchService = twitchService;
             _logger = logger;
             _config = config;
-            _botState = botState;
+            _botState = botState;            
 
             _logger.LogDebug("TTVEventSub initialized");
 
@@ -232,17 +237,19 @@ namespace SkillzBot.EventSub
         }
         private async Task OnChannelBan(object sender, ChannelBanArgs e)
         {
-            // FIX: Updated property access. Payload is now direct.
-            if (e.Payload.Event.IsPermanent)
-            {
-                await _ircClient.SendMessage($"o7");
-            }
+            if (e.Payload.Event.IsPermanent)            
+                await _ircClient.SendMessage($"o7");            
             await Task.CompletedTask;
         }
         private async Task OnPrediction(object sender, ChannelPredictionBeginArgs e)
         {
             if (!_botState.Current.IsSubActive) return;
-            await _ircClient.SendMessage(string.Format(STRINGS.PredictionStarted, e.Payload.Event.Title));
+            string message = $"PopNemo {string.Format(STRINGS.PredictionStarted, e.Payload.Event.Title)} PopNemo";
+            for (int i = 0; i < 3; i++)
+            {
+                await _ircClient.SendMessage(message);
+                await Task.Delay(100);
+            }
         }
         private async Task OnUnban(object sender, ChannelUnbanArgs e)
         {

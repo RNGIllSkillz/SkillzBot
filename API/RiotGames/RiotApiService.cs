@@ -55,13 +55,16 @@ namespace SkillzBot.API.RiotGames
 
             UpdateConfig();
 
-            _riotApi = RiotGamesApi.NewInstance(
-                new RiotGamesApiConfig.Builder(_config.RiotApiToken)
-                {
-                    MaxConcurrentRequests = 200,
-                    Retries = 3,
-                }.Build()
-            );
+            if (_riotApi == null)
+            {
+                _riotApi = RiotGamesApi.NewInstance(
+                    new RiotGamesApiConfig.Builder(_config.RiotApiToken)
+                    {
+                        MaxConcurrentRequests = 200,
+                        Retries = 3,
+                    }.Build()
+                );
+            }
             _summoner = await GetSummonerInternalAsync();
 
             if (_summoner == null)

@@ -159,7 +159,29 @@ namespace SkillzBot.IllSkillzBot
             }
             return tracker;
         }
+        public void PruneTrackers()
+        {
+            var now = DateTimeOffset.Now.ToUnixTimeSeconds();
+            var keysToRemove = new List<string>();
 
+            foreach (var kvp in _userTrackers)
+            {
+                if (now - kvp.Value.LastMessageTimestamp > 600)
+                {
+                    keysToRemove.Add(kvp.Key);
+                }
+            }
+
+            foreach (var key in keysToRemove)
+            {
+                _userTrackers.TryRemove(key, out _);
+            }
+
+            if (keysToRemove.Count > 10)
+            {
+                _logger.LogDebug("Pruned {Count} inactive user trackers.", keysToRemove.Count);
+            }
+        }
         private async Task<UserObject> GetAddUser(ChatMessage chatmessage)
         {
             if (!int.TryParse(chatmessage.UserId, out int ttvid))
