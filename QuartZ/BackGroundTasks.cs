@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using SkillzBot.API.RiotGames;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Interfaces;

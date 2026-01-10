@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using SkillzBot.Configuration;
+using SkillzBot.IllConfiguration;
+using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
-using SkillzBot.IllConfiguration; 
 using System;
 using System.IO;
 using System.Text.Json;
@@ -17,9 +19,14 @@ namespace SkillzBot.Services.State
         private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(1, 1);
         private readonly object _memLock = new object();
 
+        private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNameCaseInsensitive = true // FIX: Ensures "debug": true in file maps to Debug property
+        };
+
         public BotStateModel Current { get; private set; } = new BotStateModel
         {
-            // Default safe values
             AutoPred = true,
             ChatFilterLvl = 3,
             IsSubActive = true
@@ -35,6 +42,8 @@ namespace SkillzBot.Services.State
         public async Task LoadAsync()
         {
             var path = _paths.GetFullPath(_config.FilePaths.BotStateFileName);
+            _logger.LogInformation("Loading BotState from: {Path}", path);
+
             await _ioLock.WaitAsync();
             try
             {
@@ -43,15 +52,28 @@ namespace SkillzBot.Services.State
                     var json = await File.ReadAllTextAsync(path);
                     if (!string.IsNullOrWhiteSpace(json))
                     {
-                        var loaded = JsonSerializer.Deserialize<BotStateModel>(json);
-                        if (loaded != null)
+                        try
                         {
-                            lock (_memLock) Current = loaded;
-                            return;
+                            var loaded = JsonSerializer.Deserialize<BotStateModel>(json, _jsonOptions);
+                            if (loaded != null)
+                            {
+                                lock (_memLock) Current = loaded;
+                                _logger.LogInformation("BotState loaded successfully.");
+                                return;
+                            }
+                        }
+                        catch (JsonException jex)
+                        {
+                            _logger.LogError(jex, "BotState.txt is corrupted. Overwriting with defaults.");
                         }
                     }
                 }
-                // If file doesn't exist or is empty, save defaults
+                else
+                {
+                    _logger.LogWarning("BotState.txt not found. Creating new one.");
+                }
+
+                // Save defaults if file missing or corrupt
                 await SaveInternalAsync(path);
             }
             catch (Exception ex)
@@ -70,7 +92,7 @@ namespace SkillzBot.Services.State
             {
                 updateAction(Current);
             }
-            await Task.Run(SaveAsync);
+            await SaveAsync();
         }
 
         public async Task SaveAsync()
@@ -96,7 +118,7 @@ namespace SkillzBot.Services.State
             string json;
             lock (_memLock)
             {
-                json = JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true });
+                json = JsonSerializer.Serialize(Current, _jsonOptions);
             }
 
             var dir = Path.GetDirectoryName(path);

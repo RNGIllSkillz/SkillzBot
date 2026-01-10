@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using Serilog.Events;
 using SkillzBot.API.MMR;
-using SkillzBot.API.RiotGames;
 using SkillzBot.API.StreamElements;
 using SkillzBot.API.Twitch;
 using SkillzBot.IllSTRINGS;
@@ -14,7 +13,7 @@ using SkillzBot.MODELS;
 using SkillzBot.Readers;
 using SkillzBot.Services.Infrastructure;
 using SkillzBot.Services.Writers;
-using SkillzBot.IllConfiguration; 
+using SkillzBot.IllConfiguration;
 using SkillzBot.SubUtils;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
@@ -123,13 +122,13 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 switch (command[1])
                 {
                     case "off":
-                        _botState.Current.AutoPred = false;
+                        await _botState.UpdateStateAsync(s => s.AutoPred = false);
                         await _ircClient.SendMessage($"@{user.Name} Автоставки Выключены!");
                         _logger.LogInformation("{Name} Выключил ставки!", user.Name);
                         break;
 
                     case "on":
-                        _botState.Current.AutoPred = true;
+                        await _botState.UpdateStateAsync(s => s.AutoPred = true);
                         await _ircClient.SendMessage($"@{user.Name} Автоставки Включены!");
                         _logger.LogInformation("{Name} Включил ставки!", user.Name);
                         break;
@@ -268,8 +267,23 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 }
             }
             return null;
-        }        
+        }
+        public async Task GetBotState(UserObject user)
+        {
+            var s = _botState.Current;
+            string message = $"⚙️ BOT STATE: " +
+                             $"Debug: {s.Debug} | " +
+                             $"Silent: {s.IsSilent} | " +
+                             $"SubActive: {s.IsSubActive} | " +
+                             $"FilterLvl: {s.ChatFilterLvl} | " +
+                             $"AntiBot: {s.AntiBotProtectionLvl} | " +
+                             $"AutoPred: {s.AutoPred} | " +
+                             $"InMatch: {s.InMatch} | " +
+                             $"StreamOnline: {s.BroadcasterIsOnline} | " +
+                             $"QuizRunning: {s.QuizIsRunning}";
 
+            await _ircClient.SendMessage(message);
+        }
         public async Task<LP> GetLpAsync(string summonerName = null, string region = null)
         {
             bool isForCurrentUser = string.IsNullOrEmpty(summonerName);
@@ -350,7 +364,18 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task GetMatchHistory(UserObject user)
         {
-            await _ircClient.SendMessage("Команда в разработке. Верим.");
+            var matchData = await _riotApi.GetLastMatchParticipantAsync().ConfigureAwait(false);
+
+            if (matchData != null)
+            {
+                string result = matchData.Win ? "Победа" : "Поражение";
+                // Formatting: @User Последняя игра: Победа (5/0/10) на Garen
+                await _ircClient.SendMessage($"@{user.Name} Последняя игра: {result} ({matchData.Kills}/{matchData.Deaths}/{matchData.Assists}) на {matchData.ChampionName}");
+            }
+            else
+            {
+                await _ircClient.SendMessage($"@{user.Name} Не удалось получить информацию о последнем матче.");
+            }
         }
 
         public async Task TopRulete()
@@ -390,10 +415,15 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 _logger.LogError("Cant get 3 users at GetTopChat");
             }
         }
-
+        public async Task ToggleGodMode(UserObject user)
+        {
+            await _botState.UpdateStateAsync(s => s.GodMode = !s.GodMode);
+            string status = _botState.Current.GodMode ? "ENABLED" : "DISABLED";
+            await _ircClient.SendMessage($"GodMode is now {status}.");
+            _logger.LogWarning("GodMode toggled to {Status} by {User}", status, user.Name);
+        }
         public async Task StartQuizz()
         {
-            // FIX: Using injected _illGames instance instead of manual 'new'
             await _illGames.Quizz(true);
         }
 
@@ -595,7 +625,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             if (input.Length > 1 && int.TryParse(input[1], out int level) && level >= 0 && level <= 2)
             {
-                _botState.Current.AntiBotProtectionLvl = level;
+                await _botState.UpdateStateAsync(s => s.AntiBotProtectionLvl = level);
                 await _ircClient.SendMessage(string.Format(STRINGS.AntiBotLvl, user.Name, _botState.Current.AntiBotProtectionLvl));
             }
             else
@@ -609,7 +639,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (input.Length == 2 && int.TryParse(input[1], out int level) && level >= 0 && level <= 5)
             {
                 await _botState.UpdateStateAsync(s => s.ChatFilterLvl = level);
-                await _configWriter.WriteAsync();
+                await _configWriter.WriteAsync(); // Note: ChatFilterLvl is duplicated in config and botstate?
                 await _ircClient.SendMessage($"Уровень модерации чата установлен в значение {level}!");
             }
             else
@@ -663,7 +693,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task ToggleDebug(UserObject user)
         {
-            _botState.Current.Debug = !_botState.Current.Debug;
+            await _botState.UpdateStateAsync(s => s.Debug = !s.Debug);
+
             if (_botState.Current.Debug)
                 _loggingSwitch.MinimumLevel = LogEventLevel.Debug;
             else
@@ -674,7 +705,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task ToggleSilentMode(UserObject user)
         {
-            _botState.Current.IsSilent = !_botState.Current.IsSilent;
+            await _botState.UpdateStateAsync(s => s.IsSilent = !s.IsSilent);
             await _ircClient.SendMessage($"SilentMode mode is {_botState.Current.IsSilent}");
         }
 

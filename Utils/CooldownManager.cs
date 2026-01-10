@@ -1,7 +1,5 @@
-﻿using SkillzBot.IllSkillzBot;
-using SkillzBot.Interfaces;
+﻿using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
-using SkillzBot.IllConfiguration; 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;

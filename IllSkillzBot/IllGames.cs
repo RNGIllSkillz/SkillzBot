@@ -20,25 +20,27 @@ namespace SkillzBot.IllSkillzBot
         private readonly IDatabaseService _database;
         private readonly ITwitchService _twitchService;
         private readonly IBotStateService _botState;
+        private readonly IIllAccess _illAccess;
 
         private static QuizzObject _Quizz = new QuizzObject();
         private static readonly List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
         private static readonly object _ActiveUsers_ListLock = new object();
 
-        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService, IBotStateService botState)
+        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService, IBotStateService botState, IIllAccess illAccess)
         {
             _ircClient = ircClient ?? throw new ArgumentNullException(nameof(ircClient));
             _database = database ?? throw new ArgumentNullException(nameof(database));            
             _twitchService = twitchService;
             _botState = botState;
-            _botState.Current.QuizIsRunning = false;
+            _illAccess = illAccess;
+            //_botState.Current.QuizIsRunning = false;
         }
         public async Task<UserObject> Rulette(UserObject user)
         {
             const int CoolDownMin = 43200;
             const int winChanse = 80;
-
-            if (user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds() <= 0)
+            bool isGod = _botState.Current.GodMode && _illAccess.Root(user);
+            if (isGod || user.roulettCD - DateTimeOffset.Now.ToUnixTimeSeconds() <= 0)
             {
                 user.roulettCD = DateTimeOffset.Now.ToUnixTimeSeconds() + CoolDownMin;
                 if (!IntUtil.GetChance(winChanse))
@@ -49,7 +51,8 @@ namespace SkillzBot.IllSkillzBot
                         await _ircClient.SendMessage(string.Format(STRINGS.RouletteLoose, user.Name));
                     user.roulettCon = 0;
                     if (Convert.ToBoolean(user.isMod))
-                        await _twitchService.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut);
+                        if (!isGod)
+                            await _twitchService.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut);
                     else
                         await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut);
                 }
@@ -124,10 +127,11 @@ namespace SkillzBot.IllSkillzBot
         private bool CheckQuizzAnswer(string message)
         {
             if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return false;
-            _botState.Current.QuizIsRunning = false;
-            if (_botState.Current.AntiBotProtectionLvl == 2)
-                lock (_ActiveUsers_ListLock)
-                    Quizz_ActiveUsers_List.Clear();
+            //if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return false;
+            //_botState.Current.QuizIsRunning = false;
+            //if (_botState.Current.AntiBotProtectionLvl == 2)
+            //    lock (_ActiveUsers_ListLock)
+            //        Quizz_ActiveUsers_List.Clear();
             return true;
         }
         public void QuizzActiveUser(string ttvID)
@@ -165,12 +169,21 @@ namespace SkillzBot.IllSkillzBot
         public async Task<UserObject> UserGuessAnswer(UserObject user, string message)
         {
             if (!_botState.Current.FirstQuizOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
-            if (!CheckQuizzAnswer(message)) return user;
+            if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return user;
+
+            await _botState.UpdateStateAsync(s => s.QuizIsRunning = false);
+
+            if (_botState.Current.AntiBotProtectionLvl == 2)
+                lock (_ActiveUsers_ListLock)
+                    Quizz_ActiveUsers_List.Clear();
+
             if (StringUtil.CountUpperCaseLetters(message) > 3) return user;
-            _botState.Current.FirstQuizOfTheDay = false;
+
+            await _botState.UpdateStateAsync(s => s.FirstQuizOfTheDay = false);
+
             user.QuizPoints += _Quizz.QuizzCost;
             user.QuizTotal += _Quizz.QuizzCost;
-            await _ircClient.SendMessage(string.Format(STRINGS.QuizWin, _Quizz.QuizzAnswer, user.Name, _Quizz.QuizzCost, user.QuizPoints, user.QuizTotal));
+            await _ircClient.SendMessage(string.Format(STRINGS.QuizWin, _Quizz.QuizzAnswer, user.Name, _Quizz.QuizzCost, user.QuizPoints, user.QuizTotal)).ConfigureAwait(false);
             return user;
         }
         public void ClearQuizzActiveUsers()

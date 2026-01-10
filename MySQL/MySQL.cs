@@ -299,21 +299,48 @@ namespace SkillzBot.MYSQL
             }
             catch (MySqlException ex)
             {
-                // Handle duplicate entry on 'Name' column (Error Code 1062)
-                // This happens if Twitch recycles a username to a new ID, but we still have the old user in DB.
-                if (ex.Number == 1062 && ex.Message.Contains("uk_name"))
+                // Error 1062: Duplicate entry
+                // SQLState 23000: Integrity constraint violation
+                if (ex.Number == 1062 || ex.SqlState == "23000")
                 {
-                    _logger.LogWarning("Username collision detected for {Name}. Deleting old user entry and retrying.", user.Name);
+                    _logger.LogWarning("Duplicate Entry Conflict for User: {Name} (ID: {ID}). Error: {Message}", user.Name, user.TwitchID, ex.Message);
 
-                    // Delete the OLD user who has this name
-                    await DeleteUserAsync(user.Name);
+                    // Scenario: We are trying to insert/update ID=100, Name="CoolGuy"
+                    // But ID=200 already has Name="CoolGuy".
+                    // The ON DUPLICATE KEY UPDATE fails because swapping the name would violate the UNIQUE constraint on Name for ID 200.
 
-                    // Retry the insertion/update recursively
-                    await AddOrUpdateUserAsync(user);
+                    try
+                    {
+                        // 1. Find who currently owns this Name
+                        var existingUserWithName = await GetUserAsync(user.Name);
+
+                        // 2. If someone else owns it (Different TwitchID), delete the old record
+                        if (existingUserWithName.dbID != -404 && existingUserWithName.TwitchID != user.TwitchID)
+                        {
+                            _logger.LogInformation("Name collision detected. Deleting old user entry for name {Name} (Old ID: {OldID}) to make room for New ID: {NewID}.", user.Name, existingUserWithName.TwitchID, user.TwitchID);
+                            await DeleteUserAsync(user.Name);
+
+                            // 3. Retry the insertion immediately
+                            await AddOrUpdateUserAsync(user);
+                            return;
+                        }
+                        else
+                        {
+                            // If the IDs match, or we couldn't find the name owner, something else is wrong.
+                            // Retrying blindly might cause infinite recursion, so we throw.
+                            _logger.LogError("Duplicate Key Error could not be resolved automatically. IDs match or Name owner not found.");
+                            throw;
+                        }
+                    }
+                    catch (Exception retryEx)
+                    {
+                        _logger.LogError(retryEx, "Failed to resolve Duplicate Key conflict for {Name}", user.Name);
+                        throw;
+                    }
                 }
                 else
                 {
-                    _logger.LogError(ex, "Failed to add/update user: TwitchID={TwitchID}, Name={Name}", user.TwitchID, user.Name);
+                    _logger.LogError(ex, "Failed to add/update user: TwitchID={TwitchID}, Name={Name}. SqlState: {State}, Number: {Num}", user.TwitchID, user.Name, ex.SqlState, ex.Number);
                     throw;
                 }
             }

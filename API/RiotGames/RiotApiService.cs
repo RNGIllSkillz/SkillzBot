@@ -12,6 +12,7 @@ using Camille.RiotGames.AccountV1;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration; 
 using System.Linq;
+using SkillzBot.Interfaces;
 
 namespace SkillzBot.API.RiotGames
 {
@@ -72,7 +73,38 @@ namespace SkillzBot.API.RiotGames
             _logger.LogInformation("Riot API Initialized successfully for {GameName}#{TagLine}.", _gameName, _tagLine);
             return true;
         }
+        public async Task<Camille.RiotGames.MatchV5.Participant> GetLastMatchParticipantAsync()
+        {
+            if (!await EnsureServiceReadyAsync()) return null;
 
+            try
+            {
+                // Determine routing region (MatchV5 uses RegionalRoute, not PlatformRoute)
+                RegionalRoute route = _gameState.Current.SummonerRegion.ToLower() switch
+                {
+                    "na" => RegionalRoute.AMERICAS,
+                    "kr" => RegionalRoute.ASIA,
+                    _ => RegionalRoute.EUROPE // Includes EUW, EUNE, RU, TR
+                };
+
+                var matchIds = await _riotApi.MatchV5().GetMatchIdsByPUUIDAsync(route, _summoner.Puuid, count: 1).ConfigureAwait(false);
+
+                if (matchIds == null || matchIds.Length == 0)
+                    return null;
+
+                var match = await _riotApi.MatchV5().GetMatchAsync(route, matchIds[0]).ConfigureAwait(false);
+
+                if (match == null)
+                    return null;
+
+                return GetParticipantByMatch(match);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetLastMatchParticipantAsync failed");
+                return null;
+            }
+        }
         private async Task<bool> EnsureServiceReadyAsync()
         {
             if (_riotApi == null)

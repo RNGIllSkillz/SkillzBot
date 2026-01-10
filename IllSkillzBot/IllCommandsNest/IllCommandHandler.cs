@@ -77,6 +77,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 new("!subcheck", illCommands.CheckSubscription, RequiredAccessLevel: AccessLevel.Root),
                 new("!шептун", illCommands.Sheptun, RequiredAccessLevel: AccessLevel.Root),
                 new("!reloadfilters", illCommands.ReloadFilters, RequiredAccessLevel: AccessLevel.Root),
+                new("!state", illCommands.GetBotState, RequiredAccessLevel: AccessLevel.Root),
+                new("!godmode", illCommands.ToggleGodMode, RequiredAccessLevel: AccessLevel.Root),
 
                 new("!ban", illCommands.BanUserForTrack, RequiresCooldown: true, 60, BypassCooldown: false, AccessLevel.Broadcaster),
 

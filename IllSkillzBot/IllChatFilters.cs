@@ -18,7 +18,6 @@ namespace SkillzBot.IllSkillzBot
 {
     public sealed class IllChatFilters
     {
-        private readonly ITtvIRCClient _ircClient;
         private readonly ILogger<IllChatFilters> _logger;
         private readonly IPathProvider _paths;
         private readonly ITwitchService _twitchService;
@@ -40,8 +39,7 @@ namespace SkillzBot.IllSkillzBot
         private const int ArabCharsInRow = 4;
         private const int RowsNum = 3;
 
-        public IllChatFilters(ITtvIRCClient ircClient, 
-            ILogger<IllChatFilters> logger, 
+        public IllChatFilters(ILogger<IllChatFilters> logger, 
             ITwitchService twitchService, 
             BotConfigModel config, 
             IBotStateService botState,
@@ -49,7 +47,6 @@ namespace SkillzBot.IllSkillzBot
             IYouTubeService youTubeService,
             IPathProvider paths)
         {
-            _ircClient = ircClient;
             _logger = logger; 
             _twitchService = twitchService;
             _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -139,8 +136,6 @@ namespace SkillzBot.IllSkillzBot
             if (bannedWord != null)
             {
                 await _flagWriter.WriteAsync($"{name} : {message} (detected: {bannedWord})");
-                if (_botState.Current.Debug)
-                    await _ircClient.SendMessage($"Filter: {bannedWord}");
                 return true;
             }
             return false;

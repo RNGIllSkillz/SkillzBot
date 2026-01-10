@@ -7,10 +7,9 @@ using System.Linq;
 using Camille.Enums;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.SpectatorV5;
-using SkillzBot.API.RiotGames;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Hosts;
-using SkillzBot.IllConfiguration; 
+using SkillzBot.IllConfiguration;
 using SkillzBot.Interfaces;
 
 namespace SkillzBot.IllSkillzBot
