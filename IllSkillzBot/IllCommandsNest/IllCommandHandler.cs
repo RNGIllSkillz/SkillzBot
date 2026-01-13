@@ -79,6 +79,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 new("!reloadfilters", illCommands.ReloadFilters, RequiredAccessLevel: AccessLevel.Root),
                 new("!state", illCommands.GetBotState, RequiredAccessLevel: AccessLevel.Root),
                 new("!godmode", illCommands.ToggleGodMode, RequiredAccessLevel: AccessLevel.Root),
+                new("!pdebug", illCommands.TogglePDebug, RequiredAccessLevel: AccessLevel.Root),
 
                 new("!ban", illCommands.BanUserForTrack, RequiresCooldown: true, 60, BypassCooldown: false, AccessLevel.Broadcaster),
 
@@ -137,7 +138,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         public async Task<UserObject> CommandHandler(UserObject user, string message)
         {
-            // Use injected state and access
+            //injected state and access
             if (!_botState.Current.IsSubActive && !_access.Root(user)) return user;
 
             var commandParts = StringUtil.SplitAllWords(message);

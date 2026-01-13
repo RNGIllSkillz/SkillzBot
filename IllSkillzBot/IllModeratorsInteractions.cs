@@ -1,5 +1,4 @@
-﻿using SkillzBot.API.Twitch;
-using SkillzBot.Hosts;
+﻿using SkillzBot.Hosts;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.IRC;
@@ -8,7 +7,7 @@ using SkillzBot.MySQL;
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using SkillzBot.IllConfiguration; 
+using SkillzBot.IllConfiguration;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -74,21 +73,35 @@ namespace SkillzBot.IllSkillzBot
         }
         public async Task UserUntimeoutTrigger(string UserName)
         {
-            await Task.Delay(2000);
+            await Task.Delay(2000).ConfigureAwait(false);
+
+            int failSafeCounter = 0;
+
             while (true)
             {
-                var user = await _database.GetUserAsync(UserName);
-                // Check if current time > UvalTimer
+                var user = await _database.GetUserAsync(UserName).ConfigureAwait(false);
+                if (user == null || user.dbID == -404) return;
                 if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
                 {
-                    // Attempt to add mod until successful
-                    while (!await _twitchService.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false))
+                    bool success = await _twitchService.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false);
+
+                    if (success)
                     {
-                        await Task.Delay(1000);
+                        return;
                     }
-                    return;
+                    else
+                    {
+                        failSafeCounter++;
+                        if (failSafeCounter > 5)
+                        {
+                            await _ircClient.SendMessage($"Ошибка: Не удалось вернуть права модератора для @{UserName}. Возможно пользователь забанен или произошла ошибка API.");
+                            return;
+                        }
+                        await Task.Delay(3000).ConfigureAwait(false);
+                        continue;
+                    }
                 }
-                await Task.Delay(1000);
+                await Task.Delay(1000).ConfigureAwait(false);
             }
         }
         public async Task IllAllModsNotification(string message)

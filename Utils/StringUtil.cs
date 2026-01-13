@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -132,7 +133,34 @@ namespace SkillzBot.Utils
             }
             return result.Slice(0, pos).ToString();
         }
+        public static bool IsZalgo(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return false;
 
+            int markCount = 0;
+            int nastySymbolCount = 0;
+
+            foreach (char c in input)
+            {
+                if (c >= '\u20D0' && c <= '\u20FF')
+                {
+                    nastySymbolCount++;
+                }
+
+                var category = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (category == UnicodeCategory.NonSpacingMark ||
+                    category == UnicodeCategory.EnclosingMark ||
+                    category == UnicodeCategory.SpacingCombiningMark)
+                {
+                    markCount++;
+                }
+            }
+            if (nastySymbolCount > 3) return true;
+            if (markCount > 10) return true;
+            if (input.Length > 5 && (double)markCount / input.Length > 0.35) return true;
+
+            return false;
+        }
         public static string Shuffle(string input)
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;
@@ -210,11 +238,7 @@ namespace SkillzBot.Utils
         public static string GetCommandFromUserInput(string[] wordsArray)
         {
             if (wordsArray == null || wordsArray.Length <= 1) return string.Empty;
-
-            // Re-joining an array is slow, but assuming wordsArray was created via Split,
-            // we can't easily get the original substring without the original string.
-            // Using StringBuilder is slightly better than string.Join for strict control, 
-            // but string.Join is optimized internally. Kept strict Join here.
+            // Re-joining an array is slow
             return string.Join(" ", wordsArray.Skip(1));
         }
 
@@ -230,7 +254,7 @@ namespace SkillzBot.Utils
             if (string.IsNullOrEmpty(input)) return null;
             Match match = _twitchClipRegex.Match(input);
 
-            if (match.Success && match.Value == input) // Your original strict equality check
+            if (match.Success && match.Value == input)
             {
                 if (Uri.TryCreate(match.Value, UriKind.Absolute, out Uri uri) && uri.Host == "clips.twitch.tv")
                 {
@@ -256,18 +280,15 @@ namespace SkillzBot.Utils
 
         public static int CheckASCII(string message)
         {
-            int count = 0;
+            int i = 0;
             foreach (char ch in message)
             {
-                int val = (int)ch;
-                // Allow Standard ASCII (32-173) OR Cyrillic (1024-1279)
-                // Note: Standard ASCII is usually 0-127. 128-173 are extended/symbols.
-                if (!((val >= 32 && val <= 173) || (val >= 1024 && val <= 1279)))
+                if (!((int)ch >= 32 && (int)ch <= 173) && !((int)ch >= 1024 && (int)ch <= 1279))
                 {
-                    count++;
+                    i++;
                 }
             }
-            return count;
+            return i;
         }
 
         public static string Clean(string str)
@@ -276,9 +297,6 @@ namespace SkillzBot.Utils
 
             var sb = new StringBuilder(str.Length);
             string lowerStr = str.ToLower();
-
-            // Add first char manually to safely start the loop
-            // But check if it's a char to remove
             if (lowerStr.Length > 0 && !CharsToRemove.Contains(lowerStr[0]))
             {
                 sb.Append(lowerStr[0]);
@@ -290,7 +308,6 @@ namespace SkillzBot.Utils
 
                 if (!CharsToRemove.Contains(currentChar))
                 {
-                    // FIXED: Check Length > 0 before accessing index [Length-1]
                     if (sb.Length == 0 || sb[sb.Length - 1] != currentChar)
                     {
                         sb.Append(currentChar);
@@ -299,14 +316,12 @@ namespace SkillzBot.Utils
             }
             return sb.ToString();
         }
-
+        
         public static string RemoveWhitespace(string input)
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;
-
-            // Optimized: No LINQ allocation
             int len = input.Length;
-            char[] src = input.ToCharArray(); // Or use unsafe/fixed for zero-alloc
+            char[] src = input.ToCharArray(); 
             int dstIdx = 0;
 
             for (int i = 0; i < len; i++)

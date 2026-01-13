@@ -11,7 +11,7 @@ using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
 using TwitchLib.Api.Helix.Models.Predictions.GetPredictions;
 using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 
-namespace SkillzBot.API.Twitch
+namespace SkillzBot.Interfaces
 {
     public interface ITwitchService
     {
@@ -42,6 +42,8 @@ namespace SkillzBot.API.Twitch
         Task<string> GetCustomReward(string rewardID, string userID);
         Task DisableRewardAsync(string rewardID);
         Task EnableRewardAsync(string rewardID);
+        Task<List<string>> DisableAllRewardsSafeAsync(string exceptionRewardId);
+        Task RestoreRewardsAsync(List<string> rewardIdsToEnable);
 
         // Moderation & Users
         Task TimeOutUser(UserObject user, int duration, string reason);

@@ -14,5 +14,6 @@
         public bool IsSubActive { get; set; }
         public int ChatFilterLvl { get; set; }
         public int AntiBotProtectionLvl { get; set; }
+        public bool PerformanceDebugMode { get; set; }
     }
 }

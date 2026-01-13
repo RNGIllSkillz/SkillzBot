@@ -1,17 +1,20 @@
-﻿using System;
+﻿using F23.StringSimilarity;
+using Microsoft.Extensions.Logging;
+using SkillzBot.IllSkillzBot.IllCommandsNest;
+using SkillzBot.IllSTRINGS;
+using SkillzBot.Interfaces;
+using SkillzBot.MODELS;
+using SkillzBot.Utils;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
-using SkillzBot.API.Twitch;
-using SkillzBot.MODELS;
-using SkillzBot.IllSTRINGS;
-using SkillzBot.IllSkillzBot.IllCommandsNest;
-using SkillzBot.Utils;
-using F23.StringSimilarity;
-using SkillzBot.Interfaces;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -28,11 +31,15 @@ namespace SkillzBot.IllSkillzBot
         private readonly ITwitchService _twitchService;
         private readonly IBotStateService _botState;
         private readonly IllModeratorsInteractions _modInteractions;
+        private readonly IIllAccess _illAccess;
+        private readonly IStreamElementsService _streamElementsService;
 
         private const int HardTimeoutSec = 600;
         private const int TimeoutSec = 300;
         private const int LightTimeoutSec = 10;
-        private const int SaveBufferCount = 100;
+
+        private readonly Channel<OnMessageReceivedArgs> _messageChannel;
+        private const int SaveBufferCount = 20;
 
         public IllChatMessageHandler
             (
@@ -44,7 +51,9 @@ namespace SkillzBot.IllSkillzBot
             IllCommands illCommands, 
             ITwitchService twitchService, 
             IBotStateService botState,
-            IllModeratorsInteractions modInteractions
+            IllModeratorsInteractions modInteractions,
+            IIllAccess illAccess,
+            IStreamElementsService streamElementsService
             )
         {
             _logger = logger;
@@ -55,10 +64,42 @@ namespace SkillzBot.IllSkillzBot
             _twitchService = twitchService;
             _botState = botState;
             _modInteractions = modInteractions;
+            _illAccess = illAccess;
+            _streamElementsService = streamElementsService;
+            _messageChannel = Channel.CreateUnbounded<OnMessageReceivedArgs>(new UnboundedChannelOptions
+            {
+                SingleReader = true, // We have one processing loop
+                SingleWriter = true  // Only the IRC client writes
+            });
         }
-
-        public async Task HandleMessage(OnMessageReceivedArgs e)
+        public Task HandleMessage(OnMessageReceivedArgs e)
         {
+            // Just push to queue.
+            _messageChannel.Writer.TryWrite(e);
+            return Task.CompletedTask;
+        }
+        public async Task StartProcessingLoop(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Chat Message Processing Loop Started.");
+
+            while (await _messageChannel.Reader.WaitToReadAsync(cancellationToken))
+            {
+                while (_messageChannel.Reader.TryRead(out var e))
+                {
+                    try
+                    {
+                        await ProcessMessageInternal(e);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing chat message from {User}", e.ChatMessage.Username);
+                    }
+                }
+            }
+        }
+        public async Task ProcessMessageInternal(OnMessageReceivedArgs e)
+        {
+            var sw = Stopwatch.StartNew();
             if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return;
 
             SaveToBuffer(e);
@@ -118,6 +159,13 @@ namespace SkillzBot.IllSkillzBot
                 user = await _commandHandler.CommandHandler(user, e.ChatMessage.Message);
             }
             await _database.UpdateUserAsync(user);
+            sw.Stop();
+            if (_botState.Current.PerformanceDebugMode && _illAccess.Root(user))
+            {
+                double memoryUsed = GC.GetTotalMemory(false) / 1024.0 / 1024.0;
+                string perfMsg = $"[Perf] Time: {sw.ElapsedMilliseconds}ms | RAM: {memoryUsed:F2} MB";
+                await _streamElementsService.SendChatMessage(perfMsg).ConfigureAwait(false);
+            }
             return;
         }
 

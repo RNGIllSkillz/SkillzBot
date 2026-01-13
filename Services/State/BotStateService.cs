@@ -22,7 +22,7 @@ namespace SkillzBot.Services.State
         private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {
             WriteIndented = true,
-            PropertyNameCaseInsensitive = true // FIX: Ensures "debug": true in file maps to Debug property
+            PropertyNameCaseInsensitive = true 
         };
 
         public BotStateModel Current { get; private set; } = new BotStateModel

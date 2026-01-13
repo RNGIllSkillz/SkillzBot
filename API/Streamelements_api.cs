@@ -1,13 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using SkillzBot.Interfaces;
 using SkillzBot.JSON.MediaHistory;
 using SkillzBot.JSON.MediaQueue;
 using SkillzBot.JSON.StreamElements;
 using SkillzBot.IllConfiguration; 
 using System;
 using System.Collections.Generic;
-using System.Net;
+using System.Threading.Channels;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -22,6 +21,13 @@ namespace SkillzBot.API.StreamElements
         private readonly BotConfigModel _config;
         private readonly ILogger<StreamElementsService> _logger;
         private readonly bool _validToken;
+
+        // Queue Components
+        private readonly Channel<string> _messageQueue;
+        private readonly CancellationTokenSource _shutdownCts;
+
+        // Settings
+        private const int MSG_RATE_LIMIT_MS = 50; // 1.1s delay to be safe
 
         public StreamElementsService(HttpClient httpClient, BotConfigModel config, ILogger<StreamElementsService> logger)
         {
@@ -40,6 +46,19 @@ namespace SkillzBot.API.StreamElements
             else
             {
                 _logger.LogWarning("StreamElements API Token is missing. Service disabled.");
+            }
+
+            _messageQueue = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false
+            });
+            _shutdownCts = new CancellationTokenSource();
+
+            // Start the Background Worker if token is valid
+            if (_validToken)
+            {
+                _ = Task.Run(ProcessQueueAsync);
             }
         }
 
@@ -148,26 +167,59 @@ namespace SkillzBot.API.StreamElements
             }
         }
 
-        public async Task SendChatMessage(string message, CancellationToken token = default)
+        public Task SendChatMessage(string message, CancellationToken token = default)
         {
-            if (!_validToken || string.IsNullOrWhiteSpace(message)) return;
+            if (!_validToken || string.IsNullOrWhiteSpace(message)) return Task.CompletedTask;
+             _messageQueue.Writer.TryWrite(message);
+            return Task.CompletedTask;
+        }
 
+        private async Task ProcessQueueAsync()
+        {
+            _logger.LogInformation("StreamElements Message Queue Started.");
             try
             {
-                var payload = new { message };
-                var json = JsonConvert.SerializeObject(payload);
-                using var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                using var response = await _httpClient.PostAsync($"bot/{_config.StreamElementsID}/say", content, token);
-
-                if (!response.IsSuccessStatusCode)
+                // Wait for messages to be available
+                while (await _messageQueue.Reader.WaitToReadAsync(_shutdownCts.Token))
                 {
-                    _logger.LogError("SendChatMessage failed: {StatusCode}", response.StatusCode);
+                    // Consume all available messages
+                    while (_messageQueue.Reader.TryRead(out var msg))
+                    {
+                        try
+                        {
+                            await PerformApiPostAsync(msg);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to send queued message via StreamElements");
+                        }
+
+                        // ENFORCE RATE LIMIT
+                        // Wait before processing the NEXT message
+                        await Task.Delay(MSG_RATE_LIMIT_MS, _shutdownCts.Token);
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Graceful shutdown
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SendChatMessage Exception");
+                _logger.LogCritical(ex, "StreamElements Message Loop Crashed");
+            }
+        }
+        private async Task PerformApiPostAsync(string message)
+        {
+            var payload = new { message };
+            var json = JsonConvert.SerializeObject(payload);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var response = await _httpClient.PostAsync($"bot/{_config.StreamElementsID}/say", content, _shutdownCts.Token);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("StreamElements API Error: {StatusCode}", response.StatusCode);
             }
         }
     }

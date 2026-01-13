@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
-using SkillzBot.API.Twitch;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.Services.Infrastructure;
 using SkillzBot.Services.Writers;
-using SkillzBot.IllConfiguration; 
+using SkillzBot.IllConfiguration;
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
@@ -485,6 +484,7 @@ namespace SkillzBot.TtvClient.TTVRewards
         }
         public async Task EmoteOnlyReward(string UserName, string redemID, string rewardID)
         {
+            _logger.LogInformation("Activating Emote Only Mode by Reward redemption ({User})", UserName);
             await _twitchService.SetEmoteOnlyMode(true);
             if (UserName != _config.RootUser)
                 await _twitchService.ApproveReward(rewardID, redemID);
@@ -493,6 +493,7 @@ namespace SkillzBot.TtvClient.TTVRewards
 
             _ = Task.Run(async () => {
                 await Task.Delay(180000);
+                _logger.LogInformation("Deactivating Emote Only Mode (Timer expired)");
                 await _twitchService.SetEmoteOnlyMode(false);
             });
         }

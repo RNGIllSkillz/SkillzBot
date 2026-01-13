@@ -1,13 +1,16 @@
 ﻿using Microsoft.Extensions.Logging;
+using SkillzBot.IllConfiguration;
+using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
-using SkillzBot.IllConfiguration; 
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
+using TwitchLib.Api.Core.Exceptions;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomRewardRedemptionStatus;
@@ -23,12 +26,16 @@ namespace SkillzBot.API.Twitch
         private readonly ILogger<TwitchApiService> _logger;
         private readonly BotConfigModel _config;
 
-        // Internal State matching original static fields
         private string _predID;
         private string _winID;
         private string _looseID;
         private readonly string _broadcasterID;
         private readonly bool _isValidToken;
+
+        private readonly SemaphoreSlim _apiSemaphore = new SemaphoreSlim(1, 1);
+
+        // Fail fast setting: 5 seconds
+        private readonly TimeSpan _apiTimeout = TimeSpan.FromSeconds(5);
 
         public TwitchApiService(BotConfigModel config, ILogger<TwitchApiService> logger)
         {
@@ -64,13 +71,98 @@ namespace SkillzBot.API.Twitch
             return true;
         }
 
+        private async Task ExecuteWithRetryAsync(Func<Task> action, string operationName)
+        {
+            int retries = 0;
+            const int maxRetries = 3;
+
+            await _apiSemaphore.WaitAsync();
+            try
+            {
+                while (true)
+                {
+                    try
+                    {
+                        // If Twitch takes longer, we throw TimeoutException and retry/fail immediately
+                        // instead of blocking the bot for 100 seconds.
+                        await action().WaitAsync(_apiTimeout);
+
+                        await Task.Delay(100); // Small rate-limit spacing
+                        break;
+                    }
+                    // Catch the forced 5s timeout
+                    catch (TimeoutException)
+                    {
+                        retries++;
+                        if (retries > maxRetries)
+                        {
+                            _logger.LogError("Twitch API timed out locally ({Timeout}s) in {Operation} after {Retries} retries.", _apiTimeout.TotalSeconds, operationName, retries);
+                            break;
+                        }
+                        _logger.LogWarning("Twitch API slow response (>5s). Retrying {Count}...", retries);
+                        // No delay needed for timeout retry, maybe just network blip
+                    }
+                    // Catch standard 429 Rate Limits
+                    catch (TooManyRequestsException)
+                    {
+                        retries++;
+                        if (retries > maxRetries)
+                        {
+                            _logger.LogError("Rate Limit exceeded for {Operation} after {Retries} retries.", operationName, retries);
+                            break;
+                        }
+                        _logger.LogWarning("429 Too Many Requests in {Operation}. Waiting 2s...", operationName);
+                        await Task.Delay(2000);
+                    }
+                    // Catch internal HTTP timeouts (TaskCanceled) if they happen faster than 5s
+                    catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+                    {
+                        retries++;
+                        if (retries > maxRetries)
+                        {
+                            _logger.LogError("Twitch API Connection Dropped in {Operation}.", operationName);
+                            break;
+                        }
+                        _logger.LogWarning("Twitch API Request Canceled/Dropped. Retrying {Count}...", retries);
+                        await Task.Delay(1000);
+                    }
+                    // Catch HTTP Errors (500, 503, etc)
+                    catch (System.Net.Http.HttpRequestException ex)
+                    {
+                        retries++;
+                        if (retries > maxRetries)
+                        {
+                            _logger.LogError("HTTP Error in {Operation}: {Message}", operationName, ex.Message);
+                            break;
+                        }
+                        _logger.LogWarning("Twitch API HTTP Error. Retrying {Count}...", retries);
+                        await Task.Delay(1000);
+                    }
+                    // Critical Errors - Do Not Retry
+                    catch (BadRequestException ex)
+                    {
+                        _logger.LogError(ex, "Bad Request in {Operation}: {Msg}", operationName, ex.Message);
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unexpected Error in {Operation}", operationName);
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                _apiSemaphore.Release();
+            }
+        }
+
         #region Predictions
 
-        // Matches GetCurrentPred()
         private async Task GetCurrentPred()
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
                 if (predictions.Data.Length > 0)
@@ -80,11 +172,7 @@ namespace SkillzBot.API.Twitch
                     _winID = current.Outcomes.First().Id;
                     _looseID = current.Outcomes.Last().Id;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GetCurrentPred");
-            }
+            }, "GetCurrentPred");
         }
 
         public async ValueTask Start_2_Prediction(string title, string blue, string red, int windowSec)
@@ -101,15 +189,13 @@ namespace SkillzBot.API.Twitch
                 PredictionWindowSeconds = windowSec,
                 BroadcasterId = _broadcasterID
             };
-            try
+
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Predictions.CreatePredictionAsync(request);
-                await GetCurrentPred();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Start_2_Prediction");
-            }
+            }, "Start_2_Prediction");
+
+            await GetCurrentPred();
         }
 
         public async ValueTask Start_10_Prediction(List<string> champs, string title, int windowSec)
@@ -131,15 +217,13 @@ namespace SkillzBot.API.Twitch
             {
                 request.Outcomes[i] = new Outcome { Title = champs[i] };
             }
-            try
+
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Predictions.CreatePredictionAsync(request);
-                await GetCurrentPred();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Start_10_Prediction");
-            }
+            }, "Start_10_Prediction");
+
+            await GetCurrentPred();
         }
 
         public async ValueTask Start_5_Prediction(List<string> champs, string title, int windowSec)
@@ -163,24 +247,24 @@ namespace SkillzBot.API.Twitch
             {
                 request.Outcomes[i] = new Outcome { Title = champs[i] };
             }
-            try
+
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Predictions.CreatePredictionAsync(request);
-                await GetCurrentPred();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Start_5_Prediction");
-            }
+            }, "Start_5_Prediction");
+
+            await GetCurrentPred();
         }
 
         public async Task<string> End_Multy_Prediction(string champ)
         {
             if (!IsReady()) return "Invalid AccessToken";
-            try
+            string result = "ERR";
+
+            await ExecuteWithRetryAsync(async () =>
             {
                 var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
-                if (predictions.Data.Length == 0) return "ERR";
+                if (predictions.Data.Length == 0) return;
 
                 string currentPredID = predictions.Data.First().Id;
                 var predictionStatus = PredictionEndStatus.RESOLVED;
@@ -195,34 +279,25 @@ namespace SkillzBot.API.Twitch
                     }
                 }
 
-                if (currentPredID == _predID)
+                if (currentPredID == _predID && !string.IsNullOrEmpty(outcomeID))
                 {
                     await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, predictionStatus, outcomeID);
-                    return "OK";
+                    result = "OK";
                 }
                 else
                 {
-                    _logger.LogError("(Task EndPrediction) currentPredID != PredID");
+                    _logger.LogError("(Task EndPrediction) currentPredID != PredID or Outcome not found");
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "End_Multy_Prediction");
-                return "ERR";
-            }
-            return "OK";
+            }, "End_Multy_Prediction");
+
+            return result;
         }
 
         public async Task End_WinLoose_Prediction(bool win, int tryes = 0)
         {
             if (!IsReady()) return;
-            if (tryes > 10)
-            {
-                _logger.LogError("End_WinLoose_Prediction failed after {Tryes} retries.", tryes);
-                return;
-            }
 
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
                 if (predictions.Data.Length == 0) return;
@@ -237,19 +312,13 @@ namespace SkillzBot.API.Twitch
                 {
                     _logger.LogError("(Task EndPrediction) currentPredID != PredID");
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "End_WinLoose_Prediction()");
-                await Task.Delay(1000);
-                await End_WinLoose_Prediction(win, tryes + 1);
-            }
+            }, "End_WinLoose_Prediction");
         }
 
         public async Task CencelePrediction()
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 var predictions = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID);
                 if (predictions.Data.Length == 0) return;
@@ -259,11 +328,7 @@ namespace SkillzBot.API.Twitch
                 {
                     await _api.Helix.Predictions.EndPredictionAsync(_broadcasterID, _predID, PredictionEndStatus.CANCELED);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "CencelePrediction");
-            }
+            }, "CencelePrediction");
         }
 
         public async Task<TwitchLib.Api.Helix.Models.Predictions.GetPredictions.GetPredictionsResponse> GetCurrentPredPublic()
@@ -283,6 +348,71 @@ namespace SkillzBot.API.Twitch
         #endregion
 
         #region Rewards
+
+        public async Task<List<string>> DisableAllRewardsSafeAsync(string exceptionRewardId)
+        {
+            if (!IsReady()) return new List<string>();
+            var successfullyDisabledIds = new List<string>();
+
+            try
+            {
+                var allRewards = await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID);
+                if (allRewards?.Data == null) return successfullyDisabledIds;
+
+                foreach (var reward in allRewards.Data)
+                {
+                    if (reward.Id == exceptionRewardId) continue;
+                    if (!reward.IsEnabled) continue;
+
+                    await ExecuteWithRetryAsync(async () =>
+                    {
+                        await _api.Helix.ChannelPoints.UpdateCustomRewardAsync(_broadcasterID, reward.Id, new UpdateCustomRewardRequest
+                        {
+                            IsEnabled = false,
+                            Title = reward.Title,
+                            Cost = reward.Cost,
+                            Prompt = reward.Prompt,
+                            IsUserInputRequired = reward.IsUserInputRequired
+                        });
+                        successfullyDisabledIds.Add(reward.Id);
+                        _logger.LogInformation("Lockdown: Temporarily disabled reward '{Title}'", reward.Title);
+                    }, $"DisableReward({reward.Title})");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DisableAllRewardsSafeAsync failed");
+            }
+
+            return successfullyDisabledIds;
+        }
+
+        public async Task RestoreRewardsAsync(List<string> rewardIdsToEnable)
+        {
+            if (!IsReady() || rewardIdsToEnable == null || rewardIdsToEnable.Count == 0) return;
+
+            foreach (var id in rewardIdsToEnable)
+            {
+                await ExecuteWithRetryAsync(async () =>
+                {
+                    var rewardResponse = await _api.Helix.ChannelPoints.GetCustomRewardAsync(_broadcasterID, new List<string> { id });
+                    var reward = rewardResponse.Data.FirstOrDefault();
+
+                    if (reward != null)
+                    {
+                        await _api.Helix.ChannelPoints.UpdateCustomRewardAsync(_broadcasterID, id, new UpdateCustomRewardRequest
+                        {
+                            IsEnabled = true,
+                            Title = reward.Title,
+                            Cost = reward.Cost,
+                            Prompt = reward.Prompt,
+                            IsUserInputRequired = reward.IsUserInputRequired
+                        });
+                        _logger.LogInformation("Lockdown: Restored reward '{Title}'", reward.Title);
+                    }
+                }, $"RestoreReward({id})");
+            }
+        }
 
         public async Task<TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward.GetCustomRewardsResponse> GetAllRewards()
         {
@@ -331,7 +461,7 @@ namespace SkillzBot.API.Twitch
         public async Task UpdateReward(string rewardID, string title, int cost, string prompt, bool enable, bool isUserInputRequired)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.ChannelPoints.UpdateCustomRewardAsync(_broadcasterID, rewardID, new UpdateCustomRewardRequest
                 {
@@ -342,30 +472,23 @@ namespace SkillzBot.API.Twitch
                     IsUserInputRequired = isUserInputRequired,
                     ShouldRedemptionsSkipRequestQueue = false
                 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "updateReward");
-            }
+            }, "UpdateReward");
         }
 
         public async Task DeleteReward(string rewardID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.ChannelPoints.DeleteCustomRewardAsync(_broadcasterID, rewardID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "DeleteReward");
-            }
+            }, "DeleteReward");
         }
 
         public async Task<string> CreateReward(string title, int cost, string prompt, bool enabled, bool userinput)
         {
             if (!IsReady()) return null;
-            try
+            string newId = null;
+            await ExecuteWithRetryAsync(async () =>
             {
                 var response = await _api.Helix.ChannelPoints.CreateCustomRewardsAsync(_broadcasterID, new CreateCustomRewardsRequest
                 {
@@ -376,45 +499,33 @@ namespace SkillzBot.API.Twitch
                     IsUserInputRequired = userinput,
                     ShouldRedemptionsSkipRequestQueue = false
                 });
-                return response.Data.FirstOrDefault()?.Id;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "CreateReward");
-                return null;
-            }
+                newId = response.Data.FirstOrDefault()?.Id;
+            }, "CreateReward");
+            return newId;
         }
 
         public async Task CencelReward(string rewardID, string redemID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.ChannelPoints.UpdateRedemptionStatusAsync(_broadcasterID, rewardID, new List<string> { redemID }, new UpdateCustomRewardRedemptionStatusRequest
                 {
                     Status = CustomRewardRedemptionStatus.CANCELED
                 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "CencelReward");
-            }
+            }, "CencelReward");
         }
 
         public async Task ApproveReward(string rewardID, string redemID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.ChannelPoints.UpdateRedemptionStatusAsync(_broadcasterID, rewardID, new List<string> { redemID }, new UpdateCustomRewardRedemptionStatusRequest
                 {
                     Status = CustomRewardRedemptionStatus.FULFILLED
                 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "ApproveReward");
-            }
+            }, "ApproveReward");
         }
 
         public async Task<string> GetCustomReward(string rewardID, string userID)
@@ -460,11 +571,10 @@ namespace SkillzBot.API.Twitch
 
         #region User Management & Chat
 
-        // Corresponds to internal TimeOutUserAsync in original
         private async Task PerformTimeOutUserAsync(string userId, int duration, string reason)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Moderation.BanUserAsync(_broadcasterID, _broadcasterID, new BanUserRequest
                 {
@@ -472,96 +582,92 @@ namespace SkillzBot.API.Twitch
                     Duration = duration,
                     Reason = reason
                 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "TimeOutUserAsync");
-            }
+            }, $"TimeOutUserAsync({userId})");
         }
 
         public async Task TimeOutUser(UserObject user, int duration, string reason)
         {
             if (!IsReady()) return;
             if (user.isMod == 1) return;
-            try
-            {
-                await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "TimeOutUser");
-            }
+            await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
         }
 
         public async Task TimeOutModerator(UserObject user, int duration, string reason)
         {
             if (!IsReady()) return;
-            try
-            {
-                await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "TimeOutModerator");
-            }
+            await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
         }
 
         public async Task BanUser(string userID, string reason)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Moderation.BanUserAsync(_broadcasterID, _broadcasterID, new BanUserRequest
                 {
                     UserId = userID,
                     Reason = reason
                 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "BanUser");
-            }
+            }, "BanUser");
         }
 
         public async Task UnBanUser(string userID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Moderation.UnbanUserAsync(_broadcasterID, _broadcasterID, userID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "UnBanUser");
-            }
+            }, "UnBanUser");
         }
 
         public async Task<bool> AddChannelModerator(string userID)
         {
-            if (!IsReady()) return true; // Original logic returns true on IsReady check failure? Preserving behavior.
+            if (!IsReady()) return false;
+            bool success = false;
+
+            await _apiSemaphore.WaitAsync();
             try
             {
-                await _api.Helix.Moderation.AddChannelModeratorAsync(_broadcasterID, userID);
-                return true;
+                await _api.Helix.Moderation.AddChannelModeratorAsync(_broadcasterID, userID).WaitAsync(_apiTimeout);
+                success = true;
+                await Task.Delay(100);
+            }
+            catch (BadRequestException ex) when (ex.Message.Contains("user is banned"))
+            {
+                _logger.LogWarning("Cannot Mod user {UserId} because they are banned. Attempting Unban...", userID);
+                try
+                {
+                    await _api.Helix.Moderation.UnbanUserAsync(_broadcasterID, _broadcasterID, userID).WaitAsync(_apiTimeout);
+                    await Task.Delay(500);
+                    await _api.Helix.Moderation.AddChannelModeratorAsync(_broadcasterID, userID).WaitAsync(_apiTimeout);
+                    success = true;
+                }
+                catch (Exception retryEx)
+                {
+                    _logger.LogError(retryEx, "Failed to AddMod even after Unban attempt for {UserId}", userID);
+                    success = false;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "AddChannelModerator");
-                return false;
+                _logger.LogError(ex, "AddChannelModerator failed for {UserId}", userID);
+                success = false;
             }
+            finally
+            {
+                _apiSemaphore.Release();
+            }
+
+            return success;
         }
 
         public async Task DeleteChannelModerator(string userID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Moderation.DeleteChannelModeratorAsync(_broadcasterID, userID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "DeleteChannelModerator");
-            }
+            }, "DeleteChannelModerator");
         }
 
         public async Task<TwitchLib.Api.Helix.Models.Moderation.GetModerators.Moderator[]> GetAllMods()
@@ -597,14 +703,10 @@ namespace SkillzBot.API.Twitch
         public async Task SendWhisper(string toUserID, string message, bool newRec = true)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Whispers.SendWhisperAsync(_broadcasterID, toUserID, message, newRec);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "SendWhisper");
-            }
+            }, "SendWhisper");
         }
 
         public async Task<TwitchLib.Api.Helix.Models.Channels.GetChannelVIPs.GetChannelVIPsResponse> GetVIPs()
@@ -624,27 +726,19 @@ namespace SkillzBot.API.Twitch
         public async Task AddChannelVIP(string userID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Channels.AddChannelVIPAsync(_broadcasterID, userID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "AddChannelVIP");
-            }
+            }, "AddChannelVIP");
         }
 
         public async Task DeleteChannelVIP(string userID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Channels.RemoveChannelVIPAsync(_broadcasterID, userID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "DeleteChannelVIP");
-            }
+            }, "DeleteChannelVIP");
         }
 
         #endregion
@@ -713,56 +807,42 @@ namespace SkillzBot.API.Twitch
         public async Task DeleteMessage(string messageID)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Moderation.DeleteChatMessagesAsync(_broadcasterID, _broadcasterID, messageID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "DeleteMessage");
-            }
+            }, "DeleteMessage");
         }
 
         public async Task DeleteAllMessages()
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Moderation.DeleteChatMessagesAsync(_broadcasterID, _broadcasterID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "DeleteAllMessages");
-            }
+            }, "DeleteAllMessages");
         }
 
         public async Task<bool> Announce(string message)
         {
             if (!IsReady()) return false;
-            try
+            bool success = false;
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Chat.SendChatAnnouncementAsync(_broadcasterID, _broadcasterID, message);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Announce");
-                return false;
-            }
+                success = true;
+            }, "Announce");
+            return success;
         }
 
         public async Task<TwitchLib.Api.Helix.Models.Clips.CreateClip.CreatedClipResponse> CreateClip()
         {
             if (!IsReady()) return null;
-            try
+            TwitchLib.Api.Helix.Models.Clips.CreateClip.CreatedClipResponse result = null;
+            await ExecuteWithRetryAsync(async () =>
             {
-                return await _api.Helix.Clips.CreateClipAsync(_broadcasterID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "CreateClip");
-                return null;
-            }
+                result = await _api.Helix.Clips.CreateClipAsync(_broadcasterID);
+            }, "CreateClip");
+            return result;
         }
 
         public async Task<bool> CheckClipExistence(string clipID)
@@ -785,17 +865,13 @@ namespace SkillzBot.API.Twitch
         public async Task SetEmoteOnlyMode(bool isEmoteOnly)
         {
             if (!IsReady()) return;
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 await _api.Helix.Chat.UpdateChatSettingsAsync(_broadcasterID, _broadcasterID, new ChatSettings
                 {
                     EmoteMode = isEmoteOnly
                 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "SetEmoteOnlyMode");
-            }
+            }, "SetEmoteOnlyMode");
         }
         #endregion
     }

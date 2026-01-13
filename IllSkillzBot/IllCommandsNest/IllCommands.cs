@@ -6,7 +6,6 @@ using Serilog.Core;
 using Serilog.Events;
 using SkillzBot.API.MMR;
 using SkillzBot.API.StreamElements;
-using SkillzBot.API.Twitch;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
@@ -453,7 +452,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 await _ircClient.SendMessage(string.Format(STRINGS.CreateClipERROR, user.Name, "API Error"));
             }
         }
-
+        public async Task TogglePDebug(UserObject user)
+        {
+            await _botState.UpdateStateAsync(s => s.PerformanceDebugMode = !s.PerformanceDebugMode);
+            string status = _botState.Current.PerformanceDebugMode ? "ON" : "OFF";
+            await _ircClient.SendMessage($"⚡ Performance Debug is now: {status}");
+        }
         public async Task FlushChat(UserObject user)
         {
             await _twitchService.DeleteAllMessages();

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using SkillzBot.API.Twitch;
 using SkillzBot.Utils;
 using SkillzBot.IRC;
 using System.Linq;

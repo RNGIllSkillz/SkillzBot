@@ -10,6 +10,6 @@
         public int NumLosses { get; set; }
         public int NumWins { get; set; }
         public int NumGames { get; set; }
-        public string Tier { get; set; }
+        public string Tier { get; set; }        
     }
 }

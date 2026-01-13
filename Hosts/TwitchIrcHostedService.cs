@@ -26,6 +26,7 @@ namespace SkillzBot.Hosts
         public override async Task StartAsync(CancellationToken cancellationToken)
         {
             _ircClient.OnMessageReceived += _messageHandler.HandleMessage;
+            _ = Task.Run(() => _messageHandler.StartProcessingLoop(cancellationToken), cancellationToken);
             await base.StartAsync(cancellationToken);
         }
         public override async Task StopAsync(CancellationToken cancellationToken)

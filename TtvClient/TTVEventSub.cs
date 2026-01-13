@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SkillzBot.API.Twitch;
-using SkillzBot.IllConfiguration; 
+using SkillzBot.IllConfiguration;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.TtvClient.TTVRewards;
@@ -34,6 +33,7 @@ namespace SkillzBot.EventSub
 
         private int tryes = 0;
         private readonly Dictionary<string, string> SubscriptionsTypes;
+        private List<string> _lockedRewards = new List<string>();
 
         public TTVEventSub(
             EventSubWebsocketClient eventSubWebsocketClient, 
@@ -68,6 +68,7 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelPredictionBegin += OnPrediction;
             _eventSubWebsocketClient.ChannelUnban += OnUnban;
             _eventSubWebsocketClient.ChannelBan += OnChannelBan;
+            _eventSubWebsocketClient.ChannelChatSettingsUpdate += OnChannelChatSettingsUpdate;
 
             _twitchApi.Settings.ClientId = _config.TApiClientId;
             _twitchApi.Settings.AccessToken = _config.TApiAccessToken;
@@ -78,7 +79,8 @@ namespace SkillzBot.EventSub
                 { "channel.channel_points_custom_reward_redemption.add", "1" },
                 { "channel.unban", "1"},
                 { "channel.ban", "1"},
-                { "channel.prediction.begin", "1"}
+                { "channel.prediction.begin", "1"},
+                { "channel.chat_settings.update", "1"}
             };
         }
 
@@ -186,11 +188,17 @@ namespace SkillzBot.EventSub
 
             try
             {
+                // 1. Base condition: almost all events require broadcaster_user_id
                 var condition = new Dictionary<string, string>
                 {
-                    { "broadcaster_user_id", _config.BroadcasterId },
-                    { "moderator_user_id", _config.BroadcasterId }
+                    { "broadcaster_user_id", _config.BroadcasterId }
                 };
+
+                // 2. Specific condition for Chat Settings Update
+                if (_type == "channel.chat_settings.update")
+                {
+                    condition["user_id"] = _config.BroadcasterId;
+                }
 
                 var subscription = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                     type: _type,
@@ -203,17 +211,14 @@ namespace SkillzBot.EventSub
             }
             catch (BadRequestException ex)
             {
-                // 400 Bad Request: Usually means SessionId is dead or invalid
-                _logger.LogError("Failed to subscribe to {_type}: Bad Request (Invalid Session?): {Message}", _type, ex.Message);
+                _logger.LogError("Failed to subscribe to {_type}: Bad Request: {Message}", _type, ex.Message);
             }
             catch (HttpRequestException ex) when (ex.Message.Contains("409") || ex.Message.Contains("Conflict"))
             {
-                // 409 Conflict: Subscription already exists. This is fine, effectively a success.
                 _logger.LogWarning("Subscription for {_type} already exists (Conflict 409). Skipping.", _type);
             }
             catch (Exception ex)
             {
-                // Check inner exception for 409 Conflict just in case it's wrapped
                 if (ex.Message.Contains("Conflict") || (ex.InnerException != null && ex.InnerException.Message.Contains("Conflict")))
                 {
                     _logger.LogWarning("Subscription for {_type} already exists (Conflict). Skipping.", _type);
@@ -227,6 +232,26 @@ namespace SkillzBot.EventSub
         #endregion
 
         #region Events
+        private async Task OnChannelChatSettingsUpdate(object sender, ChannelChatSettingsUpdateArgs e)
+        {
+            bool isEmoteMode = e.Payload.Event.EmoteMode;
+            _logger.LogInformation("Chat Settings Update: EmoteOnly is now {Status}", isEmoteMode);
+
+            if (isEmoteMode)
+            {
+                _lockedRewards = await _twitchService.DisableAllRewardsSafeAsync(_config.ChannelIds.EmoteModeId);
+                _logger.LogInformation("Lockdown active. {Count} rewards disabled.", _lockedRewards.Count);
+            }
+            else
+            {
+                if (_lockedRewards != null && _lockedRewards.Count > 0)
+                {
+                    await _twitchService.RestoreRewardsAsync(_lockedRewards);
+                    _logger.LogInformation("Lockdown lifted. {Count} rewards restored.", _lockedRewards.Count);
+                    _lockedRewards.Clear();
+                }
+            }
+        }
         private async Task OnStreamUp(object sender, StreamOnlineArgs e)
         {
             await _ircClient.OnStreamUp();

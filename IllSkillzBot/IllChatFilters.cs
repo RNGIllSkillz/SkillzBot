@@ -1,9 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using SkillzBot.API.Twitch;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.Services.Writers;
-using SkillzBot.IllConfiguration; 
+using SkillzBot.IllConfiguration;
 using SkillzBot.Utils;
 using System;
 using System.Collections.Concurrent;
@@ -22,7 +21,6 @@ namespace SkillzBot.IllSkillzBot
         private readonly IPathProvider _paths;
         private readonly ITwitchService _twitchService;
         private readonly BotConfigModel _config;
-        private readonly IBotStateService _botState;
         private readonly FlagWriterService _flagWriter;
         private readonly IYouTubeService _youTubeService;
 
@@ -42,7 +40,6 @@ namespace SkillzBot.IllSkillzBot
         public IllChatFilters(ILogger<IllChatFilters> logger, 
             ITwitchService twitchService, 
             BotConfigModel config, 
-            IBotStateService botState,
             FlagWriterService flagWriter,
             IYouTubeService youTubeService,
             IPathProvider paths)
@@ -50,7 +47,6 @@ namespace SkillzBot.IllSkillzBot
             _logger = logger; 
             _twitchService = twitchService;
             _config = config ?? throw new ArgumentNullException(nameof(config));
-            _botState = botState;
             _flagWriter = flagWriter;
             _youTubeService = youTubeService;
             _paths = paths ?? throw new ArgumentNullException(nameof(paths));
@@ -196,6 +192,8 @@ namespace SkillzBot.IllSkillzBot
         {
             if (e.ChatMessage.CustomRewardId != _config.ChannelIds.Pi4KaId)
             {
+                //if (StringUtil.IsZalgo(e.ChatMessage.Message))
+                    //return true;
                 int count = StringUtil.CheckASCII(e.ChatMessage.Message);
                 if (count / CharsInRow >= RowsNum && e.ChatMessage.Message.Length / CharsInRow > RowsNum)
                     return true;

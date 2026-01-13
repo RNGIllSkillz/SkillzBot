@@ -1,18 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using SkillzBot.Utils;
-using Camille.Enums;
+﻿using Camille.Enums;
 using Camille.RiotGames;
-using Camille.RiotGames.SummonerV4;
-using Camille.RiotGames.SpectatorV5;
+using Camille.RiotGames.AccountV1;
 using Camille.RiotGames.LeagueV4;
 using Camille.RiotGames.MatchV5;
-using Camille.RiotGames.AccountV1;
+using Camille.RiotGames.SpectatorV5;
+using Camille.RiotGames.SummonerV4;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration; 
-using System.Linq;
 using SkillzBot.Interfaces;
+using SkillzBot.Utils;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace SkillzBot.API.RiotGames
 {
@@ -210,20 +211,35 @@ namespace SkillzBot.API.RiotGames
 
         public async Task<Match> GetMatchAsync(string matchID)
         {
-            if (!_isValidToken) return null; 
-            try
+            if (!await EnsureServiceReadyAsync()) return null;
+            int retryCount = 0;
+            while (true)
             {
-                return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID);
-            }
-            catch (Exception ex)
-            {
-                string message = ex.InnerException?.Message ?? ex.Message;
-                if (message.Contains("data not found", StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    return null;
+                    return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID).ConfigureAwait(false);
                 }
-                _logger.LogError(ex, "GetMatchAsync failed for match ID {MatchID}", matchID);
-                throw;
+                catch (HttpRequestException ex) when (ex.InnerException is System.IO.IOException)
+                {
+                    retryCount++;
+                    if (retryCount > 3)
+                    {
+                        _logger.LogError(ex, "GetMatchAsync failed after 3 retries for match ID {MatchID}", matchID);
+                        throw;
+                    }
+                    _logger.LogWarning("GetMatchAsync Connection Reset. Retrying {Count}/3...", retryCount);
+                    await Task.Delay(1000 * retryCount); // Backoff
+                }
+                catch (Exception ex)
+                {
+                    string message = ex.InnerException?.Message ?? ex.Message;
+                    if (message.Contains("data not found", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return null;
+                    }
+                    _logger.LogError(ex, "GetMatchAsync failed for match ID {MatchID}", matchID);
+                    throw;
+                }
             }
         }
 

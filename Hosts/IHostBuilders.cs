@@ -52,9 +52,6 @@ namespace SkillzBot.Hosts
                         .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
                         .Enrich.FromLogContext()
                         .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
-
-                    // Note: File logging requires path, which is inside IPathProvider.
-                    // If you need file logging here, you can resolve IPathProvider
                     try
                     {
                         var paths = services.GetService<IPathProvider>();

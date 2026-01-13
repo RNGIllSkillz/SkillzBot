@@ -1,11 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
-using SkillzBot.API.Twitch;
 using SkillzBot.Hosts;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.IllConfiguration; 
+using SkillzBot.IllConfiguration;
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
