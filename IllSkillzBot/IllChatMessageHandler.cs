@@ -34,6 +34,10 @@ namespace SkillzBot.IllSkillzBot
         private readonly IIllAccess _illAccess;
         private readonly IStreamElementsService _streamElementsService;
 
+        //debug
+        private DateTime _lastMessageProcessed = DateTime.MinValue;
+        private long _totalMessagesProcessed = 0;
+
         private const int HardTimeoutSec = 600;
         private const int TimeoutSec = 300;
         private const int LightTimeoutSec = 10;
@@ -41,6 +45,7 @@ namespace SkillzBot.IllSkillzBot
         private readonly Channel<OnMessageReceivedArgs> _messageChannel;
         private const int SaveBufferCount = 20;
 
+        private const string SPAM_MARKER = "___SPAM___";
         public IllChatMessageHandler
             (
             ILogger<IllChatMessageHandler> logger, 
@@ -84,8 +89,15 @@ namespace SkillzBot.IllSkillzBot
 
             while (await _messageChannel.Reader.WaitToReadAsync(cancellationToken))
             {
-                while (_messageChannel.Reader.TryRead(out var e))
+                //debug
+                int pendingCount = _messageChannel.Reader.Count;
+                if (pendingCount > 10)
                 {
+                    _logger.LogWarning("[LAG ALERT] Chat Queue is backing up! Pending messages: {Count}", pendingCount);
+                }
+
+                while (_messageChannel.Reader.TryRead(out var e))
+                {    
                     try
                     {
                         await ProcessMessageInternal(e);
@@ -100,15 +112,33 @@ namespace SkillzBot.IllSkillzBot
         public async Task ProcessMessageInternal(OnMessageReceivedArgs e)
         {
             var sw = Stopwatch.StartNew();
+            _lastMessageProcessed = DateTime.UtcNow;
             if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return;
 
             SaveToBuffer(e);
             var tracker = AddToTracker(e.ChatMessage.Username, e.ChatMessage.Message);
-            var user = await GetAddUser(e.ChatMessage);
+
+            UserObject user = null;
+            try
+            {
+                user = await GetAddUser(e.ChatMessage);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to Get/Add user {User}. Skipping processing.", e.ChatMessage.Username);
+                return;
+            }
             if (user == null) return;
 
             user.messageCon++;
-            await SaveBuffer(false);
+            try
+            {
+                await SaveBuffer(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Background save buffer failed.");
+            }
 
             if (_botState.Current.IsSubActive)
             {
@@ -125,9 +155,18 @@ namespace SkillzBot.IllSkillzBot
                 }
 
                 if (await _chatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName).ConfigureAwait(false))
-                {
-                    user = await _modInteractions.IllFilterTrigger(user, e.ChatMessage.Id);
-                    await _database.UpdateUserAsync(user);
+                {                   
+                    _ = Task.Run(async () => {
+                        try
+                        {
+                            var updatedUser = await _modInteractions.IllFilterTrigger(user, e.ChatMessage.Id);
+                            await _database.UpdateUserAsync(updatedUser);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Background moderation failed for {User}", user.Name);
+                        }
+                    });
                     return;
                 }
 
@@ -159,7 +198,16 @@ namespace SkillzBot.IllSkillzBot
                 user = await _commandHandler.CommandHandler(user, e.ChatMessage.Message);
             }
             await _database.UpdateUserAsync(user);
+
             sw.Stop();
+            Interlocked.Increment(ref _totalMessagesProcessed);
+
+            if (sw.ElapsedMilliseconds > 500)
+            {
+                _logger.LogWarning("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
+                    e.ChatMessage.Username, sw.ElapsedMilliseconds, e.ChatMessage.Message);
+            }
+
             if (_botState.Current.PerformanceDebugMode && _illAccess.Root(user))
             {
                 double memoryUsed = GC.GetTotalMemory(false) / 1024.0 / 1024.0;
@@ -301,10 +349,10 @@ namespace SkillzBot.IllSkillzBot
 
                 if (isSpam)
                 {
-                    tracker.RecentMessages[0] = Guid.NewGuid().ToString();
-                    tracker.RecentMessages[1] = Guid.NewGuid().ToString();
-                    tracker.RecentMessages[2] = Guid.NewGuid().ToString();
-                    tracker.RecentMessages[3] = Guid.NewGuid().ToString();
+                    tracker.RecentMessages[0] = SPAM_MARKER;
+                    tracker.RecentMessages[1] = SPAM_MARKER;
+                    tracker.RecentMessages[2] = SPAM_MARKER;
+                    tracker.RecentMessages[3] = SPAM_MARKER;
                     return true;
                 }
             }

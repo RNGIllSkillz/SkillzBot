@@ -80,6 +80,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 new("!state", illCommands.GetBotState, RequiredAccessLevel: AccessLevel.Root),
                 new("!godmode", illCommands.ToggleGodMode, RequiredAccessLevel: AccessLevel.Root),
                 new("!pdebug", illCommands.TogglePDebug, RequiredAccessLevel: AccessLevel.Root),
+                new("!service", illCommands.GetServiceStatus, RequiredAccessLevel: AccessLevel.Root),
 
                 new("!ban", illCommands.BanUserForTrack, RequiresCooldown: true, 60, BypassCooldown: false, AccessLevel.Broadcaster),
 

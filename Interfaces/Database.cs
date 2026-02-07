@@ -4,6 +4,13 @@ using System.Threading.Tasks;
 
 namespace SkillzBot.Interfaces
 {
+    public record DatabaseStats(
+        long SessionQueries,
+        long SessionNewUsers,
+        long SessionMessagesSaved,
+        long TotalUsers,
+        long TotalMessages
+    );
     public interface IDatabaseService
     {
         Task InitializeAsync();
@@ -22,5 +29,6 @@ namespace SkillzBot.Interfaces
         Task SpendQuizPointsAsync(int amount, int twitchId);
         Task UpdateOnlineStatusAsync(List<string> chatters);
         Task<TrackUser> TrackUserAsync(string userName);
+        Task<DatabaseStats> GetStatsAsync();
     }
 }

@@ -46,6 +46,14 @@ namespace SkillzBot.Discord
 
         private async Task StartUp(string token)
         {
+            if (_client != null)
+            {
+                _client.Log -= DisLog;
+                _client.Ready -= OnReady;
+                _client.Disconnected -= OnDisconnected;
+                _client.MessageReceived -= HandleCommandAsync;
+                await _client.DisposeAsync();
+            }
             try
             {
                 DiscordSocketConfig config = new DiscordSocketConfig

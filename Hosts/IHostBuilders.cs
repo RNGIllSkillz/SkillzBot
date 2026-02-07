@@ -19,6 +19,7 @@ using SkillzBot.Interfaces;
 using SkillzBot.IRC;
 using SkillzBot.MySQL;
 using SkillzBot.QuartZ;
+using SkillzBot.Services;
 using SkillzBot.Services.Infrastructure;
 using SkillzBot.Services.State;
 using SkillzBot.Services.Writers;
@@ -96,12 +97,13 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<IRiotApiService, RiotApiService>();
 
                     // HTTP Clients
-                    services.AddHttpClient<IStreamElementsService, StreamElementsService>()
+                    services.AddHttpClient("StreamElementsClient")
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
                         .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
                         {
                             PooledConnectionLifetime = TimeSpan.FromMinutes(2)
                         });
+                    services.AddSingleton<IStreamElementsService, StreamElementsService>();
 
                     services.AddHttpClient<RiotHttpHandler>()
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5)) 
@@ -149,6 +151,7 @@ namespace SkillzBot.Hosts
                     services.AddHostedService<StartupInitializer>(); // Runs Once
                     services.AddHostedService<TTVEventSub>();        // Runs Forever
                     services.AddHostedService<TwitchIrcHostedService>(); // Runs Forever
+                    services.AddHostedService<MatchMonitoringService>(); // Runs Forever
                 })
                 .Build();
         }

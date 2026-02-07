@@ -50,10 +50,12 @@ namespace SkillzBot.IllSkillzBot
                         await _ircClient.SendMessage(string.Format(STRINGS.RouletteLoose, user.Name));
                     user.roulettCon = 0;
                     if (Convert.ToBoolean(user.isMod))
+                    {
                         if (!isGod)
                             await _twitchService.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut);
+                    }
                     else
-                        await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut);
+                        await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut);                    
                 }
                 else
                 {

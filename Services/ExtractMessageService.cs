@@ -9,7 +9,6 @@ namespace SkillzBot.Services.Writers
     public class ExtractMessageService
     {
         private readonly string _filePath;
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private readonly ILogger<ExtractMessageService> _logger;
 
         public ExtractMessageService(IPathProvider paths, ILogger<ExtractMessageService> logger)
@@ -20,7 +19,6 @@ namespace SkillzBot.Services.Writers
 
         public async Task WriteAsync(string message)
         {
-            await _semaphore.WaitAsync();
             try
             {
                 await File.AppendAllTextAsync(_filePath, $"{DateTime.Now} {message}{Environment.NewLine}");
@@ -28,10 +26,6 @@ namespace SkillzBot.Services.Writers
             catch (Exception e)
             {
                 _logger.LogError(e, "ExtractMessageService WriteAsync failed");
-            }
-            finally
-            {
-                _semaphore.Release();
             }
         }
     }

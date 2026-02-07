@@ -154,29 +154,58 @@ namespace SkillzBot.API.RiotGames
         {
             if (!await EnsureServiceReadyAsync()) return null;
 
-            try
+            int retryCount = 0;
+            while (true)
             {
-                var currentGame = await _riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(_platformRoute, _summoner.Puuid);
-                lastErrorMessage = null;
-                return currentGame;
-            }
-            catch (Exception ex)
-            {
-                string currentErrorMessage = ex.InnerException?.Message ?? ex.Message;
-                if (!currentErrorMessage.Contains("Data not found", StringComparison.OrdinalIgnoreCase))
+                try
                 {
+                    var currentGame = await _riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
+                    lastErrorMessage = null;
+                    return currentGame;
+                }
+                // 1. Fix for "Connection reset by peer" (SocketException/IOException)
+                catch (System.Net.Http.HttpRequestException ex) when (ex.InnerException is System.IO.IOException)
+                {
+                    retryCount++;
+                    if (retryCount > 3)
+                    {
+                        _logger.LogError(ex, "GetCurrentGameAsync Connection Reset failed after 3 retries.");
+                        return null;
+                    }
+                    // Exponential backoff: 1s, 2s, 3s
+                    await Task.Delay(1000 * retryCount).ConfigureAwait(false);
+                }
+                // 2. Fix for Timeouts
+                catch (TaskCanceledException)
+                {
+                    retryCount++;
+                    if (retryCount > 3)
+                    {
+                        _logger.LogError("GetCurrentGameAsync Timed Out after 3 retries.");
+                        return null;
+                    }
+                    await Task.Delay(1000 * retryCount).ConfigureAwait(false);
+                }
+                // 3. Handle Logic Errors (404 Not Found / General crashes)
+                catch (Exception ex)
+                {
+                    string currentErrorMessage = ex.InnerException?.Message ?? ex.Message;                    
+                    // 404 means user is simply not in a game. Not an error.
+                    if (currentErrorMessage.Contains("Data not found", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lastErrorMessage = null;
+                        return null; 
+                    }
+                    // Log other errors only if they are new (prevent log spam)
                     if (lastErrorMessage != currentErrorMessage)
                     {
-                        _logger.LogError(ex, "GetCurrentMatchTask failed");
+                        _logger.LogError(ex, "GetCurrentGameAsync failed");
                         lastErrorMessage = currentErrorMessage;
-                    }
-                }
-                else
-                {
-                    lastErrorMessage = null;
+                    }                    
+                    // Do not retry logical errors
+                    return null;
                 }
             }
-            return null;
         }
 
         public async Task<List<string>> GetRankBySummonerAsync()
@@ -247,38 +276,49 @@ namespace SkillzBot.API.RiotGames
         {
             if (SummonerName == null && !await EnsureServiceReadyAsync()) return null;
 
-            try
+            int retryCount = 0;
+            while (true)
             {
-                if (SummonerName == null || sRegion == null)
-                    return await _httpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid);
-                else
+                try
                 {
-                    // Ensure API is ready even for external lookups
-                    if (_riotApi == null) await InitializeAsync();
-                    if (_riotApi == null) return null;
-
-                    var nameParts = SummonerName.Split('#');
-                    if (nameParts.Length < 2)
+                    if (SummonerName == null || sRegion == null)
+                        return await _httpHandler.GetLeagueEntriesByPUUIDAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
+                    else
                     {
-                        _logger.LogWarning("GetLeagueEntriesBySummonerAsync called with invalid SummonerName format: {SummonerName}", SummonerName);
+                        // Ensure API is ready even for external lookups
+                        if (_riotApi == null) await InitializeAsync();
+                        if (_riotApi == null) return null;
+
+                        var nameParts = SummonerName.Split('#');
+                        if (nameParts.Length < 2) return null;
+
+                        var tempAccount = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, nameParts[0], nameParts[1]);
+                        if (tempAccount == null) return null;
+
+                        var tempPlatform = sRegion.ToLowerInvariant() switch
+                        {
+                            "ru" => PlatformRoute.RU,
+                            "na" => PlatformRoute.NA1,
+                            _ => PlatformRoute.EUW1,
+                        };
+                        return await _httpHandler.GetLeagueEntriesByPUUIDAsync(tempPlatform, tempAccount.Puuid).ConfigureAwait(false);
+                    }
+                }
+                catch (TaskCanceledException) // Catch Timeout
+                {
+                    retryCount++;
+                    if (retryCount > 3)
+                    {
+                        _logger.LogError("Riot API Timeout in GetLeagueEntriesBySummonerAsync after 3 retries.");
                         return null;
                     }
-                    var tempAccount = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, nameParts[0], nameParts[1]);
-                    if (tempAccount == null) return null;
-
-                    var tempPlatform = sRegion.ToLowerInvariant() switch
-                    {
-                        "ru" => PlatformRoute.RU,
-                        "na" => PlatformRoute.NA1,
-                        _ => PlatformRoute.EUW1,
-                    };
-                    return await _httpHandler.GetLeagueEntriesByPUUIDAsync(tempPlatform, tempAccount.Puuid);
+                    await Task.Delay(1000);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GetLeagueEntriesBySummonerAsync");
-                return null;
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "GetLeagueEntriesBySummonerAsync failed");
+                    return null;
+                }
             }
         }
 

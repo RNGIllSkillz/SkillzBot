@@ -29,13 +29,14 @@ namespace SkillzBot.API.StreamElements
         // Settings
         private const int MSG_RATE_LIMIT_MS = 50; // 1.1s delay to be safe
 
-        public StreamElementsService(HttpClient httpClient, BotConfigModel config, ILogger<StreamElementsService> logger)
+
+        public StreamElementsService(IHttpClientFactory httpClientFactory, BotConfigModel config, ILogger<StreamElementsService> logger)
         {
-            _httpClient = httpClient;
             _config = config;
             _logger = logger;
 
             _validToken = !string.IsNullOrEmpty(_config.StreamElementsApiToken);
+            _httpClient = httpClientFactory.CreateClient("StreamElementsClient");
 
             if (_validToken)
             {
@@ -61,32 +62,62 @@ namespace SkillzBot.API.StreamElements
                 _ = Task.Run(ProcessQueueAsync);
             }
         }
-
+        private async Task<bool> ExecuteWithRetryAsync(Func<Task<bool>> action, string operationName)
+        {
+            int retries = 0;
+            while (true)
+            {
+                try
+                {
+                    return await action();
+                }
+                catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+                {
+                    retries++;
+                    if (retries > 3)
+                    {
+                        _logger.LogError("StreamElements Timeout in {Operation} after 3 retries.", operationName);
+                        return false;
+                    }
+                    _logger.LogWarning("StreamElements Request Timed Out. Retrying {Count}...", retries);
+                    await Task.Delay(1000);
+                }
+                catch (HttpRequestException ex)
+                {
+                    retries++;
+                    if (retries > 3)
+                    {
+                        _logger.LogError("StreamElements HTTP Error in {Operation}: {Message}", operationName, ex.Message);
+                        return false;
+                    }
+                    await Task.Delay(1000);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in {Operation}", operationName);
+                    return false;
+                }
+            }
+        }
         public async Task<bool> SendMediaAsync(string youTubeVideoId, CancellationToken token = default)
         {
             if (!_validToken) return false;
 
-            try
+            return await ExecuteWithRetryAsync(async () =>
             {
                 var payload = new { video = youTubeVideoId };
                 var json = JsonConvert.SerializeObject(payload);
                 using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 using var response = await _httpClient.PostAsync($"songrequest/{_config.StreamElementsID}/queue", content, token);
-
+               
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError("SendMediaAsync failed: {StatusCode}", response.StatusCode);
                     return false;
                 }
-
                 return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "SendMediaAsync Exception");
-                return false;
-            }
+            }, "SendMediaAsync");
         }
 
         public async Task<MediaHistoryJSON> GetHistory(CancellationToken token = default)
@@ -182,7 +213,6 @@ namespace SkillzBot.API.StreamElements
                 // Wait for messages to be available
                 while (await _messageQueue.Reader.WaitToReadAsync(_shutdownCts.Token))
                 {
-                    // Consume all available messages
                     while (_messageQueue.Reader.TryRead(out var msg))
                     {
                         try
@@ -193,9 +223,6 @@ namespace SkillzBot.API.StreamElements
                         {
                             _logger.LogError(ex, "Failed to send queued message via StreamElements");
                         }
-
-                        // ENFORCE RATE LIMIT
-                        // Wait before processing the NEXT message
                         await Task.Delay(MSG_RATE_LIMIT_MS, _shutdownCts.Token);
                     }
                 }

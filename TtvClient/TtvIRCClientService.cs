@@ -26,7 +26,6 @@ namespace SkillzBot.IRC
         private bool _isInitialized = false;
         private bool _isDisposed = false;
         private readonly object _lockObject = new object();
-        private readonly SemaphoreSlim _connectionSemaphore = new SemaphoreSlim(1, 1);
 
         private const int MAX_RETRIES = 3;
         private const int BASE_DELAY_MS = 1000;
@@ -58,10 +57,9 @@ namespace SkillzBot.IRC
             if (_isDisposed) return false;
             if (_isInitialized) return true;
 
-            await _connectionSemaphore.WaitAsync();
             try
             {
-                if (_isInitialized) return true;
+                if (_isInitialized && IsConnected) return true;
                 _logger?.LogInformation("Initializing Twitch IRC client...");
                 return await ConnectToTwitchAsync();
             }
@@ -69,10 +67,6 @@ namespace SkillzBot.IRC
             {
                 _logger?.LogError(ex, "Exception during Twitch IRC client initialization");
                 return false;
-            }
-            finally
-            {
-                _connectionSemaphore.Release();
             }
         }
 
@@ -138,16 +132,9 @@ namespace SkillzBot.IRC
 
         public async Task<bool> ReconnectAsync()
         {
-            await _connectionSemaphore.WaitAsync();
-            try
-            {
-                if (_isDisposed) return false;
-                return await ConnectToTwitchAsync();
-            }
-            finally
-            {
-                _connectionSemaphore.Release();
-            }
+            if (_isDisposed) return false;
+            // Force a fresh connection
+            return await ConnectToTwitchAsync().ConfigureAwait(false);
         }
 
         private void RegisterEventHandlers()
@@ -361,7 +348,6 @@ namespace SkillzBot.IRC
                 _isInitialized = false;
             }
             DisposeClient();
-            _connectionSemaphore?.Dispose();
         }
     }
 }

@@ -19,6 +19,14 @@ namespace SkillzBot.Services.State
         private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(1, 1);
         private readonly object _memLock = new object();
 
+        // Singleton Guard
+        private bool _isInitialized = false;
+        private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNameCaseInsensitive = true
+        };
+
         // The actual data model
         public BotGameStateModel Current { get; private set; }
 
@@ -38,28 +46,39 @@ namespace SkillzBot.Services.State
 
         public async Task LoadAsync()
         {
+            if (_isInitialized) return;
+
             var path = _paths.GetFullPath(_config.FilePaths.GameStateFileName);
 
-            await _ioLock.WaitAsync();
+            await _ioLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (File.Exists(path))
                 {
-                    var json = await File.ReadAllTextAsync(path);
+                    var json = await File.ReadAllTextAsync(path).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(json))
                     {
-                        var loaded = JsonSerializer.Deserialize<BotGameStateModel>(json);
-                        if (loaded != null)
+                        try
                         {
-                            lock (_memLock) Current = loaded;
-                            _logger.LogInformation("GameState loaded successfully.");
-                            return;
+                            var loaded = JsonSerializer.Deserialize<BotGameStateModel>(json, _jsonOptions);
+                            if (loaded != null)
+                            {
+                                lock (_memLock) Current = loaded;
+                                _isInitialized = true;
+                                _logger.LogInformation("GameState loaded successfully.");
+                                return;
+                            }
+                        }
+                        catch (JsonException ex)
+                        {
+                            _logger.LogError(ex, "GameState.txt corrupted. Using defaults.");
                         }
                     }
                 }
 
                 _logger.LogInformation("GameState file not found or empty. Creating default.");
                 await SaveInternalAsync(path);
+                _isInitialized = true;
             }
             catch (Exception ex)
             {
@@ -77,8 +96,7 @@ namespace SkillzBot.Services.State
             {
                 updateAction(Current);
             }
-            // Fire-and-forget save to prevent blocking the caller
-            await Task.Run(SaveAsync);
+            await SaveAsync();
         }
 
         public async Task SaveAsync()
@@ -102,11 +120,14 @@ namespace SkillzBot.Services.State
 
         private async Task SaveInternalAsync(string path)
         {
-            string json;
+            BotGameStateModel snapshot;
             lock (_memLock)
             {
-                json = JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true });
+                var tempJson = JsonSerializer.Serialize(Current, _jsonOptions);
+                snapshot = JsonSerializer.Deserialize<BotGameStateModel>(tempJson, _jsonOptions);
             }
+
+            var json = JsonSerializer.Serialize(snapshot, _jsonOptions);
 
             var directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -114,7 +135,7 @@ namespace SkillzBot.Services.State
                 Directory.CreateDirectory(directory);
             }
 
-            await File.WriteAllTextAsync(path, json);
+            await File.WriteAllTextAsync(path, json).ConfigureAwait(false);
         }
     }
 }

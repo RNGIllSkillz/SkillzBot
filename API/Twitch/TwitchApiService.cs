@@ -32,8 +32,6 @@ namespace SkillzBot.API.Twitch
         private readonly string _broadcasterID;
         private readonly bool _isValidToken;
 
-        private readonly SemaphoreSlim _apiSemaphore = new SemaphoreSlim(1, 1);
-
         // Fail fast setting: 5 seconds
         private readonly TimeSpan _apiTimeout = TimeSpan.FromSeconds(5);
 
@@ -76,86 +74,89 @@ namespace SkillzBot.API.Twitch
             int retries = 0;
             const int maxRetries = 3;
 
-            await _apiSemaphore.WaitAsync();
-            try
-            {
-                while (true)
+            while (retries <= maxRetries)
+            {                
+                try
                 {
-                    try
-                    {
-                        // If Twitch takes longer, we throw TimeoutException and retry/fail immediately
-                        // instead of blocking the bot for 100 seconds.
-                        await action().WaitAsync(_apiTimeout);
-
-                        await Task.Delay(100); // Small rate-limit spacing
-                        break;
-                    }
-                    // Catch the forced 5s timeout
-                    catch (TimeoutException)
-                    {
-                        retries++;
-                        if (retries > maxRetries)
-                        {
-                            _logger.LogError("Twitch API timed out locally ({Timeout}s) in {Operation} after {Retries} retries.", _apiTimeout.TotalSeconds, operationName, retries);
-                            break;
-                        }
-                        _logger.LogWarning("Twitch API slow response (>5s). Retrying {Count}...", retries);
-                        // No delay needed for timeout retry, maybe just network blip
-                    }
-                    // Catch standard 429 Rate Limits
-                    catch (TooManyRequestsException)
-                    {
-                        retries++;
-                        if (retries > maxRetries)
-                        {
-                            _logger.LogError("Rate Limit exceeded for {Operation} after {Retries} retries.", operationName, retries);
-                            break;
-                        }
-                        _logger.LogWarning("429 Too Many Requests in {Operation}. Waiting 2s...", operationName);
-                        await Task.Delay(2000);
-                    }
-                    // Catch internal HTTP timeouts (TaskCanceled) if they happen faster than 5s
-                    catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
-                    {
-                        retries++;
-                        if (retries > maxRetries)
-                        {
-                            _logger.LogError("Twitch API Connection Dropped in {Operation}.", operationName);
-                            break;
-                        }
-                        _logger.LogWarning("Twitch API Request Canceled/Dropped. Retrying {Count}...", retries);
-                        await Task.Delay(1000);
-                    }
-                    // Catch HTTP Errors (500, 503, etc)
-                    catch (System.Net.Http.HttpRequestException ex)
-                    {
-                        retries++;
-                        if (retries > maxRetries)
-                        {
-                            _logger.LogError("HTTP Error in {Operation}: {Message}", operationName, ex.Message);
-                            break;
-                        }
-                        _logger.LogWarning("Twitch API HTTP Error. Retrying {Count}...", retries);
-                        await Task.Delay(1000);
-                    }
-                    // Critical Errors - Do Not Retry
-                    catch (BadRequestException ex)
-                    {
-                        _logger.LogError(ex, "Bad Request in {Operation}: {Msg}", operationName, ex.Message);
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Unexpected Error in {Operation}", operationName);
-                        break;
-                    }
+                    await action().WaitAsync(_apiTimeout);
+                    return; // Success, exit
                 }
+                catch (TooManyRequestsException)
+                {
+                    retries++;
+                    if (retries > maxRetries) throw;
+                    _logger.LogWarning("429 Too Many Requests in {Operation}. Waiting 2s...", operationName);
+                }
+                // 1. TIMEOUTS
+                catch (TimeoutException)
+                {
+                    retries++;
+                    if (retries > maxRetries)
+                    {
+                        _logger.LogError("Twitch API timed out locally ({Timeout}s) in {Operation} after {Retries} retries.", _apiTimeout.TotalSeconds, operationName, retries);
+                        break;
+                    }
+                    _logger.LogWarning("Twitch API slow response (>5s). Retrying {Count}...", retries);
+                }
+                // 3. CANCELLED REQUESTS
+                catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+                {
+                    retries++;
+                    if (retries > maxRetries)
+                    {
+                        _logger.LogError("Twitch API Connection Dropped in {Operation}.", operationName);
+                        break;
+                    }
+                    _logger.LogWarning("Twitch API Request Canceled/Dropped. Retrying {Count}...", retries);
+                    await Task.Delay(1000);
+                }
+                // 4. HTTP ERRORS
+                catch (System.Net.Http.HttpRequestException ex)
+                {
+                    retries++;
+                    if (retries > maxRetries)
+                    {
+                        _logger.LogError("HTTP Error in {Operation}: {Message}", operationName, ex.Message);
+                        break;
+                    }
+                    _logger.LogWarning("Twitch API HTTP Error. Retrying {Count}...", retries);
+                    await Task.Delay(1000);
+                }
+                // 5. NOT FOUND (Resource gone)
+                catch (BadResourceException ex)
+                {
+                    if (retries > 0)
+                    {
+                        _logger.LogWarning("BadResourceException during retry for {Operation}. Assuming success. Error: {Msg}", operationName, ex.Message);
+                        break;
+                    }
+                    _logger.LogWarning("Bad Resource (404) in {Operation}: {Msg}", operationName, ex.Message);
+                    break;
+                }
+                // 6. FORBIDDEN (Ownership issues / Bad Token)
+                catch (BadTokenException ex)
+                {
+                    // Twitch throws BadToken for 403 Forbidden (Not Owner) errors too.
+                    // We cannot fix ownership by retrying, so we skip it.
+                    _logger.LogWarning("Skipping {Operation}: Bot does not own this reward or Token invalid. ({Msg})", operationName, ex.Message);
+                    break;
+                }
+                // 7. BAD REQUEST (Invalid args)
+                catch (BadRequestException ex)
+                {
+                    _logger.LogError(ex, "Bad Request in {Operation}: {Msg}", operationName, ex.Message);
+                    break;
+                }
+                // 8. UNKNOWN
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected Error in {Operation}", operationName);
+                    break;
+                }
+                await Task.Delay(2000);
             }
-            finally
-            {
-                _apiSemaphore.Release();
-            }
-        }
+        }           
+        
 
         #region Predictions
 
@@ -624,8 +625,6 @@ namespace SkillzBot.API.Twitch
         {
             if (!IsReady()) return false;
             bool success = false;
-
-            await _apiSemaphore.WaitAsync();
             try
             {
                 await _api.Helix.Moderation.AddChannelModeratorAsync(_broadcasterID, userID).WaitAsync(_apiTimeout);
@@ -653,11 +652,6 @@ namespace SkillzBot.API.Twitch
                 _logger.LogError(ex, "AddChannelModerator failed for {UserId}", userID);
                 success = false;
             }
-            finally
-            {
-                _apiSemaphore.Release();
-            }
-
             return success;
         }
 

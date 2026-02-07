@@ -20,9 +20,9 @@ namespace SkillzBot.QuartZ
             string key = context.JobDetail.Key.Name;
             switch (key)
             {
-                case "GetCurrentMatchTask":
-                    await _illPredictions.GetCurrentMatchTask();
-                    break;
+                //case "GetCurrentMatchTask":
+                //    await _illPredictions.GetCurrentMatchTask();
+                //    break;
                 case "RunEvery5Min":
                     await _taskService.RunEvery5Min();
                     break;

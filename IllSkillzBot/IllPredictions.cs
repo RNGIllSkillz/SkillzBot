@@ -13,7 +13,7 @@ using SkillzBot.Interfaces;
 
 namespace SkillzBot.IllSkillzBot
 {
-    internal class IllPredictions
+    public class IllPredictions
     {
         private static string CurrentMatchID;
         private static string PlatformID;

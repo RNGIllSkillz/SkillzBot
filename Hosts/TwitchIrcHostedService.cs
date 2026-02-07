@@ -83,6 +83,7 @@ namespace SkillzBot.Hosts
             // Maintenance Loop
             while (!stoppingToken.IsCancellationRequested)
             {
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
                 try
                 {
                     await Task.Delay(10000, stoppingToken);

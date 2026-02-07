@@ -26,7 +26,7 @@ public class QuartzBackgroundTaskManager
 
     public async Task ScheduleTasks()
     {
-        await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/4 * * * * ?");
+        //await StackBackGroundTask("GetCurrentMatchTask", "TaskGroup", "GetCurrentMatchTrigger", "TriggerGroup", "0/4 * * * * ?"); migrated to a service 
         await StackBackGroundTask("RunEvery5Min", "TaskGroup", "CalculatePointsTrigger", "TriggerGroup", "0 */5 * * * ?");
         await StackBackGroundTask("RunDaily", "TaskGroup", "RunDailyTrigger", "TriggerGroup", "0 0 0 * * ?");
         await StackBackGroundTask("TopRuleteTask", "TaskGroup", "TopRuleteTaskTrigger", "TriggerGroup", "0 0 */3 * * ?");

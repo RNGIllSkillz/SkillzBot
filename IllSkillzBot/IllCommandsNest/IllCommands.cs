@@ -1,26 +1,21 @@
 ﻿using Camille.Enums;
 using Camille.RiotGames.LeagueV4;
-using IllSkillzBot;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using Serilog.Events;
-using SkillzBot.API.MMR;
-using SkillzBot.API.StreamElements;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
-using SkillzBot.Readers;
 using SkillzBot.Services.Infrastructure;
 using SkillzBot.Services.Writers;
 using SkillzBot.IllConfiguration;
-using SkillzBot.SubUtils;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
 using SkillzBot.Writers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -29,7 +24,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
     public class IllCommands
     {
         private readonly ITtvIRCClient _ircClient;
-        private readonly IllModeratorsInteractions _modInteractions;
+        //private readonly IllModeratorsInteractions _modInteractions;
         private readonly IllChatFilters _chatFilters;
         private readonly RewardsRedemption _rewardsRedemption;
         private readonly IDatabaseService _databaseService;
@@ -78,7 +73,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             IMmrService mmrService)
         {
             _ircClient = ircClient;
-            _modInteractions = modInteractions;
+            //_modInteractions = modInteractions;
             _chatFilters = chatFilters;
             _rewardsRedemption = rewardsRedemption;
             _databaseService = databaseService;
@@ -830,6 +825,31 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         {
             _chatFilters.ReloadFilters();
             await _ircClient.SendMessage("Chat filters have been reloaded.");
+        }
+
+        public async Task GetServiceStatus(UserObject user)
+        {
+            // 1. System Stats
+            using var process = Process.GetCurrentProcess();
+            var uptime = DateTime.Now - process.StartTime;
+            double ramUsage = GC.GetTotalMemory(false) / 1024.0 / 1024.0;
+            int threadCount = process.Threads.Count;
+
+            var dbStats = await _databaseService.GetStatsAsync();
+
+            // 2. Connection Stats
+            string ircStatus = _ircClient.IsConnected ? "Connected" : "Disconnected";
+
+            // 4. Game Logic Stats
+            string matchStatus = _botState.Current.InMatch ? "In Match" : "Idle";
+            string predStatus = _botState.Current.AutoPred ? "On" : "Off";
+
+            string output =
+                $"[SYS] UpTime: {uptime:dd\\:hh\\:mm} |RAM: {ramUsage:F0}MB |Threads: {threadCount} || " +
+                $"[DB Sess] Msgs: {dbStats.SessionMessagesSaved} | New users: {dbStats.SessionNewUsers} | Qry: {dbStats.SessionQueries} || " +
+                $"[DB Tot] {dbStats.TotalMessages} msgs | {dbStats.TotalUsers} users";
+
+            await _ircClient.SendMessage(output);
         }
     }
 }

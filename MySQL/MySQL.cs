@@ -11,6 +11,7 @@ using SkillzBot.MySQL;
 using System.Data;
 using SkillzBot.Interfaces;
 using SkillzBot.Services.Writers;
+using System.Threading;
 
 namespace SkillzBot.MYSQL
 {
@@ -22,6 +23,9 @@ namespace SkillzBot.MYSQL
         private readonly string _connectionString;
         private bool _isInitialized = false;
         private bool _disposed = false;
+        private long _sessionQueries = 0;
+        private long _sessionNewUsers = 0;
+        private long _sessionMessages = 0;
 
         public MySqlDatabaseService(IOptions<DatabaseConfiguration> config, 
             ILogger<MySqlDatabaseService> logger, 
@@ -71,7 +75,7 @@ namespace SkillzBot.MYSQL
                 throw;
             }
         }
-
+        private void CountQuery() => Interlocked.Increment(ref _sessionQueries);
         private async Task CreateDatabaseIfNotExistsAsync()
         {
             var builder = new MySqlConnectionStringBuilder(_connectionString) { Database = "" };
@@ -93,6 +97,7 @@ namespace SkillzBot.MYSQL
 
         private async Task CreateTablesAsync()
         {
+            CountQuery();
             var tables = new Dictionary<string, string>
             {
                 ["dbUserTable"] = @"
@@ -160,6 +165,7 @@ namespace SkillzBot.MYSQL
 
         private async Task CreateIndexesAsync()
         {
+            CountQuery();
             var indexes = new[]
             {
                 "CREATE INDEX IF NOT EXISTS `idx_user_points` ON `dbUserTable` (`Points` DESC)",
@@ -187,6 +193,7 @@ namespace SkillzBot.MYSQL
 
         public async Task<UserObject> GetUserAsync(int twitchId)
         {
+            CountQuery();
             const string sql = @"SELECT * FROM dbUserTable WHERE TwitchID = @TwitchID";
             try
             {
@@ -203,6 +210,7 @@ namespace SkillzBot.MYSQL
 
         public async Task<UserObject> GetUserAsync(string name)
         {
+            CountQuery();
             if (string.IsNullOrWhiteSpace(name)) return new UserObject { dbID = -404 };
             const string sql = @"SELECT * FROM dbUserTable WHERE Name = @Name COLLATE utf8mb4_unicode_ci";
             try
@@ -219,8 +227,9 @@ namespace SkillzBot.MYSQL
         }
 
         // Helper to safely read values handling DBNull and type conversion
-        private static T SafeGet<T>(IDataReader reader, string column, T defaultValue = default)
+        private T SafeGet<T>(IDataReader reader, string column, T defaultValue = default)
         {
+            CountQuery();
             try
             {
                 int ordinal = reader.GetOrdinal(column);
@@ -233,8 +242,9 @@ namespace SkillzBot.MYSQL
             }
         }
 
-        private static UserObject MapUserFromReader(IDataReader reader)
+        private UserObject MapUserFromReader(IDataReader reader)
         {
+            CountQuery();
             return new UserObject
             {
                 dbID = SafeGet<int>(reader, "dbID"),
@@ -260,6 +270,7 @@ namespace SkillzBot.MYSQL
 
         public async Task AddOrUpdateUserAsync(UserObject user)
         {
+            CountQuery();
             if (user == null) throw new ArgumentNullException(nameof(user));
 
             const string sql = @"
@@ -295,7 +306,11 @@ namespace SkillzBot.MYSQL
                 await using var command = new MySqlCommand(sql, connection);
                 AddUserParametersToCommand(command, user);
 
-                await command.ExecuteNonQueryAsync();
+                var result = await command.ExecuteNonQueryAsync();
+                if (result == 1)
+                {
+                    Interlocked.Increment(ref _sessionNewUsers);
+                }
             }
             catch (MySqlException ex)
             {
@@ -353,6 +368,7 @@ namespace SkillzBot.MYSQL
 
         public async Task UpdateUserAsync(UserObject user)
         {
+            CountQuery();
             if (user == null) throw new ArgumentNullException(nameof(user));
 
             const string sql = @"
@@ -402,6 +418,7 @@ namespace SkillzBot.MYSQL
 
         public async Task SaveMessageAsync(int twitchId, string name, string message, double timestamp)
         {
+            CountQuery();
             const string sql = @"INSERT INTO dbUserMessageTable (TwitchID, Name, Message, TimeStamp) VALUES (@TwitchID, @Name, @Message, @TimeStamp)";
             try
             {
@@ -413,6 +430,7 @@ namespace SkillzBot.MYSQL
                 command.Parameters.AddWithValue("@Message", message ?? string.Empty);
                 command.Parameters.AddWithValue("@TimeStamp", timestamp);
                 await command.ExecuteNonQueryAsync();
+                Interlocked.Increment(ref _sessionMessages);
             }
             catch (Exception ex)
             {
@@ -423,6 +441,7 @@ namespace SkillzBot.MYSQL
 
         public async Task SaveMessagesAsync(List<MessageBuffer> messages)
         {
+            CountQuery();
             if (messages == null || !messages.Any()) return;
             const string sql = @"INSERT INTO dbUserMessageTable (TwitchID, Name, Message, TimeStamp) VALUES (@TwitchID, @Name, @Message, @TimeStamp)";
             try
@@ -445,6 +464,7 @@ namespace SkillzBot.MYSQL
                     await command.ExecuteNonQueryAsync();
                 }
                 await transaction.CommitAsync();
+                Interlocked.Add(ref _sessionMessages, messages.Count);
             }
             catch (Exception ex)
             {
@@ -455,6 +475,7 @@ namespace SkillzBot.MYSQL
 
         public async Task<List<UserObject>> GetTopUsersAsync(string flag, int limit = 3)
         {
+            CountQuery();
             var columnName = flag switch
             {
                 "rtop" => "roulettCon",
@@ -488,6 +509,7 @@ namespace SkillzBot.MYSQL
 
         public async Task<int[]> GetUserPositionAsync(string userName, string columnName)
         {
+            CountQuery();
             if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(columnName)) return new[] { 0, 0 };
             var validColumns = new[] { "messageCon", "roulettCon", "Points", "QuizPoints", "UvalCon", "banCount", "QuizTotal" };
             if (!validColumns.Contains(columnName)) { _logger.LogError("Invalid column access: {ColumnName}", columnName); return new[] { 0, 0 }; }
@@ -518,6 +540,7 @@ namespace SkillzBot.MYSQL
 
         public async Task DeleteUserAsync(string userName)
         {
+            CountQuery();
             if (string.IsNullOrWhiteSpace(userName)) throw new ArgumentException("Username cannot be null or empty", nameof(userName));
             const string sql = "DELETE FROM dbUserTable WHERE Name = @Name";
             try
@@ -539,6 +562,7 @@ namespace SkillzBot.MYSQL
 
         public async Task AddPointsAsync(int amount, int? twitchId = null)
         {
+            CountQuery();
             string sql;
             if (twitchId.HasValue) sql = "UPDATE dbUserTable SET Points = Points + @Amount WHERE TwitchID = @TwitchID";
             else sql = "UPDATE dbUserTable SET Points = Points + @Amount WHERE IsOnline = 1";
@@ -556,6 +580,7 @@ namespace SkillzBot.MYSQL
 
         public async Task<QuizzObject> GetQuizAsync(int id)
         {
+            CountQuery();
             const string sql = "SELECT Question, Answer, Prize FROM dbQuiz WHERE dbID = @ID";
             try
             {
@@ -580,6 +605,7 @@ namespace SkillzBot.MYSQL
 
         public async Task AddQuizPointsAsync(int amount, int twitchId)
         {
+            CountQuery();
             const string sql = @"UPDATE dbUserTable SET QuizPoints = QuizPoints + @Amount, QuizTotal = QuizTotal + @Amount WHERE TwitchID = @TwitchID";
             try
             {
@@ -595,6 +621,7 @@ namespace SkillzBot.MYSQL
 
         public async Task SpendQuizPointsAsync(int amount, int twitchId)
         {
+            CountQuery();
             const string sql = @"UPDATE dbUserTable SET QuizPoints = GREATEST(0, QuizPoints - @Amount) WHERE TwitchID = @TwitchID";
             try
             {
@@ -610,6 +637,7 @@ namespace SkillzBot.MYSQL
 
         public async Task UpdateOnlineStatusAsync(List<string> chatters)
         {
+            CountQuery();
             if (chatters == null || !chatters.Any())
             {
                 const string offlineAllSql = "UPDATE dbUserTable SET IsOnline = 0";
@@ -650,6 +678,7 @@ namespace SkillzBot.MYSQL
 
         public async Task<TrackUser> TrackUserAsync(string userName)
         {
+            CountQuery();
             if (string.IsNullOrWhiteSpace(userName)) throw new ArgumentException("Username cannot be null or empty", nameof(userName));
 
             var trackInfo = new TrackUser
@@ -734,7 +763,43 @@ namespace SkillzBot.MYSQL
                 throw;
             }
         }
+        public async Task<DatabaseStats> GetStatsAsync()
+        {
+            CountQuery();
+            try
+            {
+                await using var connection = new MySqlConnection(_connectionString);
+                await connection.OpenAsync();
 
+                // Get Total Users
+                long totalUsers = 0;
+                await using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM dbUserTable", connection))
+                {
+                    totalUsers = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+                }
+
+                // Get Total Messages (might be slow on massive tables)
+                long totalMessages = 0;
+                await using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM dbUserMessageTable", connection))
+                {
+                    totalMessages = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+                }
+
+                // Return snapshot of atomic counters
+                return new DatabaseStats(
+                    Interlocked.Read(ref _sessionQueries),
+                    Interlocked.Read(ref _sessionNewUsers),
+                    Interlocked.Read(ref _sessionMessages),
+                    totalUsers,
+                    totalMessages
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to gather DB stats");
+                return new DatabaseStats(0, 0, 0, 0, 0);
+            }
+        }
         public void Dispose()
         {
             Dispose(true);

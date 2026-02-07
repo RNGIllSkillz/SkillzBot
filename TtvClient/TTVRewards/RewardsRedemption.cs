@@ -349,7 +349,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                             return false;
                         }
 
-                        if (await _streamElementsService.SendMediaAsync(yID).ConfigureAwait(false))
+                        if (await _streamElementsService.SendMediaAsync(yID))
                         {
                             await _ircClient.SendMessage($"{UserName} Трек добавлен в очередь");
                             await _mediaQueueService.WriteAsync(user.TwitchID, yID);
