@@ -6,7 +6,6 @@ using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -75,11 +74,11 @@ namespace SkillzBot.API.Twitch
             const int maxRetries = 3;
 
             while (retries <= maxRetries)
-            {                
+            {
                 try
                 {
                     await action().WaitAsync(_apiTimeout);
-                    return; // Success, exit
+                    return; 
                 }
                 catch (TooManyRequestsException)
                 {
@@ -136,14 +135,20 @@ namespace SkillzBot.API.Twitch
                 // 6. FORBIDDEN (Ownership issues / Bad Token)
                 catch (BadTokenException ex)
                 {
-                    // Twitch throws BadToken for 403 Forbidden (Not Owner) errors too.
-                    // We cannot fix ownership by retrying, so we skip it.
                     _logger.LogWarning("Skipping {Operation}: Bot does not own this reward or Token invalid. ({Msg})", operationName, ex.Message);
                     break;
                 }
                 // 7. BAD REQUEST (Invalid args)
                 catch (BadRequestException ex)
                 {
+                    if (ex.Message.Contains("may not be banned/timed out") ||
+                        ex.Message.Contains("user is banned") ||
+                        ex.Message.Contains("cannot be banned"))
+                    {
+                        _logger.LogWarning("Twitch API Action Skipped: Target cannot be banned/timed out (already banned or is mod/broadcaster). Operation: {Operation}", operationName);
+                        break; 
+                    }
+
                     _logger.LogError(ex, "Bad Request in {Operation}: {Msg}", operationName, ex.Message);
                     break;
                 }
@@ -572,7 +577,7 @@ namespace SkillzBot.API.Twitch
 
         #region User Management & Chat
 
-        private async Task PerformTimeOutUserAsync(string userId, int duration, string reason)
+        private async Task PerformTimeOutUserAsync(string userId, string userName, int duration, string reason)
         {
             if (!IsReady()) return;
             await ExecuteWithRetryAsync(async () =>
@@ -583,20 +588,20 @@ namespace SkillzBot.API.Twitch
                     Duration = duration,
                     Reason = reason
                 });
-            }, $"TimeOutUserAsync({userId})");
+            }, $"TimeOutUserAsync({userName} [{userId}])");
         }
 
         public async Task TimeOutUser(UserObject user, int duration, string reason)
         {
             if (!IsReady()) return;
             if (user.isMod == 1) return;
-            await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
+            await PerformTimeOutUserAsync(user.TwitchID.ToString(), user.Name, duration, reason);
         }
 
         public async Task TimeOutModerator(UserObject user, int duration, string reason)
         {
             if (!IsReady()) return;
-            await PerformTimeOutUserAsync(user.TwitchID.ToString(), duration, reason);
+            await PerformTimeOutUserAsync(user.TwitchID.ToString(), user.Name, duration, reason);
         }
 
         public async Task BanUser(string userID, string reason)

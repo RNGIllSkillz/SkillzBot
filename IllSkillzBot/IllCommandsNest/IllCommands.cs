@@ -844,6 +844,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             string matchStatus = _botState.Current.InMatch ? "In Match" : "Idle";
             string predStatus = _botState.Current.AutoPred ? "On" : "Off";
 
+            //ToDo 5. Message queue status
+
             string output =
                 $"[SYS] UpTime: {uptime:dd\\:hh\\:mm} |RAM: {ramUsage:F0}MB |Threads: {threadCount} || " +
                 $"[DB Sess] Msgs: {dbStats.SessionMessagesSaved} | New users: {dbStats.SessionNewUsers} | Qry: {dbStats.SessionQueries} || " +

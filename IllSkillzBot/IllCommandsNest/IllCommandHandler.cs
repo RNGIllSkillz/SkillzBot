@@ -94,7 +94,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
                 new("!clip", illCommands.CreateClip, RequiresCooldown: true, 600, BypassCooldown: false, IsGlobal: true),
                 new("!ttvgg", illCommands.Ttvgg, RequiresCooldown: true, 600, BypassCooldown: false),
-                new("!lp", illCommands.LpCommand, RequiresCooldown: true, 60, Aliases: new[] { "!лп", "!дз", "!kg", "!rank" }),
+                new("!lp", illCommands.LpCommand, RequiresCooldown: true, 60, Aliases: new[] { "!лп", "!дз", "!kg", "!rank" }, IsGlobal: true),
                 new("!opgg", illCommands.OpGG, RequiresCooldown: true, 600, Aliases: new[] { "!опгг" }),
                 new("!ртоп", illCommands.RouletteTop, RequiresCooldown: true, 4800, BypassCooldown: false),
                 new("!топ", illCommands.GetTopChat, RequiresCooldown: true, 4800, BypassCooldown: false),

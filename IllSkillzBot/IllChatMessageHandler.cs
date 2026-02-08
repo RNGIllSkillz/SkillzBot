@@ -9,7 +9,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -35,8 +34,8 @@ namespace SkillzBot.IllSkillzBot
         private readonly IStreamElementsService _streamElementsService;
 
         //debug
-        private DateTime _lastMessageProcessed = DateTime.MinValue;
         private long _totalMessagesProcessed = 0;
+        private int _pendingMessageCount = 0;
 
         private const int HardTimeoutSec = 600;
         private const int TimeoutSec = 300;
@@ -80,6 +79,7 @@ namespace SkillzBot.IllSkillzBot
         public Task HandleMessage(OnMessageReceivedArgs e)
         {
             // Just push to queue.
+            Interlocked.Increment(ref _pendingMessageCount);
             _messageChannel.Writer.TryWrite(e);
             return Task.CompletedTask;
         }
@@ -89,15 +89,13 @@ namespace SkillzBot.IllSkillzBot
 
             while (await _messageChannel.Reader.WaitToReadAsync(cancellationToken))
             {
-                //debug
-                int pendingCount = _messageChannel.Reader.Count;
-                if (pendingCount > 10)
-                {
-                    _logger.LogWarning("[LAG ALERT] Chat Queue is backing up! Pending messages: {Count}", pendingCount);
-                }
-
                 while (_messageChannel.Reader.TryRead(out var e))
-                {    
+                {
+                    int currentPending = Interlocked.Decrement(ref _pendingMessageCount);
+                    if (currentPending > 3)
+                    {
+                        _logger.LogWarning("[LAG ALERT] Chat Queue is backing up! Pending messages: {Count}", currentPending);
+                    }
                     try
                     {
                         await ProcessMessageInternal(e);
@@ -112,7 +110,6 @@ namespace SkillzBot.IllSkillzBot
         public async Task ProcessMessageInternal(OnMessageReceivedArgs e)
         {
             var sw = Stopwatch.StartNew();
-            _lastMessageProcessed = DateTime.UtcNow;
             if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return;
 
             SaveToBuffer(e);
@@ -201,7 +198,6 @@ namespace SkillzBot.IllSkillzBot
 
             sw.Stop();
             Interlocked.Increment(ref _totalMessagesProcessed);
-
             if (sw.ElapsedMilliseconds > 500)
             {
                 _logger.LogWarning("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
@@ -232,17 +228,19 @@ namespace SkillzBot.IllSkillzBot
         {
             if (_messagesBuffer.IsEmpty) return;
             if (_messagesBuffer.Count < SaveBufferCount && !IsForced) return;
-
             List<MessageBuffer> temp = new List<MessageBuffer>();
-            while (_messagesBuffer.TryDequeue(out var msg))
-            {
-                temp.Add(msg);
+            lock (_messagesBuffer)
+            {               
+                while (_messagesBuffer.TryDequeue(out var msg))
+                {
+                    temp.Add(msg);
+                }
+                _messagesBuffer.Clear();
             }
-
             if (temp.Count > 0)
             {
                 await _database.SaveMessagesAsync(temp);
-            }
+            }            
         }
 
         private UserChatTracker AddToTracker(string username, string message)
@@ -357,6 +355,21 @@ namespace SkillzBot.IllSkillzBot
                 }
             }
             return false;
+        }
+        public (int Pending, long Processed) GetStats()
+        {
+            return (_pendingMessageCount, _totalMessagesProcessed);
+        }
+        private async Task LogStatsAsync(CancellationToken token)
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                var stats = GetStats();
+                _logger.LogInformation(
+                    "Chat Handler Stats - Pending: {Pending}, Processed: {Processed}",
+                    stats.Pending, stats.Processed);
+            }
         }
     }
 }

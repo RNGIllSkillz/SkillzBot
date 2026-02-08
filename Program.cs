@@ -1,26 +1,12 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
-using SkillzBot.API.RiotGames;
-using SkillzBot.API.Twitch;
-using SkillzBot.Discord;
 using SkillzBot.Hosts;
-using SkillzBot.JSON.Settings;
-using SkillzBot.MODELS;
-using SkillzBot.IllConfiguration; 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Serilog.Core;
-using SkillzBot.Interfaces;
 
 namespace IllSkillzBot
 {
