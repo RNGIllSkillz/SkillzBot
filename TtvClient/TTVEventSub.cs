@@ -87,7 +87,8 @@ namespace SkillzBot.EventSub
         #region EventSub stuff
         private async Task OnErrorOccurred(object sender, ErrorOccuredArgs e)
         {
-            _logger.LogError("Websocket error: {Message} , Session ID: {SessionId}", e.Message, _eventSubWebsocketClient.SessionId);
+            var errorMessage = e.Message ?? e.Exception?.Message ?? "Unknown Error";
+            _logger.LogError("Websocket error: {Message} , Session ID: {SessionId}", errorMessage, _eventSubWebsocketClient.SessionId);
             await Task.CompletedTask;
         }
 
@@ -140,6 +141,14 @@ namespace SkillzBot.EventSub
         private async Task OnWebsocketDisconnected(object sender, EventArgs e)
         {
             _logger.LogWarning(null, "Websocket disconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
+            /*
+            if (_eventSubWebsocketClient.IsConnected)
+            {
+                _logger.LogInformation("Websocket disconnected event fired, but Client.IsConnected is true. Likely a successful migration. Ignoring manual reconnect.");
+                return;
+            }
+
+            _logger.LogWarning(null, "Websocket disconnected unexpectedly. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId); */
 
             int retryCount = 0;
             int maxRetries = 5;

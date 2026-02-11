@@ -47,6 +47,43 @@ namespace SkillzBot.Hosts
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("Starting Twitch IRC Monitor Loop...");
+
+            // Initial Connection
+            await TryConnectAsync();
+
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15)); // Check every 15 seconds
+
+            while (await timer.WaitForNextTickAsync(stoppingToken))
+            {
+                if (stoppingToken.IsCancellationRequested) break;
+
+                // Check connection state
+                if (!_ircClient.IsConnected)
+                {
+                    _logger.LogWarning("Twitch IRC Disconnected detected by Monitor. Attempting Reconnect...");
+                    await TryConnectAsync();
+                }
+            }
+        }
+        private async Task TryConnectAsync()
+        {
+            try
+            {
+                // InitializeAsync handles connection logic safely internally
+                bool success = await _ircClient.InitializeAsync();
+                if (!success)
+                {
+                    _logger.LogWarning("IRC Connection attempt failed. Will retry in next tick.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Critical error during IRC connection attempt.");
+            }
+        }
+        /*protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
             _logger.LogInformation("Starting Twitch IRC Hosted Service Loop...");
 
             // Initial Connection Loop
@@ -99,7 +136,7 @@ namespace SkillzBot.Hosts
                     _logger.LogError(ex, "Error during IRC health check");
                 }
             }
-        }
+        } */
 
     }
 }
