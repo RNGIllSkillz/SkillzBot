@@ -15,7 +15,7 @@ namespace SkillzBot.Services
         private readonly ILogger<MatchMonitoringService> _logger;
 
         // Check for a new game every 60 seconds if not in a match
-        private const int CHECK_INTERVAL_MS = 60000;
+        private const int CHECK_INTERVAL_MS = 5000;
 
         public MatchMonitoringService(
             IllPredictions illPredictions,

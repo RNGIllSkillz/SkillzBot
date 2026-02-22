@@ -17,5 +17,6 @@ namespace SkillzBot.Interfaces
         Task OnStreamDown();
         Task OnStreamUp();
         Task OnUnban(ChannelUnbanArgs e);
+        DateTimeOffset LastActivity { get; }
     }
 }

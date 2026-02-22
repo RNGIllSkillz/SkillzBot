@@ -58,85 +58,46 @@ namespace SkillzBot.Hosts
             {
                 if (stoppingToken.IsCancellationRequested) break;
 
-                // Check connection state
-                if (!_ircClient.IsConnected)
+                var timeSinceLastActivity = DateTimeOffset.UtcNow - _ircClient.LastActivity;
+                bool libDisconnected = !_ircClient.IsConnected;
+                bool isZombie = _ircClient.IsConnected && timeSinceLastActivity.TotalMinutes > 6;
+
+                if (libDisconnected || isZombie)
                 {
-                    _logger.LogWarning("Twitch IRC Disconnected detected by Monitor. Attempting Reconnect...");
-                    await TryConnectAsync();
+                    if (isZombie)
+                    {
+                        _logger.LogWarning("IRC Zombie Connection detected! No activity for {Time} minutes. Forcing Reconnect...", timeSinceLastActivity.TotalMinutes);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Twitch IRC Disconnected detected by Monitor. Attempting Reconnect...");
+                    }
+
+                    // ReconnectAsync calls Dispose internally in your implementation, breaking the zombie socket
+                    await TryConnectAsync(isZombie);
                 }
             }
         }
-        private async Task TryConnectAsync()
+        private async Task TryConnectAsync(bool isZombie = false)
         {
             try
-            {
+            {                
                 // InitializeAsync handles connection logic safely internally
-                bool success = await _ircClient.InitializeAsync();
+                bool success = false;
+                if (isZombie)
+                    success = await _ircClient.ReconnectAsync();
+                else
+                    success = await _ircClient.InitializeAsync();
+
                 if (!success)
-                {
-                    _logger.LogWarning("IRC Connection attempt failed. Will retry in next tick.");
-                }
+                        {
+                            _logger.LogWarning("IRC Connection attempt failed. Will retry in next tick.");
+                        }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Critical error during IRC connection attempt.");
             }
-        }
-        /*protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            _logger.LogInformation("Starting Twitch IRC Hosted Service Loop...");
-
-            // Initial Connection Loop
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                try
-                {
-                    if (!_ircClient.IsConnected)
-                    {
-                        bool success = await _ircClient.InitializeAsync();
-                        if (success)
-                        {
-                            _logger.LogInformation("Twitch IRC connected successfully.");
-                            break; // Exit initial loop, move to maintenance loop
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Twitch IRC connection failed. Retrying in 5s...");
-                        }
-                    }
-                    else
-                    {
-                        break; // Already connected
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error during initial IRC connection.");
-                }
-
-                await Task.Delay(5000, stoppingToken);
-            }
-
-            // Maintenance Loop
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
-                try
-                {
-                    await Task.Delay(10000, stoppingToken);
-                    if (_ircClient.IsInitialized && !_ircClient.IsConnected)
-                    {
-                        _logger.LogWarning("Monitor detected disconnect. Forcing reconnect...");
-                        await _ircClient.ReconnectAsync();
-                    }
-                }
-                catch (OperationCanceledException) { break; }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error during IRC health check");
-                }
-            }
-        } */
-
+        }        
     }
 }
