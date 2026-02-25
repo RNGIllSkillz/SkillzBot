@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllSkillzBot;
-using SkillzBot.Interfaces;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace SkillzBot.Services
 {
@@ -14,8 +14,8 @@ namespace SkillzBot.Services
         private readonly IBotStateService _botState;
         private readonly ILogger<MatchMonitoringService> _logger;
 
-        // Check for a new game every 60 seconds if not in a match
-        private const int CHECK_INTERVAL_MS = 5000;
+        // Define the interval here (5 seconds)
+        private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
 
         public MatchMonitoringService(
             IllPredictions illPredictions,
@@ -34,32 +34,37 @@ namespace SkillzBot.Services
             // Initial startup delay to let other services (API, DB) warm up
             await Task.Delay(5000, stoppingToken);
 
-            while (!stoppingToken.IsCancellationRequested)
+            // PeriodicTimer handles the drift correction automatically
+            using var timer = new PeriodicTimer(_interval);
+
+            try
             {
-                try
+                // This waits for the REMAINDER of the 5 seconds interval
+                while (await timer.WaitForNextTickAsync(stoppingToken))
                 {
-                    // Only check if Auto-Predictions are enabled and we aren't already tracking a match.
-                    // GetCurrentMatchTask handles the internal "InMatch" logic loop, 
-                    // so if a match starts, this call will "block" here until the match ends.
-                    if (_botState.Current.AutoPred)
+                    try
                     {
-                        await _illPredictions.GetCurrentMatchTask();
+                        var sw = Stopwatch.StartNew();
+
+                        if (_botState.Current.AutoPred)
+                        {
+                            await _illPredictions.GetCurrentMatchTask();
+                        }
+
+                        sw.Stop();
+                        _logger.LogDebug("GetCurrentMatchTask execution time: {ElapsedMs}ms", sw.ElapsedMilliseconds);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error in Match Monitoring Loop");
                     }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error in Match Monitoring Loop");
-                }
-                // Wait before checking again (or checking after a match finished)
-                try
-                {
-                    await Task.Delay(CHECK_INTERVAL_MS, stoppingToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    break; // Stop requested
-                }
             }
+            catch (OperationCanceledException)
+            {
+                // Graceful shutdown
+            }
+
             _logger.LogInformation("Match Monitoring Service Stopped.");
         }
     }

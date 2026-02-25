@@ -35,9 +35,12 @@ namespace SkillzBot.EventSub
         private readonly Dictionary<string, string> SubscriptionsTypes;
         private List<string> _lockedRewards = new List<string>();
 
+        // 1. Define manual tracking variable
+        private volatile bool _isConnected = false;
+
         public TTVEventSub(
-            EventSubWebsocketClient eventSubWebsocketClient, 
-            IDatabaseService databaseService, 
+            EventSubWebsocketClient eventSubWebsocketClient,
+            IDatabaseService databaseService,
             ITtvIRCClient ircClient,
             RewardsRedemption rewardsRedemption,
             ITwitchService twitchService,
@@ -52,7 +55,7 @@ namespace SkillzBot.EventSub
             _twitchService = twitchService;
             _logger = logger;
             _config = config;
-            _botState = botState;            
+            _botState = botState;
 
             _logger.LogDebug("TTVEventSub initialized");
 
@@ -122,6 +125,8 @@ namespace SkillzBot.EventSub
             try
             {
                 await _eventSubWebsocketClient.DisconnectAsync();
+                // 2. Update state on stop
+                _isConnected = false;
             }
             catch (Exception ex)
             {
@@ -131,6 +136,8 @@ namespace SkillzBot.EventSub
 
         private async Task OnWebsocketConnected(object sender, WebsocketConnectedArgs e)
         {
+            // 3. Mark as connected
+            _isConnected = true;
             _logger.LogInformation("Websocket connected. Session ID: {SessionId}, Reconnect: {IsRequestedReconnect}", _eventSubWebsocketClient.SessionId, e.IsRequestedReconnect);
             if (!e.IsRequestedReconnect)
             {
@@ -138,17 +145,32 @@ namespace SkillzBot.EventSub
             }
         }
 
+        private async Task OnWebsocketReconnected(object sender, EventArgs e)
+        {
+            // 4. Mark as connected (Migration success)
+            _isConnected = true;
+            _logger.LogInformation("Websocket reconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
+            await Task.CompletedTask;
+        }
+
         private async Task OnWebsocketDisconnected(object sender, EventArgs e)
         {
-            _logger.LogWarning(null, "Websocket disconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
-            /*
-            if (_eventSubWebsocketClient.IsConnected)
+            // 5. Mark as disconnected initially
+            _isConnected = false;
+
+            // Wait 2 seconds. 
+            // If this was a migration, OnWebsocketReconnected() will fire during this delay 
+            // and set _isConnected back to true.
+            await Task.Delay(2000);
+
+            // 6. Check our manual flag
+            if (_isConnected)
             {
-                _logger.LogInformation("Websocket disconnected event fired, but Client.IsConnected is true. Likely a successful migration. Ignoring manual reconnect.");
+                _logger.LogInformation("Websocket disconnected event fired, but connection was restored (Migration). Skipping manual reconnect.");
                 return;
             }
 
-            _logger.LogWarning(null, "Websocket disconnected unexpectedly. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId); */
+            _logger.LogWarning(null, "Websocket disconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
 
             int retryCount = 0;
             int maxRetries = 5;
@@ -156,11 +178,15 @@ namespace SkillzBot.EventSub
 
             while (retryCount < maxRetries)
             {
+                // Safety check inside loop in case a parallel task connected it
+                if (_isConnected) return;
+
                 try
                 {
                     if (await _eventSubWebsocketClient.ReconnectAsync().ConfigureAwait(false))
                     {
-                        _logger.LogInformation("Websocket reconnected successfully.");
+                        // Note: ReconnectAsync triggers OnWebsocketConnected, which sets _isConnected = true
+                        _logger.LogInformation("Websocket manual reconnection successful.");
                         return;
                     }
                 }
@@ -175,18 +201,53 @@ namespace SkillzBot.EventSub
             _logger.LogCritical("Failed to reconnect after maximum retries. Please restart the service.");
         }
 
-        private async Task OnWebsocketReconnected(object sender, EventArgs e)
-        {
-            _logger.LogInformation("Websocket reconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
-            await Task.CompletedTask;
-        }
         private async Task Subscribe()
         {
+            if (string.IsNullOrEmpty(_eventSubWebsocketClient.SessionId))
+            {
+                _logger.LogWarning("Skipping Subscribe: SessionId is null.");
+                return;
+            }
+
             foreach (var type in SubscriptionsTypes)
             {
-                await SubscribeToChannelEvents(type.Key, type.Value);
+                bool success = await SubscribeToChannelEventsWithRetry(type.Key, type.Value);
+
+                if (!success)
+                {
+                    _logger.LogError("Critical: Failed to subscribe to {Type} after retries. Disconnecting to reset state.", type.Key);
+                    await _eventSubWebsocketClient.DisconnectAsync();
+                    _isConnected = false; // Trigger main retry loop
+                    return;
+                }
             }
         }
+
+        private async Task<bool> SubscribeToChannelEventsWithRetry(string _type, string _version)
+        {
+            int attempts = 0;
+            while (attempts < 3)
+            {
+                try
+                {
+                    await SubscribeToChannelEvents(_type, _version);
+                    return true; // Success
+                }
+                catch (HttpRequestException ex)
+                {
+                    attempts++;
+                    _logger.LogWarning("Subscription HTTP failed ({Attempt}/3). Error: {Message}", attempts, ex.Message);
+                    await Task.Delay(1000 * attempts);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error during subscription.");
+                    return false; // Don't retry logic errors
+                }
+            }
+            return false;
+        }
+
         private async Task SubscribeToChannelEvents(string _type, string _version)
         {
             if (string.IsNullOrEmpty(_eventSubWebsocketClient.SessionId))
@@ -197,13 +258,11 @@ namespace SkillzBot.EventSub
 
             try
             {
-                // 1. Base condition: almost all events require broadcaster_user_id
                 var condition = new Dictionary<string, string>
                 {
                     { "broadcaster_user_id", _config.BroadcasterId }
                 };
 
-                // 2. Specific condition for Chat Settings Update
                 if (_type == "channel.chat_settings.update")
                 {
                     condition["user_id"] = _config.BroadcasterId;
@@ -216,7 +275,8 @@ namespace SkillzBot.EventSub
                     method: EventSubTransportMethod.Websocket,
                     websocketSessionId: _eventSubWebsocketClient.SessionId);
 
-                _logger.LogInformation("Subscribed to {_type}. Subscription ID: {Id}", _type, subscription.Subscriptions[0].Id);
+                if (subscription.Subscriptions.Length > 0)
+                    _logger.LogInformation("Subscribed to {_type}. Subscription ID: {Id}", _type, subscription.Subscriptions[0].Id);
             }
             catch (BadRequestException ex)
             {
@@ -224,17 +284,23 @@ namespace SkillzBot.EventSub
             }
             catch (HttpRequestException ex) when (ex.Message.Contains("409") || ex.Message.Contains("Conflict"))
             {
-                _logger.LogWarning("Subscription for {_type} already exists (Conflict 409). Skipping.", _type);
+                _logger.LogDebug("Subscription for {_type} already exists (Conflict 409).", _type);
             }
             catch (Exception ex)
             {
-                if (ex.Message.Contains("Conflict") || (ex.InnerException != null && ex.InnerException.Message.Contains("Conflict")))
+                if (ex.InnerException is System.Net.Sockets.SocketException || ex is System.Net.Http.HttpRequestException)
                 {
-                    _logger.LogWarning("Subscription for {_type} already exists (Conflict). Skipping.", _type);
+                    throw; // Re-throw for retry
+                }
+
+                if (ex.Message.Contains("Conflict") || (ex.InnerException?.Message.Contains("Conflict") ?? false))
+                {
+                    _logger.LogDebug("Subscription for {_type} already exists (Conflict).", _type);
                 }
                 else
                 {
                     _logger.LogError(ex, "Failed to subscribe to {_type} event.", _type);
+                    throw; // Re-throw to trigger retry
                 }
             }
         }
