@@ -1,0 +1,37 @@
+#!/sbin/openrc-run
+# SkillzBot: Twitch bot with the web panel API. Supervised by OpenRC, so a restart requested from
+# the panel (the process exits) or a crash is followed by an automatic relaunch a few seconds later.
+# Settings live in /etc/conf.d/skillzbot.
+
+description="SkillzBot Twitch bot"
+
+: "${SKILLZBOT_DIR:=/opt/skillzbot}"
+: "${ENV_CHANNEL_NAME:=general_hs_}"
+: "${TZ:=UTC}"
+
+export ENV_CHANNEL_NAME TZ
+export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+
+supervisor=supervise-daemon
+command="${SKILLZBOT_DIR}/SkillzBot"
+directory="${SKILLZBOT_DIR}"
+supervise_daemon_args="-e ENV_CHANNEL_NAME=${ENV_CHANNEL_NAME} -e TZ=${TZ} -e DOTNET_CLI_TELEMETRY_OPTOUT=1"
+respawn_delay=3
+respawn_max=0
+respawn_period=60
+output_log="/var/log/skillzbot.out"
+error_log="/var/log/skillzbot.err"
+
+depend() {
+    need net
+    use dns
+    before nginx
+}
+
+start_pre() {
+    checkpath -d -m 0755 "${SKILLZBOT_DIR}/Channels_Data/${ENV_CHANNEL_NAME}/DATA/logs"
+    if [ ! -x "${command}" ]; then
+        eerror "${command} is missing or not executable; run deploy.py first"
+        return 1
+    fi
+}

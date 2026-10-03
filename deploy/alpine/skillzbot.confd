@@ -1,0 +1,4 @@
+# /etc/conf.d/skillzbot - environment for the SkillzBot OpenRC service
+SKILLZBOT_DIR="@APP_DIR@"
+ENV_CHANNEL_NAME="@CHANNEL@"
+TZ="@TZ@"
