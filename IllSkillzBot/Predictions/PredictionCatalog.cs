@@ -48,11 +48,11 @@ namespace SkillzBot.IllSkillzBot.Predictions
         /// <summary>Weights are the original random chances of each prediction type.</summary>
         public static readonly IReadOnlyList<PredictionKind> Alternatives = new[]
         {
-            new PredictionKind("kills2",  PredictionScope.Lane, PredictionMetric.Kills,  15, "Киллы: игрок vs лайн", "Кто сделает больше убийств на лайне?"),
-            new PredictionKind("cs2",     PredictionScope.Lane, PredictionMetric.Cs,     20, "CS: игрок vs лайн",    "У кого будет больше CS на лайне?"),
-            new PredictionKind("gold2",   PredictionScope.Lane, PredictionMetric.Gold,   20, "Голда: игрок vs лайн", "Кто заработает больше золота на лайне?"),
-            new PredictionKind("dmg2",    PredictionScope.Lane, PredictionMetric.Damage, 20, "Урон: игрок vs лайн",  "Кто нанесет больше урона на лайне?"),
-            new PredictionKind("kda2",    PredictionScope.Lane, PredictionMetric.Kda,    30, "KDA: игрок vs лайн",   "У кого будет выше KDA на лайне?"),
+            new PredictionKind("kills2",  PredictionScope.Lane, PredictionMetric.Kills,  15, "Киллы: игрок vs лайн", "Кто сделает больше убийств?"),
+            new PredictionKind("cs2",     PredictionScope.Lane, PredictionMetric.Cs,     20, "CS: игрок vs лайн",    "У кого будет больше CS?"),
+            new PredictionKind("gold2",   PredictionScope.Lane, PredictionMetric.Gold,   20, "Голда: игрок vs лайн", "Кто заработает больше золота?"),
+            new PredictionKind("dmg2",    PredictionScope.Lane, PredictionMetric.Damage, 20, "Урон: игрок vs лайн",  "Кто нанесет больше урона?"),
+            new PredictionKind("kda2",    PredictionScope.Lane, PredictionMetric.Kda,    30, "KDA: игрок vs лайн",   "У кого будет выше KDA?"),
 
             new PredictionKind("kills5",  PredictionScope.Team, PredictionMetric.Kills,  25, "Киллы в команде",        "Команда игрока: у кого больше киллов?"),
             new PredictionKind("cs5",     PredictionScope.Team, PredictionMetric.Cs,     20, "CS в команде",           "Команда игрока: у кого больше CS?"),
