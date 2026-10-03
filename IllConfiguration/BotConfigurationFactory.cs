@@ -50,6 +50,9 @@ namespace SkillzBot.Configuration
                 RootUser = botConfigs.RootUser.Trim().TrimStart('@').ToLowerInvariant(),
 
                 VipLimit = botConfigs.VipLimit ?? 100,
+                TApiClientSecret = botConfigs.TApiClientSecret?.Trim(),
+                ApiPort = botConfigs.ApiPort ?? 8080,
+                ApiPublicUrl = botConfigs.ApiPublicUrl?.Trim().TrimEnd('/'),
                 ProxyUrl = botConfigs.ProxyUrl?.Trim(),
                 ProxyCorePath = botConfigs.ProxyCorePath?.Trim(),
                 ProxyApplyTo = string.IsNullOrWhiteSpace(botConfigs.ProxyApplyTo)

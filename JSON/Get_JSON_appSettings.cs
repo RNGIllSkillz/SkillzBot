@@ -103,6 +103,12 @@ namespace SkillzBot.JSON.Settings
         public string ProxyApplyTo { get; set; }
         [JsonProperty("VipLimit")]
         public int? VipLimit { get; set; }
+        [JsonProperty("TApiClientSecret")]
+        public string TApiClientSecret { get; set; }
+        [JsonProperty("ApiPort")]
+        public int? ApiPort { get; set; }
+        [JsonProperty("ApiPublicUrl")]
+        public string ApiPublicUrl { get; set; }
     }
 
     public partial class SettingsJson

@@ -45,6 +45,7 @@ namespace SkillzBot.IllSkillzBot
         private readonly IBotStateService _botState;
         private readonly IGameStateService _gameState;
         private readonly ChampionNames _championNames;
+        private readonly IEngagementRepository _engagement;
         private readonly BotConfigModel _config;
 
         private string _currentMatchId;
@@ -97,7 +98,8 @@ namespace SkillzBot.IllSkillzBot
             IBotStateService botState,
             IGameStateService gameState,
             ChampionNames championNames,
-            BotConfigModel config)
+            BotConfigModel config,
+            IEngagementRepository engagement)
         {
             _logger = logger;
             _riotApi = riotApi;
@@ -106,6 +108,7 @@ namespace SkillzBot.IllSkillzBot
             _botState = botState;
             _gameState = gameState;
             _championNames = championNames;
+            _engagement = engagement;
             _config = config;
         }
 
@@ -174,6 +177,8 @@ namespace SkillzBot.IllSkillzBot
             {
                 var active = await StartPredictionAsync(kind, currentGame, matchId);
                 await PersistActiveAsync(active);
+                if (active.PredictionId != null)
+                    await RecordAsync(() => _engagement.PredictionStartedAsync(active.PredictionId, active.Kind.Key, "bot", active.Kind.Title, matchId, active.StartedUtc), "prediction start");
                 await ContinueAsync(active);
             }
             catch (Exception ex)
@@ -187,6 +192,13 @@ namespace SkillzBot.IllSkillzBot
         }
 
         private Task SetInMatchAsync(bool value) => _botState.UpdateStateAsync(s => s.InMatch = value);
+
+        /// <summary>Engagement history is best effort: a database problem must not touch the prediction flow.</summary>
+        private async Task RecordAsync(Func<Task> write, string what)
+        {
+            try { await write(); }
+            catch (Exception ex) { _logger.LogWarning("Could not record {What} in the database: {Error}", what, ex.Message); }
+        }
 
         private Task PersistActiveAsync(ActivePrediction active) =>
             _botState.UpdateStateAsync(s => s.ActivePrediction = active.ToState());
@@ -635,6 +647,10 @@ namespace SkillzBot.IllSkillzBot
                     return "Не удалось создать опрос (см. лог).";
                 }
 
+                var choiceRecords = new List<PollChoiceRecord> { new PollChoiceRecord { Title = PredictionCatalog.WinLose.PollLabel, KindKey = PredictionCatalog.WinLose.Key } };
+                choiceRecords.AddRange(options.Select(o => new PollChoiceRecord { Title = o.PollLabel, KindKey = o.Key }));
+                await RecordAsync(() => _engagement.PollStartedAsync(pollId, "bot", PredictionCatalog.PollTitle, DateTime.UtcNow, choiceRecords), "poll start");
+
                 await _botState.UpdateStateAsync(st => st.ActivePoll = new ActivePollState
                 {
                     PollId = pollId,
@@ -690,6 +706,12 @@ namespace SkillzBot.IllSkillzBot
                     await _ircClient.SendMessage("Опрос не завершился штатно, остается вин/луз.");
                     return;
                 }
+
+                await RecordAsync(() => _engagement.PollEndedAsync(new PollResultRecord
+                {
+                    PollId = pollId, Title = PredictionCatalog.PollTitle, Status = result.Status, EndedUtc = DateTime.UtcNow,
+                    Choices = result.Choices.Select(c => new PollChoiceRecord { Title = c.Title, Votes = c.Votes }).ToList(),
+                }), "poll end");
 
                 // Choices come back in creation order, so a tie keeps the earlier option (win/lose first).
                 var winner = result.Choices.OrderByDescending(c => c.Votes).FirstOrDefault();

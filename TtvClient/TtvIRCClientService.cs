@@ -26,6 +26,7 @@ namespace SkillzBot.IRC
         private readonly IGameStateService _gameState;
         private readonly IBotStateService _botState;
         private readonly IStreamElementsService _streamElementsService;
+        private readonly Api.ChatFeed _feed;
 
         // Updated on every byte that crosses the socket (PING/PONG, JOIN/PART, PRIVMSG), so a
         // quiet chat is not mistaken for a dead connection.
@@ -51,8 +52,10 @@ namespace SkillzBot.IRC
             BotConfigModel config,
             IGameStateService gameState,
             IBotStateService botState,
-            IStreamElementsService streamElementsService)
+            IStreamElementsService streamElementsService,
+            Api.ChatFeed feed)
         {
+            _feed = feed;
             _logger = logger;
             _databaseService = database;
             _config = config;
@@ -352,6 +355,7 @@ namespace SkillzBot.IRC
         public async Task SendMessage(string messageToSend, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(messageToSend) || _botState.Current.IsSilent) return;
+            _feed.PublishOutgoing(messageToSend);
             try
             {
                 if (messageToSend.Length <= MESSAGE_MAX_LENGTH)

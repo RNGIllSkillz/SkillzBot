@@ -27,6 +27,12 @@ namespace SkillzBot.IllConfiguration
         public string[] ProxyApplyTo { get; init; }
         /// <summary>Number of VIP slots Twitch gives this channel; the bot frees one when it is reached.</summary>
         public int VipLimit { get; init; }
+        /// <summary>Twitch application client secret; needed only for the web panel login.</summary>
+        public string TApiClientSecret { get; init; }
+        /// <summary>Port of the web panel API inside the container; 0 disables it.</summary>
+        public int ApiPort { get; init; }
+        /// <summary>Public https URL of the web panel (the OAuth redirect is {ApiPublicUrl}/api/auth/callback).</summary>
+        public string ApiPublicUrl { get; init; }
 
         public DatabaseConfig Database { get; init; }
         public FilePathsConfig FilePaths { get; init; }
