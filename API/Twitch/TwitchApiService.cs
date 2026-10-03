@@ -817,6 +817,61 @@ namespace SkillzBot.API.Twitch
             }
         }
 
+        public async Task<List<MODELS.VipInfo>> GetAllVipsAsync()
+        {
+            if (!IsReady()) return null;
+            var result = new List<MODELS.VipInfo>();
+            string cursor = null;
+            try
+            {
+                do
+                {
+                    var page = await _api.Helix.Channels.GetVIPsAsync(_broadcasterID, null, 100, cursor).WaitAsync(_apiTimeout);
+                    if (page?.Data == null) break;
+                    result.AddRange(page.Data.Select(v => new MODELS.VipInfo(v.UserId, v.UserLogin, v.UserName)));
+                    cursor = page.Pagination?.Cursor;
+                } while (!string.IsNullOrEmpty(cursor) && result.Count < 1000);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetAllVipsAsync");
+                return null;
+            }
+        }
+
+        public async Task<bool> TryAddChannelVIPAsync(string userID)
+        {
+            if (!IsReady()) return false;
+            bool ok = false;
+            try
+            {
+                await ExecuteWithRetryAsync(async () =>
+                {
+                    await _api.Helix.Channels.AddChannelVIPAsync(_broadcasterID, userID).WaitAsync(_apiTimeout);
+                    ok = true;
+                }, "AddChannelVIP");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "AddChannelVIP {UserId}", userID); }
+            return ok;
+        }
+
+        public async Task<bool> TryRemoveChannelVIPAsync(string userID)
+        {
+            if (!IsReady()) return false;
+            bool ok = false;
+            try
+            {
+                await ExecuteWithRetryAsync(async () =>
+                {
+                    await _api.Helix.Channels.RemoveChannelVIPAsync(_broadcasterID, userID).WaitAsync(_apiTimeout);
+                    ok = true;
+                }, "DeleteChannelVIP");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "DeleteChannelVIP {UserId}", userID); }
+            return ok;
+        }
+
         public async Task AddChannelVIP(string userID)
         {
             if (!IsReady()) return;

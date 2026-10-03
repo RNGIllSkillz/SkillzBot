@@ -21,6 +21,8 @@ namespace SkillzBot.MODELS
         /// <summary>When the last "which prediction next" poll was started (UTC).</summary>
         public System.DateTime LastPredictionPollUtc { get; set; }
         public bool PredictionPollEnabled { get; set; } = true;
+        /// <summary>At the VIP limit, !addvip removes the oldest unpinned VIP to make room.</summary>
+        public bool VipAutoRotate { get; set; } = true;
         /// <summary>Live seconds accumulated since the last prediction poll, over finished live segments.</summary>
         public double LiveSecondsBank { get; set; }
         /// <summary>Start of the current live segment, or null while offline.</summary>

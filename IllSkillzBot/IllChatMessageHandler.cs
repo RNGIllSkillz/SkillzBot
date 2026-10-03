@@ -32,6 +32,7 @@ namespace SkillzBot.IllSkillzBot
         private readonly IllModeratorsInteractions _modInteractions;
         private readonly IIllAccess _illAccess;
         private readonly IStreamElementsService _streamElementsService;
+        private readonly Services.Vip.VipRegistryService _vips;
 
         private long _totalMessagesProcessed = 0;
         private int _pendingMessageCount = 0;
@@ -70,9 +71,11 @@ namespace SkillzBot.IllSkillzBot
             IBotStateService botState,
             IllModeratorsInteractions modInteractions,
             IIllAccess illAccess,
-            IStreamElementsService streamElementsService
+            IStreamElementsService streamElementsService,
+            Services.Vip.VipRegistryService vips
             )
         {
+            _vips = vips;
             _logger = logger;
             _chatFilters = chatFilters;
             _database = database;
@@ -393,7 +396,10 @@ namespace SkillzBot.IllSkillzBot
                 needsUpdate = true;
             }
 
+            int wasVip = user.isVip;
             ApplyChatMetadata(user, chatmessage);
+            if (needsUpdate && wasVip != user.isVip && !user.IsTransient)
+                _ = _vips.NoteChatBadgeAsync(user, user.isVip == 1);
 
             if (needsUpdate)
             {

@@ -166,6 +166,7 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<IllChatFilters>();
                     services.AddSingleton<IllGames>();
                     services.AddSingleton<IllModeratorsInteractions>();
+                    services.AddSingleton<Services.Vip.VipRegistryService>();
                     services.AddSingleton<RewardsRedemption>();
                     services.AddSingleton<IllCommands>();
                     services.AddSingleton<IllCommandHandler>();

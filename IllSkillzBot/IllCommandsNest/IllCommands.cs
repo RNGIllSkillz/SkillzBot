@@ -50,6 +50,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly HealthState _health;
         private readonly ProxyService _proxy;
         private readonly IllPredictions _predictions;
+        private readonly Services.Vip.VipRegistryService _vips;
 
         private string _ludka = "";
 
@@ -78,8 +79,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             IMmrService mmrService,
             HealthState health,
             ProxyService proxy,
-            IllPredictions predictions)
+            IllPredictions predictions,
+            Services.Vip.VipRegistryService vips)
         {
+            _vips = vips;
             _health = health;
             _proxy = proxy;
             _predictions = predictions;
@@ -253,8 +256,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var aUser = await _databaseService.GetUserAsync(UserInput[1]);
                 if (aUser.dbID != -404)
                 {
-                    await _twitchService.AddChannelVIP(aUser.TwitchID.ToString());
-                    await _ircClient.SendMessage(string.Format(STRINGS.AddVIPSuccess, aUser.Name));
+                    var result = await _vips.GrantAsync(aUser);
+                    if (result.Removed != null)
+                        await _ircClient.SendMessage($"Лимит VIP ({_vips.Limit}) достигнут: снял випку с @{result.Removed.DisplayName} ({(result.Removed.Since.HasValue ? "VIP с " + result.Removed.Since.Value.ToString("yyyy-MM-dd") : "самый давний, дата неизвестна")}).");
+                    await _ircClient.SendMessage(result.Success ? string.Format(STRINGS.AddVIPSuccess, aUser.Name) : result.Message);
                 }
                 else
                     await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
@@ -270,8 +275,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 var aUser = await _databaseService.GetUserAsync(UserInput[1]);
                 if (aUser.dbID != -404)
                 {
-                    await _twitchService.DeleteChannelVIP(aUser.TwitchID.ToString());
-                    await _ircClient.SendMessage(string.Format(STRINGS.DeleteVIPSuccess, aUser.Name));
+                    if (await _vips.RevokeAsync(aUser))
+                        await _ircClient.SendMessage(string.Format(STRINGS.DeleteVIPSuccess, aUser.Name));
+                    else
+                        await _ircClient.SendMessage($"Не удалось снять випку с @{aUser.Name} (см. лог).");
                 }
                 else
                     await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, UserInput[1]));
@@ -862,6 +869,50 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
         /// <summary>Set by IllChatMessageHandler (it depends on this class, so it cannot be injected here).</summary>
         public Func<(int Pending, long Processed, int Buffered, long Stalled, string LastStall)> _chatStats;
+
+        /// <summary>!vips [oldest N | sync | pin login | unpin login | since login YYYY-MM-DD | auto on|off]</summary>
+        public async Task Vips(UserObject user, string[] input)
+        {
+            string sub = input.Length > 1 ? input[1].ToLowerInvariant() : "";
+            switch (sub)
+            {
+                case "":
+                    await _ircClient.SendMessage(await _vips.StatusLineAsync());
+                    return;
+                case "oldest":
+                    {
+                        int n = input.Length > 2 && int.TryParse(input[2], out int parsed) ? Math.Clamp(parsed, 1, 15) : 5;
+                        var list = Services.Vip.VipRegistryService.Oldest(await _vips.SnapshotAsync()).Take(n).Select(Services.Vip.VipRegistryService.Describe);
+                        await _ircClient.SendMessage($"Самые давние VIP: {string.Join(", ", list)}");
+                        return;
+                    }
+                case "sync":
+                    {
+                        var r = await _vips.SyncAsync("command");
+                        await _ircClient.SendMessage(r == null ? "Не удалось получить список VIP от Twitch." : $"VIP синхронизированы: {r.Total}, новых {r.Added}, убрано {r.Removed}.");
+                        return;
+                    }
+            }
+
+            if (!_illAccess.Root(user)) { await _ircClient.SendMessage($"@{user.Name} !vips, !vips oldest [N], !vips sync. Остальное - только root."); return; }
+            switch (sub)
+            {
+                case "pin" when input.Length > 2:
+                    await _ircClient.SendMessage(await _vips.SetPinnedAsync(input[2], true)); return;
+                case "unpin" when input.Length > 2:
+                    await _ircClient.SendMessage(await _vips.SetPinnedAsync(input[2], false)); return;
+                case "since" when input.Length > 3:
+                    await _ircClient.SendMessage(await _vips.SetSinceAsync(input[2], input[3])); return;
+                case "auto" when input.Length > 2:
+                    {
+                        bool on = input[2].Equals("on", StringComparison.OrdinalIgnoreCase);
+                        await _botState.UpdateStateAsync(s => s.VipAutoRotate = on);
+                        await _ircClient.SendMessage($"Авторотация VIP: {(on ? "on" : "off")}."); return;
+                    }
+                default:
+                    await _ircClient.SendMessage("!vips | oldest [N] | sync | pin <login> | unpin <login> | since <login> <ГГГГ-ММ-ДД> | auto on|off"); return;
+            }
+        }
 
         public async Task GetServiceStatus(UserObject user)
         {

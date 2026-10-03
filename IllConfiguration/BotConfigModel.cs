@@ -25,6 +25,8 @@ namespace SkillzBot.IllConfiguration
         public string ProxyCorePath { get; init; }
         /// <summary>Which outbound clients use the proxy: youtube, riot, streamelements, mmr, all.</summary>
         public string[] ProxyApplyTo { get; init; }
+        /// <summary>Number of VIP slots Twitch gives this channel; the bot frees one when it is reached.</summary>
+        public int VipLimit { get; init; }
 
         public DatabaseConfig Database { get; init; }
         public FilePathsConfig FilePaths { get; init; }
