@@ -66,7 +66,8 @@ namespace SkillzBot.Services
             using var process = Process.GetCurrentProcess();
             var uptime = DateTime.Now - process.StartTime;
             double ramMb = GC.GetTotalMemory(false) / 1024.0 / 1024.0;
-            var (pending, processed, buffered) = _chat.GetStats();
+            var (pending, processed, buffered, stalled, lastStall) = _chat.GetStats();
+            string stall = stalled == 0 ? "" : $" stalled={stalled} lastStall=\"{lastStall}\"";
             var s = _botState.Current;
 
             string irc = _irc.IsConnected ? "connected" : "DOWN";
@@ -77,7 +78,7 @@ namespace SkillzBot.Services
             return $"Health | up={HealthState.FormatAge(uptime)} ram={ramMb:F0}MB threads={process.Threads.Count}" +
                    $" | irc={irc} traffic={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastActivity)}" +
                    $" | eventsub={eventSub} since={HealthState.FormatAge(_health.EventSubSinceUtc)} lastEvent={HealthState.FormatAge(_health.EventSubLastEventUtc)} reconnects={_health.EventSubReconnects}" +
-                   $" | chat pending={pending} processed={processed} buffered={buffered}" +
+                   $" | chat pending={pending} processed={processed} buffered={buffered}{stall}" +
                    $" | db={db} failures={_health.DbFailures}" +
                    $" | se={se} lastOk={HealthState.FormatAge(_health.StreamElementsLastOkUtc)}" +
                    $" | proxy={_proxy.Describe()}" +
