@@ -358,6 +358,51 @@ namespace SkillzBot.API.Twitch
             }
         }
 
+        public string CurrentPredictionId => _predID;
+
+        public async Task<PredictionStatus?> GetPredictionStatusAsync(string predictionId)
+        {
+            if (!IsReady() || string.IsNullOrEmpty(predictionId)) return null;
+            try
+            {
+                var response = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID, new List<string> { predictionId }).WaitAsync(_apiTimeout);
+                return response?.Data?.FirstOrDefault(p => p.Id == predictionId)?.Status;
+            }
+            catch (BadResourceException)
+            {
+                return null; // 404: the prediction does not exist
+            }
+            catch (Exception ex)
+            {
+                // Transient failure: let the caller decide to retry instead of treating it as "not found".
+                _logger.LogError(ex, "GetPredictionStatus({PredictionId})", predictionId);
+                throw;
+            }
+        }
+
+        public async Task<bool> AdoptPredictionAsync(string predictionId)
+        {
+            if (!IsReady() || string.IsNullOrEmpty(predictionId)) return false;
+            try
+            {
+                var response = await _api.Helix.Predictions.GetPredictionsAsync(_broadcasterID, new List<string> { predictionId }).WaitAsync(_apiTimeout);
+                var prediction = response?.Data?.FirstOrDefault(p => p.Id == predictionId);
+                if (prediction == null) return false;
+                if (prediction.Status != PredictionStatus.ACTIVE && prediction.Status != PredictionStatus.LOCKED) return false;
+
+                _predID = prediction.Id;
+                _winID = prediction.Outcomes.First().Id;
+                _looseID = prediction.Outcomes.Last().Id;
+                _logger.LogInformation("Adopted prediction {PredictionId} ({Status}) with {Count} outcomes.", prediction.Id, prediction.Status, prediction.Outcomes.Length);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AdoptPrediction({PredictionId})", predictionId);
+                return false;
+            }
+        }
+
         public async Task<string> CreatePollAsync(string title, IReadOnlyList<string> choices, int durationSec)
         {
             if (!IsReady()) return null;

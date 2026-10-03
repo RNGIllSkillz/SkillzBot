@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllSkillzBot;
 using System;
@@ -46,10 +46,9 @@ namespace SkillzBot.Services
                     {
                         var sw = Stopwatch.StartNew();
 
-                        if (_botState.Current.AutoPred)
-                        {
-                            await _illPredictions.GetCurrentMatchTask();
-                        }
+                        // AutoPred is checked inside: a prediction that is still owed a result is
+                        // resolved even if auto-predictions were switched off meanwhile.
+                        await _illPredictions.GetCurrentMatchTask();
 
                         sw.Stop();
                         _logger.LogDebug("GetCurrentMatchTask execution time: {ElapsedMs}ms", sw.ElapsedMilliseconds);

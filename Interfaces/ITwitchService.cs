@@ -36,6 +36,12 @@ namespace SkillzBot.Interfaces
         Task End_WinLoose_Prediction(bool win, int tryes = 0);
         Task CencelePrediction();
         Task<GetPredictionsResponse> GetCurrentPredPublic();
+        /// <summary>Id of the prediction the service currently manages (set after Start_*), or null.</summary>
+        string CurrentPredictionId { get; }
+        /// <summary>Status of a prediction; null when it does not exist. Throws on API failure.</summary>
+        Task<TwitchLib.Api.Core.Enums.PredictionStatus?> GetPredictionStatusAsync(string predictionId);
+        /// <summary>Re-attaches to an existing ACTIVE/LOCKED prediction after a restart so End_* can close it.</summary>
+        Task<bool> AdoptPredictionAsync(string predictionId);
 
         // Polls
         Task<string> CreatePollAsync(string title, IReadOnlyList<string> choices, int durationSec);
