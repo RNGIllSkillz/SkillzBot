@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
@@ -15,6 +15,7 @@ using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomRewardRedemptionStatus;
 using TwitchLib.Api.Helix.Models.Chat.ChatSettings;
 using TwitchLib.Api.Helix.Models.Moderation.BanUser;
+using TwitchLib.Api.Helix.Models.Polls.CreatePoll;
 using TwitchLib.Api.Helix.Models.Predictions.CreatePrediction;
 
 namespace SkillzBot.API.Twitch
@@ -130,6 +131,12 @@ namespace SkillzBot.API.Twitch
                         break;
                     }
                     _logger.LogWarning("Bad Resource (404) in {Operation}: {Msg}", operationName, ex.Message);
+                    break;
+                }
+                // 6a. MISSING SCOPE
+                catch (BadScopeException ex)
+                {
+                    _logger.LogError("Twitch token lacks the scope required for {Operation}: {Msg}", operationName, ex.Message);
                     break;
                 }
                 // 6. FORBIDDEN (Ownership issues / Bad Token)
@@ -347,6 +354,49 @@ namespace SkillzBot.API.Twitch
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetCurrentPredPublic");
+                return null;
+            }
+        }
+
+        public async Task<string> CreatePollAsync(string title, IReadOnlyList<string> choices, int durationSec)
+        {
+            if (!IsReady()) return null;
+            if (choices == null || choices.Count < 2 || choices.Count > 5)
+            {
+                _logger.LogError("A poll needs 2 to 5 choices; got {Count}.", choices?.Count ?? 0);
+                return null;
+            }
+
+            string pollId = null;
+            await ExecuteWithRetryAsync(async () =>
+            {
+                var response = await _api.Helix.Polls.CreatePollAsync(new CreatePollRequest
+                {
+                    BroadcasterId = _broadcasterID,
+                    Title = title.Length > 60 ? title.Substring(0, 60) : title,
+                    Choices = choices.Select(c => new TwitchLib.Api.Helix.Models.Polls.CreatePoll.Choice { Title = c.Length > 25 ? c.Substring(0, 25) : c }).ToArray(),
+                    DurationSeconds = Math.Clamp(durationSec, 15, 1800),
+                    ChannelPointsVotingEnabled = false,
+                });
+                pollId = response?.Data?.FirstOrDefault()?.Id;
+            }, "CreatePoll");
+            return pollId;
+        }
+
+        public async Task<PollResult> GetPollAsync(string pollId)
+        {
+            if (!IsReady() || string.IsNullOrEmpty(pollId)) return null;
+            try
+            {
+                var response = await _api.Helix.Polls.GetPollsAsync(_broadcasterID, new List<string> { pollId }).WaitAsync(_apiTimeout);
+                var poll = response?.Data?.FirstOrDefault();
+                if (poll == null) return null;
+                var choices = poll.Choices.Select(c => new PollChoiceResult(c.Title, c.Votes)).ToList();
+                return new PollResult(poll.Id, poll.Status, choices);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPoll({PollId})", pollId);
                 return null;
             }
         }

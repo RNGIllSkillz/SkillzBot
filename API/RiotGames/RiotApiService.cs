@@ -57,6 +57,8 @@ namespace SkillzBot.API.RiotGames
             _httpHandler = httpHandler;
         }
 
+        public string CurrentPuuid => _summoner?.Puuid;
+
         public async Task<bool> InitializeAsync()
         {
             _isValidToken = StringUtil.IsValidApiToken(_config.RiotApiToken);

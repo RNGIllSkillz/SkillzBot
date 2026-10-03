@@ -1,36 +1,63 @@
-using System;
-using System.Threading.Tasks;
-using SkillzBot.Utils;
-using SkillzBot.IRC;
-using System.Linq;
 using Camille.Enums;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.SpectatorV5;
+using Participant = Camille.RiotGames.MatchV5.Participant;
 using Microsoft.Extensions.Logging;
-using SkillzBot.Hosts;
+using SkillzBot.API.RiotGames;
 using SkillzBot.IllConfiguration;
+using SkillzBot.IllSkillzBot.Predictions;
 using SkillzBot.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SkillzBot.IllSkillzBot
 {
+    /// <summary>
+    /// Auto-predictions for the streamer's League games. The default is win/lose; after a
+    /// game, at most once per <see cref="PollInterval"/>, chat picks the type of the next
+    /// prediction through a Twitch poll (win/lose plus three weighted random alternatives).
+    /// </summary>
     public class IllPredictions
     {
-        private string CurrentMatchID;
-        private string PlatformID;
-        private const int _maxGameLengthsec = 5400;
+        private const int MaxGameLengthSec = 5400;
+        private const int PredictionWindowSec = 180;
+        private const int NewGameMaxLengthSec = 30;
+        private const int RemakeThresholdSec = 300;
+        private const int PollDurationSec = 120;
+        private static readonly TimeSpan PollInterval = TimeSpan.FromHours(4);
+
         private readonly ILogger<IllPredictions> _logger;
         private readonly IRiotApiService _riotApi;
         private readonly ITtvIRCClient _ircClient;
         private readonly ITwitchService _twitchService;
         private readonly IBotStateService _botState;
         private readonly IGameStateService _gameState;
+        private readonly ChampionNames _championNames;
+        private readonly BotConfigModel _config;
+
+        private string _currentMatchId;
+        private string _platformId;
+        private int _pollRunning;
+
+        private sealed class ActivePrediction
+        {
+            public PredictionKind Kind;
+            /// <summary>Outcome title used for each champion id, so resolution matches what Twitch shows.</summary>
+            public Dictionary<int, string> OutcomeByChampion;
+        }
+
         public IllPredictions(
             ILogger<IllPredictions> logger,
             IRiotApiService riotApi,
             ITtvIRCClient ircClient,
             ITwitchService twitchService,
             IBotStateService botState,
-            IGameStateService gameState)
+            IGameStateService gameState,
+            ChampionNames championNames,
+            BotConfigModel config)
         {
             _logger = logger;
             _riotApi = riotApi;
@@ -38,13 +65,20 @@ namespace SkillzBot.IllSkillzBot
             _twitchService = twitchService;
             _botState = botState;
             _gameState = gameState;
+            _championNames = championNames;
+            _config = config;
         }
+
+        private string StreamerLabel => PredictionCatalog.Truncate(_config.ChannelName, PredictionCatalog.MaxOutcomeLength);
+
+        #region Game detection
+
         public async Task GetCurrentMatchTask()
         {
             if (_botState.Current.Debug) _logger.LogDebug("Running GetCurrentMatchTask()");
             if (!_botState.Current.IsSubActive || _botState.Current.InMatch || !_botState.Current.AutoPred) return;
 
-            PlatformID = _gameState.Current.SummonerRegion switch
+            _platformId = _gameState.Current.SummonerRegion switch
             {
                 "ru" => "RU_",
                 "euw" => "EUW1_",
@@ -54,109 +88,33 @@ namespace SkillzBot.IllSkillzBot
 
             var currentGame = await _riotApi.GetCurrentGameAsync();
             if (currentGame == null) return;
-            if (CurrentMatchID == (PlatformID + Convert.ToString(currentGame.GameId)) || currentGame.GameLength > 30) return;
-            if (_botState.Current.Debug)
-                _logger.LogDebug("Матч начался!");
 
-            CurrentMatchID = PlatformID + Convert.ToString(currentGame.GameId);
+            string matchId = _platformId + currentGame.GameId;
+            if (_currentMatchId == matchId || currentGame.GameLength > NewGameMaxLengthSec) return;
+            _currentMatchId = matchId;
+            _logger.LogInformation("New game detected: {MatchId} ({Mode}, {Players} players).", matchId, currentGame.GameMode, currentGame.Participants?.Length ?? 0);
+
             var predictions = await _twitchService.GetCurrentPredPublic();
             if (predictions == null || predictions.Data.Length == 0) return;
-            if (predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && predictions.Data.First().Status != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED) return;
-            if (currentGame.GameType == GameType.CUSTOM)
-            {  
-                //await TtvIRCClient.SendMessage("Кастомные игры не поддерживаются. Ставка не запустится.");
-                //return;
+            var lastStatus = predictions.Data.First().Status;
+            if (lastStatus != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && lastStatus != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED)
+            {
+                _logger.LogWarning("Previous prediction is still {Status}; skipping auto-prediction for {MatchId}.", lastStatus, matchId);
+                return;
             }
-            //await DisableRewardAsync();
-            //await CalculateGameStats(currentGame);
-            string currentGameID = PlatformID + Convert.ToString(currentGame.GameId);
+
             var rank = await _riotApi.GetLeagueEntriesBySummonerAsync();
             if (rank == null) return;
+
+            var kind = await ConsumeNextKindAsync();
             await SetInMatchAsync(true);
             try
             {
-                // Only the win/loss prediction is live. The alternative prediction types below
-                // are kept commented out for reference.
-                await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180);
-                    /*if (IntUtil.GetChance(15))
-                    {
-                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(20))
-                    {
-                        await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше CS", tChannel, "Оппонент", p => p.TotalMinionsKilled, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(20))
-                    {
-                        await Prediction_MAX_FLAG_2(currentGameID, "Кто заработает больше золота", tChannel, "Оппонент", p => p.GoldEarned, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(20))
-                    {
-                        await Prediction_MAX_FLAG_2(currentGameID, "Чей урон будет выше", tChannel, "Оппонент", p => p.TotalDamageDealtToChampions, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(30))
-                    {
-                        await Prediction_MAX_KDA_2(currentGameID, "Чей KDA будет больше", tChannel, "Оппонент", 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(25))
-                    {
-                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(20))
-                    {
-                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(15))
-                    {
-                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(18))
-                    {
-                        await Prediction_MAX_FLAG_5(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(20))
-                    {
-                        await Prediction_MAX_KDA_5(currentGame, currentGameID, "У кого будет самый высокий KDA", 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(5))
-                    {
-                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет больше всего убийств", p => p.Kills, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(5))
-                    {
-                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый большой CS", p => p.TotalMinionsKilled, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(4))
-                    {
-                        await Prediction_MAX_FLAG(currentGame, currentGameID, "Кто заработает больше золота", p => p.GoldEarned, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(4))
-                    {
-                        await Prediction_MAX_FLAG(currentGame, currentGameID, "У кого будет самый высокий урон", p => p.TotalDamageDealtToChampions, 300);
-                        break;
-                    }
-                    if (IntUtil.GetChance(5))
-                    {
-                        await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300);
-                        break;
-                    }*/
+                await RunPredictionAsync(kind, currentGame, matchId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error running prediction task");
+                _logger.LogError(ex, "Error running prediction task for {MatchId}", matchId);
             }
             finally
             {
@@ -166,848 +124,380 @@ namespace SkillzBot.IllSkillzBot
 
         private Task SetInMatchAsync(bool value) => _botState.UpdateStateAsync(s => s.InMatch = value);
 
-        private async Task Prediction_WIN_LOOSE(string currentGameID, string Title, string blue, string red, int sec)
+        /// <summary>Takes the chat-chosen type for this game (one-shot) or falls back to win/lose.</summary>
+        private async Task<PredictionKind> ConsumeNextKindAsync()
         {
-            await _twitchService.Start_2_Prediction(Title, blue, red, sec);
-            Match onMatch;
-            if (_botState.Current.Debug)
-            {
-                _logger.LogDebug("Ставка запущена");
-                _logger.LogDebug("currentGameID: {CurrentGameID}", currentGameID);
-            }
-            int errorThreshHold = 0;
-            var maxGameTime = DateTimeOffset.Now.ToUnixTimeSeconds() + _maxGameLengthsec;
+            string key = _botState.Current.NextPredictionKey;
+            var kind = PredictionCatalog.Find(key) ?? PredictionCatalog.WinLose;
+            if (!string.IsNullOrEmpty(key))
+                await _botState.UpdateStateAsync(s => s.NextPredictionKey = null);
+            return kind;
+        }
 
+        #endregion
+
+        #region Prediction lifecycle
+
+        private async Task RunPredictionAsync(PredictionKind kind, CurrentGameInfo game, string matchId)
+        {
+            var active = await StartPredictionAsync(kind, game);
+
+            var match = await WaitForMatchEndAsync(matchId);
+            if (match == null) return;
+
+            var participant = _riotApi.GetParticipantByMatch(match);
+            if (participant == null)
+            {
+                await _botState.UpdateStateAsync(s => s.AutoPred = false);
+                _logger.LogCritical("Participant could not be found in match {MatchId}. Auto-predictions disabled.", matchId);
+                await _ircClient.SendMessage("Критическая ошибка: не удалось найти призывателя в матче. Автоставки выключены.");
+                return;
+            }
+
+            if (match.Info.GameDuration <= RemakeThresholdSec)
+            {
+                await _ircClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                await _twitchService.CencelePrediction();
+                return;
+            }
+
+            bool won = participant.Win;
+            if (_botState.Current.Debug) _logger.LogDebug("Матч завершен {Win}", won);
+
+            await _gameState.UpdateStateAsync(s =>
+            {
+                s.NumGames++;
+                if (won) s.NumWins++;
+                else s.NumLosses++;
+            });
+            await UpdateDailyStats(won);
+
+            await ResolveAsync(active, match, participant, won);
+            await MaybeStartPollAsync();
+        }
+
+        /// <summary>Creates the Twitch prediction for the requested type, or win/lose when the game does not fit it.</summary>
+        private async Task<ActivePrediction> StartPredictionAsync(PredictionKind kind, CurrentGameInfo game)
+        {
+            if (kind.Scope == PredictionScope.WinLose)
+                return await StartWinLoseAsync();
+
+            string fallbackReason = null;
             try
             {
-                while (_botState.Current.InMatch)
+                switch (kind.Scope)
                 {
-                    if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
+                    case PredictionScope.Lane:
+                        if (game.GameMode != GameMode.CLASSIC)
+                        {
+                            fallbackReason = "в этом режиме нет лайнов";
+                            break;
+                        }
+                        await _twitchService.Start_2_Prediction(kind.Title, StreamerLabel, PredictionCatalog.OpponentLabel, PredictionWindowSec);
+                        _logger.LogInformation("Prediction started: {Key} ({Title}).", kind.Key, kind.Title);
+                        return new ActivePrediction { Kind = kind };
+
+                    case PredictionScope.Team:
+                    case PredictionScope.All:
+                        {
+                            var puuid = _riotApi.CurrentPuuid;
+                            var streamer = game.Participants?.FirstOrDefault(p => string.Equals(p.Puuid, puuid, StringComparison.OrdinalIgnoreCase));
+                            if (streamer == null) { fallbackReason = "стример не найден в игре"; break; }
+
+                            var group = kind.Scope == PredictionScope.Team
+                                ? game.Participants.Where(p => p.TeamId == streamer.TeamId).ToList()
+                                : game.Participants.ToList();
+                            int expected = kind.Scope == PredictionScope.Team ? 5 : 10;
+                            if (group.Count != expected) { fallbackReason = $"в игре {group.Count} игроков вместо {expected}"; break; }
+
+                            var outcomes = new Dictionary<int, string>();
+                            var titles = new List<string>();
+                            foreach (var p in group)
+                            {
+                                var name = PredictionCatalog.Truncate(await _championNames.GetNameAsync(p.ChampionId), PredictionCatalog.MaxOutcomeLength);
+                                outcomes[(int)p.ChampionId] = name;
+                                titles.Add(name);
+                            }
+                            if (titles.Distinct(StringComparer.OrdinalIgnoreCase).Count() != titles.Count) { fallbackReason = "чемпионы повторяются"; break; }
+
+                            if (expected == 5)
+                                await _twitchService.Start_5_Prediction(titles, kind.Title, PredictionWindowSec);
+                            else
+                                await _twitchService.Start_10_Prediction(titles, kind.Title, PredictionWindowSec);
+                            _logger.LogInformation("Prediction started: {Key} ({Title}) with outcomes {Outcomes}.", kind.Key, kind.Title, string.Join(", ", titles));
+                            return new ActivePrediction { Kind = kind, OutcomeByChampion = outcomes };
+                        }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start prediction {Key}; falling back to win/lose.", kind.Key);
+                fallbackReason = "ошибка при создании ставки";
+            }
+
+            _logger.LogWarning("Prediction {Key} not applicable ({Reason}); falling back to win/lose.", kind.Key, fallbackReason);
+            await _ircClient.SendMessage($"Ставка «{kind.PollLabel}» недоступна ({fallbackReason}), запускаю вин/луз.");
+            return await StartWinLoseAsync();
+        }
+
+        private async Task<ActivePrediction> StartWinLoseAsync()
+        {
+            await _twitchService.Start_2_Prediction(PredictionCatalog.WinLose.Title, "вин", "луз", PredictionWindowSec);
+            if (_botState.Current.Debug) _logger.LogDebug("Ставка запущена");
+            return new ActivePrediction { Kind = PredictionCatalog.WinLose };
+        }
+
+        /// <summary>Polls the Match API until the game shows up as finished. Null when tracking gave up.</summary>
+        private async Task<Match> WaitForMatchEndAsync(string matchId)
+        {
+            int consecutiveErrors = 0;
+            long deadline = DateTimeOffset.Now.ToUnixTimeSeconds() + MaxGameLengthSec;
+
+            while (_botState.Current.InMatch)
+            {
+                if (DateTimeOffset.Now.ToUnixTimeSeconds() > deadline)
+                {
+                    await _ircClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{matchId}");
+                    _logger.LogWarning("Match tracking timed out after 1.5 hours for Match ID: {MatchId}", matchId);
+                    return null;
+                }
+
+                Match match;
+                try
+                {
+                    match = await _riotApi.GetMatchAsync(matchId);
+                }
+                catch (Exception ex)
+                {
+                    consecutiveErrors++;
+                    _logger.LogError(ex, "GetMatchAsync failed ({Count} in a row) for {MatchId}", consecutiveErrors, matchId);
+                    if (consecutiveErrors > 5)
                     {
-                        await SetInMatchAsync(false);
-                        await _ircClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
-                        _logger.LogWarning("Match tracking timed out after 1.5 hours for Match ID: {CurrentGameID}", currentGameID);
+                        _logger.LogError("Giving up on match {MatchId} after repeated Riot API errors.", matchId);
+                        return null;
+                    }
+                    await Task.Delay(2000);
+                    continue;
+                }
+
+                if (consecutiveErrors != 0)
+                {
+                    _logger.LogInformation("Recovered from {ErrorCount} consecutive API errors", consecutiveErrors);
+                    consecutiveErrors = 0;
+                }
+
+                if (match == null)
+                {
+                    await Task.Delay(4000);
+                    continue;
+                }
+                return match;
+            }
+            return null;
+        }
+
+        private static ParticipantStats ToStats(Participant p) => new ParticipantStats(
+            p.Puuid, (int)p.ChampionId, (int)p.TeamId, p.TeamPosition,
+            p.Kills, p.Deaths, p.Assists,
+            p.TotalMinionsKilled + p.NeutralMinionsKilled, p.GoldEarned, p.TotalDamageDealtToChampions);
+
+        private async Task ResolveAsync(ActivePrediction active, Match match, Participant streamer, bool won)
+        {
+            var kind = active.Kind;
+            if (kind.Scope == PredictionScope.WinLose)
+            {
+                await _twitchService.End_WinLoose_Prediction(won, 0);
+                return;
+            }
+
+            var stats = match.Info.Participants.Select(ToStats).ToList();
+            switch (kind.Scope)
+            {
+                case PredictionScope.Lane:
+                    {
+                        var result = PredictionCatalog.ResolveLane(stats, streamer.Puuid, kind.Metric);
+                        switch (result.Outcome)
+                        {
+                            case LaneOutcome.StreamerWins:
+                            case LaneOutcome.OpponentWins:
+                                bool streamerWins = result.Outcome == LaneOutcome.StreamerWins;
+                                await _twitchService.End_WinLoose_Prediction(streamerWins, 0);
+                                var opponentName = await _championNames.GetNameAsync((Champion)result.OpponentChampionId);
+                                await _ircClient.SendMessage(
+                                    $"Итог ставки «{kind.PollLabel}»: {StreamerLabel} {PredictionCatalog.FormatValue(result.StreamerValue, kind.Metric)} vs {opponentName} {PredictionCatalog.FormatValue(result.OpponentValue, kind.Metric)}. " +
+                                    (streamerWins ? "Стример забрал лайн PogChamp" : "Оппонент оказался сильнее PoroSad"));
+                                break;
+                            case LaneOutcome.Tie:
+                                await _ircClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                                await _twitchService.CencelePrediction();
+                                break;
+                            default:
+                                await _ircClient.SendMessage("Не удалось определить оппонента на лайне. Ставка отменена PoroSad");
+                                await _twitchService.CencelePrediction();
+                                break;
+                        }
                         break;
                     }
 
-                    try
+                case PredictionScope.Team:
+                case PredictionScope.All:
                     {
-                        onMatch = await _riotApi.GetMatchAsync(currentGameID);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Prediction_WIN_LOOSE_1");
-                        errorThreshHold++;
-
-                        if (errorThreshHold > 5)
+                        var group = kind.Scope == PredictionScope.Team
+                            ? stats.Where(s => s.TeamId == (int)streamer.TeamId)
+                            : stats;
+                        var result = PredictionCatalog.ResolveGroup(group, kind.Metric);
+                        if (result.IsTie)
                         {
-                            await SetInMatchAsync(false);
+                            await _ircClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
+                            await _twitchService.CencelePrediction();
                             break;
                         }
-                        else
+                        if (active.OutcomeByChampion == null || !active.OutcomeByChampion.TryGetValue(result.WinnerChampionId, out var outcomeTitle))
                         {
-                            await Task.Delay(2000);
-                            continue;
-                        }
-                    }
-
-                    if (errorThreshHold != 0)
-                    {
-                        _logger.LogInformation("Recovered from {ErrorCount} consecutive API errors", errorThreshHold);
-                        errorThreshHold = 0;
-                    }
-
-                    if (onMatch == null)
-                    {
-                        await Task.Delay(4000);
-                        continue;
-                    }
-
-                    await SetInMatchAsync(false);
-                    var participant = _riotApi.GetParticipantByMatch(onMatch);
-                    if (participant != null)
-                    {
-                        if (onMatch.Info.GameDuration > 300)
-                        {
-                            bool won = participant.Win;
-
-                            await _twitchService.End_WinLoose_Prediction(won, 0);
-                            if (_botState.Current.Debug)
-                                _logger.LogDebug("Матч завершен {Win}", won);
-
-                            await _gameState.UpdateStateAsync(s =>
-                            {
-                                s.NumGames++;
-                                if (won) s.NumWins++;
-                                else s.NumLosses++;
-                            });
-
-                            await UpdateDailyStats(won);
-                        }
-                        else
-                        {
-                            await _ircClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                            _logger.LogError("Winner champion {ChampionId} has no outcome in the active prediction.", result.WinnerChampionId);
+                            await _ircClient.SendMessage("Не удалось сопоставить победителя с исходом ставки. Ставка отменена PoroSad");
                             await _twitchService.CencelePrediction();
+                            break;
                         }
+                        var endResult = await _twitchService.End_Multy_Prediction(outcomeTitle);
+                        if (endResult == "OK")
+                            await _ircClient.SendMessage($"Итог ставки «{kind.PollLabel}»: {outcomeTitle} ({PredictionCatalog.FormatValue(result.WinnerValue, kind.Metric)}) PogChamp");
+                        else
+                            await _ircClient.SendMessage($"Не удалось закрыть ставку: {endResult}");
+                        break;
                     }
-                    else
-                    {
-                        await _botState.UpdateStateAsync(s => s.AutoPred = false);
-                        _logger.LogCritical("Critical error in GetParticipantByMatch. Participant could not be found. Auto-predictions disabled.");
-                        await _ircClient.SendMessage("Критическая ошибка: не удалось найти призывателя в матче. Автоставки выключены.");
-                    }
+            }
+        }
+
+        #endregion
+
+        #region Chat poll for the next prediction type
+
+        private async Task MaybeStartPollAsync()
+        {
+            var s = _botState.Current;
+            if (!s.PredictionPollEnabled || !s.AutoPred || !s.IsSubActive || !s.BroadcasterIsOnline) return;
+            if (DateTime.UtcNow - s.LastPredictionPollUtc < PollInterval) return;
+            await StartPollAsync();
+        }
+
+        /// <summary>Starts the "which prediction next" poll. Returns a short status for chat commands.</summary>
+        public async Task<string> StartPollAsync()
+        {
+            if (Interlocked.CompareExchange(ref _pollRunning, 1, 0) != 0) return "Опрос уже идет.";
+
+            bool handedOff = false;
+            try
+            {
+                var options = PredictionCatalog.PickPollOptions(3, Random.Shared);
+                var choices = new List<string> { PredictionCatalog.WinLose.PollLabel };
+                choices.AddRange(options.Select(o => o.PollLabel));
+
+                await _botState.UpdateStateAsync(st => st.LastPredictionPollUtc = DateTime.UtcNow);
+
+                var pollId = await _twitchService.CreatePollAsync(PredictionCatalog.PollTitle, choices, PollDurationSec);
+                if (pollId == null)
+                {
+                    _logger.LogError("Prediction poll could not be created. The token needs channel:manage:polls and the channel must be affiliate/partner.");
+                    return "Не удалось создать опрос (см. лог).";
                 }
+
+                _logger.LogInformation("Prediction poll {PollId} started with options: {Options}", pollId, string.Join(" | ", choices));
+                await _ircClient.SendMessage($"Опрос: {PredictionCatalog.PollTitle} Варианты: {string.Join(" | ", choices)}. Голосуем {PollDurationSec / 60} мин PopNemo");
+
+                handedOff = true;
+                _ = Task.Run(() => FinishPollAsync(pollId, options));
+                return "Опрос запущен.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "StartPollAsync failed");
+                return "Ошибка при запуске опроса.";
             }
             finally
             {
-                await SetInMatchAsync(false);
+                if (!handedOff) Interlocked.Exchange(ref _pollRunning, 0);
             }
         }
-        /*
-        private static async Task Prediction_MAX_KDA(CurrentGameInfo CurrentGame, string currentGameID, string Title, int windowSec)
+
+        private async Task FinishPollAsync(string pollId, List<PredictionKind> options)
         {
-            Match onMatch;
-            List<string> SelectedChamps = new List<string>();
-            foreach (var Participant in CurrentGame.Participants)
+            try
             {
-                var ChampName = await _riotApi.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId));                
-                SelectedChamps.Add(ChampName.Name);
-            }
-            await _twitchService.Start_10_Prediction(SelectedChamps, Title, windowSec);
-            if (singleton.debug)
-                Log.WriteLog(null, "Ставка запущена");
-            while (_botState.Current.InMatch)
-            {
-                try
+                await Task.Delay(TimeSpan.FromSeconds(PollDurationSec + 5));
+
+                PollResult result = null;
+                for (int attempt = 0; attempt < 6; attempt++)
                 {
-                    onMatch = await _riotApi.GetMatchAsync(currentGameID);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog(ex, "Prediction_MAX_KDA");
-                    _botState.Current.InMatch = false;
-                    break;
-                }
-                if (onMatch == null)
-                {
-                    await Task.Delay(4000);
-                    continue;
-                }
-                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                {
-                    _botState.Current.InMatch = false;
-                    _gameState.Current.NumGames++;
-                    if (_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumWins++;
-                        await UpdateDailyStats(true);
-                    }
-                    if (!_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumLosses++;
-                        await UpdateDailyStats(false);
-                    }
-                    IllCommands.SaveGameStats();
-                    List<PlayersObject> Players = new List<PlayersObject>();
-                    var CompPartisList = new PlayersObject
-                    {
-                        Flag = 0
-                    };
-                    foreach (var Participant in onMatch.Info.Participants)
-                    {
-                        long vFlag;
-                        if (Participant.Deaths != 0)
-                            vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
-                        else
-                            vFlag = Participant.Kills + Participant.Assists;
-                        Players.Add(new PlayersObject()
-                        {
-                            champ = Participant.ChampionName,
-                            Flag = vFlag
-                        });
-                    }
-                    foreach (var Player in Players)
-                    {
-                        if (CompPartisList.Flag < Player.Flag)
-                        {
-                            CompPartisList.champ = Player.champ;
-                            CompPartisList.Flag = Player.Flag;
-                        }
-                    }
-                    int outnum = 0;
-                    foreach (var Player in Players)
-                    {
-                        if (CompPartisList.Flag == Player.Flag)
-                        {
-                            outnum++;
-                        }
-                    }
-                    if (outnum == 1)
-                    {
-                        string output = await _twitchService.End_Multy_Prediction(CompPartisList.champ);
-                        if (output != "OK")
-                            await TtvIRCClient.SendMessage(output);
-                    }
-                    else
-                    {
-                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                        await _twitchService.CencelePrediction();
-                    }
-                }
-                else
-                {
-                    _botState.Current.InMatch = false;
-                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                    await _twitchService.CencelePrediction();
-                }
-            }
-        }
-        private static async Task Prediction_MAX_KDA_2(string currentGameID, string Title, string blue, string red, int sec)
-        {
-            Match onMatch;
-            await _twitchService.Start_2_Prediction(Title, blue, red, sec);
-            if (singleton.debug)
-                Log.WriteLog(null, "Ставка запущена");
-            while (_botState.Current.InMatch)
-            {
-                try
-                {
-                    onMatch = await _riotApi.GetMatchAsync(currentGameID);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog(ex, "Prediction_MAX_KDA_2");
-                    _botState.Current.InMatch = false;
-                    break;
-                }
-                if (onMatch == null)
-                {
-                    await Task.Delay(4000);
-                    continue;
-                }
-                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                {
-                    _botState.Current.InMatch = false;
-                    _gameState.Current.NumGames++;
-                    if (_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumWins++;
-                        await UpdateDailyStats(true);
-                    }
-                    if (!_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumLosses++;
-                        await UpdateDailyStats(false);
-                    }
-                    IllCommands.SaveGameStats();
-                    List<PlayersObject> Players = new List<PlayersObject>();
-                    var FinParticipants = onMatch.Info.Participants.ToArray();
-                    int TeamID = 0;
-                    string getPosition = "";
-                    foreach (var champGetData in FinParticipants)
-                    {
-                        if (champGetData.SummonerName.Equals(_gameState.Current.SummonerName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            TeamID = champGetData.TeamId;
-                            getPosition = champGetData.IndividualPosition;
-                        }
-                    }
-                    foreach (var champ in FinParticipants)
-                    {
-                        if (champ.TeamPosition == getPosition)
-                        {
-                            long vFlag;
-                            if (champ.Deaths != 0)
-                                vFlag = (champ.Kills + champ.Assists) / champ.Deaths;
-                            else
-                                vFlag = champ.Kills + champ.Assists;
-                            Players.Add(new PlayersObject()
-                            {
-                                Flag = vFlag,
-                                teamID = champ.TeamId
-                            });
-                        }
-                    }
-                    if (Players[0].Flag == Players[1].Flag)
-                    {
-                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                        await _twitchService.CencelePrediction();
-                    }
-                    else if (Players.Count > 2)
-                    {
-                        await TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
-                        await _twitchService.CencelePrediction();
-                    }
-                    else
-                    {
-                        if (Players[0].Flag > Players[1].Flag)
-                        {
-                            if (Players[0].teamID == TeamID)
-                                await _twitchService.End_WinLoose_Prediction(true, 0);
-                            else
-                                await _twitchService.End_WinLoose_Prediction(false, 0);
-                        }
-                        else
-                        {
-                            if (Players[0].teamID == TeamID)
-                                await _twitchService.End_WinLoose_Prediction(false, 0);
-                            else
-                                await _twitchService.End_WinLoose_Prediction(true, 0);
-                        }
-                    }
-                }
-                else
-                {
-                    _botState.Current.InMatch = false;
-                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                    await _twitchService.CencelePrediction();
-                }
-            }
-        }
-        private static async Task Prediction_MAX_KDA_5(CurrentGame CurrentGame, string currentGameID, string Title, int windowSec)
-        {
-            var Participants = CurrentGame.Participants.ToArray();
-            long teamid = 0;
-            Match onMatch;
-            foreach (var champ in Participants)
-            {
-                if (champ.SummonerName.Equals(_gameState.Current.SummonerName, StringComparison.OrdinalIgnoreCase))
-                {
-                    teamid = champ.TeamId;
-                }
-            }
-            CurrentGameParticipant[] teammates = new CurrentGameParticipant[5];
-            int i = 0;
-            foreach (var champ in Participants)
-            {
-                if (champ.TeamId == teamid)
-                {
-                    teammates[i] = champ;
-                    i++;
-                }
-            }
-            List<string> SelectedChamps = new List<string>();
-            foreach (var Participant in teammates)
-            {
-                var ChampName = await _riotApi.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId));
-                SelectedChamps.Add(ChampName.Name);
-            }
-            await _twitchService.Start_5_Prediction(SelectedChamps, Title, windowSec);
-            if (singleton.debug)
-                Log.WriteLog(null, "Ставка запущена");
-            while (_botState.Current.InMatch)
-            {
-                try
-                {
-                    onMatch = await _riotApi.GetMatchAsync(currentGameID);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog(ex, "Prediction_MAX_KDA_5");
-                    _botState.Current.InMatch = false;
-                    break;
-                }
-                if (onMatch == null)
-                {
-                    await Task.Delay(4000);
-                    continue;
-                }
-                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                {
-                    _botState.Current.InMatch = false;
-                    _gameState.Current.NumGames++;
-                    if (_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumWins++;
-                        await UpdateDailyStats(true);
-                    }
-                    if (!_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumLosses++;
-                        await UpdateDailyStats(false);
-                    }
-                    IllCommands.SaveGameStats();
-                    List<PlayersObject> Players = new List<PlayersObject>();
-                    var FinParticipants = onMatch.Info.Participants.ToArray();
-                    foreach (var champ in FinParticipants)
-                    {
-                        if (champ.SummonerName.Equals(_gameState.Current.SummonerName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            teamid = champ.TeamId;
-                        }
-                    }
-                    RiotSharp.Endpoints.MatchEndpoint.Participant[] teammatesFIN = new RiotSharp.Endpoints.MatchEndpoint.Participant[5];
-                    i = 0;
-                    foreach (var champ in FinParticipants)
-                    {
-                        if (champ.TeamId == teamid)
-                        {
-                            teammatesFIN[i] = champ;
-                            i++;
-                        }
-                    }
-                    var CompPartisList = new PlayersObject
-                    {
-                        Flag = 0
-                    };
-                    foreach (var Participant in teammatesFIN)
-                    {
-                        long vFlag;
-                        if (Participant.Deaths != 0)
-                            vFlag = (Participant.Kills + Participant.Assists) / Participant.Deaths;
-                        else
-                            vFlag = Participant.Kills + Participant.Assists;
-                        Players.Add(new PlayersObject()
-                        {
-                            champ = Participant.ChampionName,
-                            Flag = vFlag
-                        });
-                    }
-                    foreach (var Player in Players)
-                    {
-                        if (CompPartisList.Flag < Player.Flag)
-                        {
-                            CompPartisList.champ = Player.champ;
-                            CompPartisList.Flag = Player.Flag;
-                        }
-                    }
-                    int outnum = 0;
-                    foreach (var Player in Players)
-                    {
-                        if (CompPartisList.Flag == Player.Flag)
-                        {
-                            outnum++;
-                        }
-                    }
-                    if (outnum == 1)
-                        await _twitchService.End_Multy_Prediction(CompPartisList.champ);
-                    else
-                    {
-                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                        await _twitchService.CencelePrediction();
-                    }
-                }
-                else
-                {
-                    _botState.Current.InMatch = false;
-                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                    await _twitchService.CencelePrediction();
-                }
-            }
-        }
-        private static async Task Prediction_MAX_FLAG_5(CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
-        {
-            var Participants = CurrentGame.Participants.ToArray();
-            long teamid = 0;
-            Match onMatch;
-            foreach (var champ in Participants)
-            {
-                if (champ.SummonerName.Equals(_gameState.Current.SummonerName, StringComparison.OrdinalIgnoreCase))
-                {
-                    teamid = champ.TeamId;
-                }
-            }
-            CurrentGameParticipant[] teammates = new CurrentGameParticipant[5];
-            int i = 0;
-            foreach (var champ in Participants)
-            {
-                if (champ.TeamId == teamid)
-                {
-                    teammates[i] = champ;
-                    i++;
-                }
-            }
-            List<string> SelectedChamps = new List<string>();
-            foreach (var Participant in teammates)
-            {
-                var ChampName = await _riotApi.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId));
-                SelectedChamps.Add(ChampName.Name);
-            }
-            await _twitchService.Start_5_Prediction(SelectedChamps, Title, windowSec);
-            if (singleton.debug)
-                Log.WriteLog(null, "Ставка запущена");
-            while (_botState.Current.InMatch)
-            {
-                try
-                {
-                    onMatch = await _riotApi.GetMatchAsync(currentGameID);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog(ex, "Prediction_MAX_FLAG_5");
-                    _botState.Current.InMatch = false;
-                    break;
-                }
-                if (onMatch == null)
-                {
-                    await Task.Delay(4000);
-                    continue;
-                }
-                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                    {
-                        _botState.Current.InMatch = false;
-                        _gameState.Current.NumGames++;
-                        if (_riotApi.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            _gameState.Current.NumWins++;
-                            await UpdateDailyStats(true);
-                        }
-                        if (!_riotApi.GetParticipantByMatch(onMatch).Winner)
-                        {
-                            _gameState.Current.NumLosses++;
-                            await UpdateDailyStats(false);
-                        }
-                        IllCommands.SaveGameStats();
-                        List<PlayersObject> Players = new List<PlayersObject>();
-                        var FinParticipants = onMatch.Info.Participants.ToArray();
-                        foreach (var champ in FinParticipants)
-                        {
-                            if (champ.SummonerName.Equals(_gameState.Current.SummonerName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                teamid = champ.TeamId;
-                            }
-                        }
-                        RiotSharp.Endpoints.MatchEndpoint.Participant[] teammatesFIN = new RiotSharp.Endpoints.MatchEndpoint.Participant[5];
-                        i = 0;
-                        foreach (var champ in FinParticipants)
-                        {
-                            if (champ.TeamId == teamid)
-                            {
-                                teammatesFIN[i] = champ;
-                                i++;
-                            }
-                        }
-                        var CompPartisList = new PlayersObject
-                        {
-                            Flag = 0
-                        };
-                        foreach (var Participant in teammatesFIN)
-                        {
-                            Players.Add(new PlayersObject()
-                            {
-                                champ = Participant.ChampionName,
-                                Flag = func(Participant)
-                            });
-                        }
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag < Player.Flag)
-                            {
-                                CompPartisList.champ = Player.champ;
-                                CompPartisList.Flag = Player.Flag;
-                            }
-                        }
-                        int outnum = 0;
-                        foreach (var Player in Players)
-                        {
-                            if (CompPartisList.Flag == Player.Flag)
-                            {
-                                outnum++;
-                            }
-                        }
-                        if (outnum == 1)
-                            await _twitchService.End_Multy_Prediction(CompPartisList.champ);
-                        else
-                        {
-                            await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                            await _twitchService.CencelePrediction();
-                        }
-                    }
-                    else
-                    {
-                        _botState.Current.InMatch = false;
-                        await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                        await _twitchService.CencelePrediction();
-                    }                
-            }
-        }
-        private static async Task Prediction_MAX_FLAG_2(string currentGameID, string Title, string blue, string red, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int sec)
-        {
-            Match onMatch;
-            await _twitchService.Start_2_Prediction(Title, blue, red, sec);
-            if (singleton.debug)
-                Log.WriteLog(null, "Ставка запущена");
-            while (_botState.Current.InMatch)
-            {
-                try
-                {
-                    onMatch = await _riotApi.GetMatchAsync(currentGameID);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog(ex, "Prediction_MAX_FLAG_2");
-                    _botState.Current.InMatch = false;
-                    break;
-                }
-                if (onMatch == null)
-                {
-                    await Task.Delay(4000);
-                    continue;
-                }
-                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                {
-                    _botState.Current.InMatch = false;
-                    _gameState.Current.NumGames++;
-                    if (_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumWins++;
-                        await UpdateDailyStats(true);
-                    }
-                    else
-                    {
-                        _gameState.Current.NumLosses++;
-                        await UpdateDailyStats(false);
-                    }
-                    IllCommands.SaveGameStats();
-                    List<PlayersObject> Players = new List<PlayersObject>();
-                    var FinParticipants = onMatch.Info.Participants.ToArray();
-                    int TeamID = 0;
-                    string getPosition = "";
-                    foreach (var champGetData in FinParticipants)
-                    {
-                        if (champGetData.SummonerName.Equals(_gameState.Current.SummonerName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            TeamID = champGetData.TeamId;
-                            getPosition = champGetData.IndividualPosition;
-                        }
-                    }
-                    foreach (var champ in FinParticipants)
-                    {
-                        if (champ.TeamPosition == getPosition)
-                        {
-                            Players.Add(new PlayersObject()
-                            {
-                                Flag = func(champ),
-                                teamID = champ.TeamId
-                            });
-                        }
-                    }
-                    if (Players[0].Flag == Players[1].Flag)
-                    {
-                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                        await _twitchService.CencelePrediction();
-                    }
-                    else if (Players.Count > 2)
-                    {
-                        await TtvIRCClient.SendMessage("Ошибка распознавания роли! Ставка будет отменена PoroSad");
-                        await _twitchService.CencelePrediction();
-                    }
-                    else
-                    {
-                        if (Players[0].Flag > Players[1].Flag)
-                        {
-                            if (Players[0].teamID == TeamID)
-                                await _twitchService.End_WinLoose_Prediction(true, 0);
-                            else
-                                await _twitchService.End_WinLoose_Prediction(false, 0);
-                        }
-                        else
-                        {
-                            if (Players[0].teamID == TeamID)
-                                await _twitchService.End_WinLoose_Prediction(false, 0);
-                            else
-                                await _twitchService.End_WinLoose_Prediction(true, 0);
-                        }
-                    }
-                }
-                else
-                {
-                    _botState.Current.InMatch = false;
-                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                    await _twitchService.CencelePrediction();
+                    result = await _twitchService.GetPollAsync(pollId);
+                    if (result == null || !result.IsActive) break;
+                    await Task.Delay(5000);
                 }
 
-            }
-        }
-        private static async Task Prediction_MAX_FLAG(CurrentGame CurrentGame, string currentGameID, string Title, Func<RiotSharp.Endpoints.MatchEndpoint.Participant, long> func, int windowSec)
-        {
-            Match onMatch;
-            var Participants = CurrentGame.Participants.ToArray();
-            List<string> SelectedChamps = new List<string>();
-            foreach (var Participant in Participants)
-            {
-                var ChampName = await _riotApi.GetChampByIdAsync(Convert.ToInt32(Participant.ChampionId));
-                SelectedChamps.Add(ChampName.Name);
-            }
-            await _twitchService.Start_10_Prediction(SelectedChamps, Title, windowSec);
-            if (singleton.debug)
-                Log.WriteLog(null, "Ставка запущена");
-            while (_botState.Current.InMatch)
-            {
-                try
+                if (result == null || !result.IsFinished)
                 {
-                    onMatch = await _riotApi.GetMatchAsync(currentGameID);
+                    _logger.LogWarning("Poll {PollId} did not finish normally (status {Status}).", pollId, result?.Status ?? "unknown");
+                    await _ircClient.SendMessage("Опрос не завершился штатно, остается вин/луз.");
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    Log.WriteLog(ex, "Prediction_MAX_FLAG");
-                    _botState.Current.InMatch = false;
-                    break;
-                }
-                if (onMatch == null)
-                {
-                    await Task.Delay(4000);
-                    continue;
-                }
-                if (onMatch.Info.GameDuration.TotalMilliseconds > 300)
-                {
-                    _botState.Current.InMatch = false;
-                    _gameState.Current.NumGames++;
-                    if (_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumWins++;
-                        var buffdata = await _riotApi.GetRankBySummonerAsync();
-                        if (buffdata != null)
-                        {
-                            int bufflp = int.Parse(buffdata[1]);
-                            if (buffdata[0] != _gameState.Current.Elo & buffdata[2] != "MASTER")
-                            {
-                                _gameState.Current.EarnedLP += 100 - _gameState.Current.StartLP;
-                                _gameState.Current.StartLP = 0;
-                                _gameState.Current.Elo = buffdata[0];
-                            }
-                            _gameState.Current.EarnedLP += bufflp - _gameState.Current.StartLP;
-                            _gameState.Current.StartLP = bufflp;
-                        }
-                    }
-                    if (!_riotApi.GetParticipantByMatch(onMatch).Winner)
-                    {
-                        _gameState.Current.NumLosses++;
-                        var buffdata = await _riotApi.GetRankBySummonerAsync();
-                        if (buffdata != null)
-                        {
-                            int bufflp = int.Parse(buffdata[1]);
-                            if (buffdata[0] != _gameState.Current.Elo & buffdata[2] != "MASTER")
-                            {
-                                _gameState.Current.StartLP = 100;
-                                _gameState.Current.Elo = buffdata[0];
-                                _gameState.Current.Tier = buffdata[2];
-                            }
-                            _gameState.Current.EarnedLP -= _gameState.Current.StartLP - bufflp;
-                            _gameState.Current.StartLP = bufflp;
-                        }
-                    }
-                    IllCommands.SaveGameStats();
-                    List<PlayersObject> Players = new List<PlayersObject>();
-                    var FinParticipants = onMatch.Info.Participants.ToArray();
-                    var CompPartisList = new PlayersObject
-                    {
-                        Flag = 0
-                    };
-                    foreach (var Participant in FinParticipants)
-                    {
-                        Players.Add(new PlayersObject()
-                        {
-                            champ = Participant.ChampionName,
-                            Flag = func(Participant)
-                        });
-                    }
-                    foreach (var Player in Players)
-                    {
-                        if (CompPartisList.Flag < Player.Flag)
-                        {
-                            CompPartisList.champ = Player.champ;
-                            CompPartisList.Flag = Player.Flag;
-                        }
-                    }
-                    int outnum = 0;
-                    foreach (var Player in Players)
-                    {
-                        if (CompPartisList.Flag == Player.Flag)
-                        {
-                            outnum++;
-                        }
-                    }
-                    if (outnum == 1)
-                        await _twitchService.End_Multy_Prediction(CompPartisList.champ);
-                    else
-                    {
-                        await TtvIRCClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
-                        await _twitchService.CencelePrediction();
-                    }
-                }
-                else
-                {
-                    _botState.Current.InMatch = false;
-                    await TtvIRCClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                    await _twitchService.CencelePrediction();
-                }
-            }
-        }
-        
-        private static async Task CalculateGameStats(CurrentGame CurrentGame)
-        {
-            var champs = CurrentGame.Participants;
-            int teamWr = 0;
-            int enemyWr = 0;
-            int teamElo = 0;
-            int enemyElo = 0;
-            int numberOfRankedPlayers = 0;
-            int numberOfRankedEnemyPlayers = 0;
-            long teamid = 0;
-            foreach (var champ in champs)
-            {
-                if (string.Equals(champ.SummonerName, _gameState.Current.SummonerName, StringComparison.OrdinalIgnoreCase))
-                {
-                    teamid = champ.TeamId;
-                    break;
-                }
-            }
 
-            foreach (var champ in champs)
-            {
-                var data = await GettInfo(champ.SummonerName);
-                if (data == null) return;
-                if (champ.TeamId == teamid)
+                // Choices come back in creation order, so a tie keeps the earlier option (win/lose first).
+                var winner = result.Choices.OrderByDescending(c => c.Votes).FirstOrDefault();
+                _logger.LogInformation("Poll {PollId} finished: {Votes}", pollId, string.Join(", ", result.Choices.Select(c => $"{c.Title}={c.Votes}")));
+
+                if (winner == null || winner.Votes == 0)
                 {
-                    if (data[0] != 0 || data[1] != 0)
-                        numberOfRankedPlayers++;
-                    teamWr += data[0];
-                    teamElo += data[1];
+                    await _botState.UpdateStateAsync(s => s.NextPredictionKey = null);
+                    await _ircClient.SendMessage("Никто не проголосовал, остается вин/луз.");
+                    return;
                 }
+
+                var kind = options.FirstOrDefault(o => o.PollLabel.Equals(winner.Title, StringComparison.OrdinalIgnoreCase))
+                           ?? PredictionCatalog.FindByPollLabel(winner.Title)
+                           ?? PredictionCatalog.WinLose;
+
+                await _botState.UpdateStateAsync(s => s.NextPredictionKey = kind.Scope == PredictionScope.WinLose ? null : kind.Key);
+
+                if (kind.Scope == PredictionScope.WinLose)
+                    await _ircClient.SendMessage($"Чат выбрал вин/луз ({winner.Votes} голосов).");
                 else
-                {
-                    if (data[0] != 0 || data[1] != 0)
-                        numberOfRankedEnemyPlayers++;
-                    enemyWr += data[0];
-                    enemyElo += data[1];
-                }
+                    await _ircClient.SendMessage($"Чат выбрал «{kind.PollLabel}» ({winner.Votes} голосов)! Ставка запустится на следующую игру.");
             }
-            teamWr = numberOfRankedPlayers > 0 ? (int)Math.Ceiling((double)teamWr / numberOfRankedPlayers) : 0;
-            enemyWr = numberOfRankedEnemyPlayers > 0 ? (int)Math.Ceiling((double)enemyWr / numberOfRankedEnemyPlayers) : 0;
-            teamElo = numberOfRankedPlayers > 0 ? (int)Math.Ceiling((double)teamElo / numberOfRankedPlayers) : 0;
-            enemyElo = numberOfRankedEnemyPlayers > 0 ? (int)Math.Ceiling((double)enemyElo / numberOfRankedEnemyPlayers) : 0;
-            string elo = StringUtil.ConvertRank(teamElo.ToString(), false);
-            string elo2 = StringUtil.ConvertRank(enemyElo.ToString(), false);
-            await TtvIRCClient.SendMessage($"Среднее ило команды союзников: {elo}, средний WR {teamWr}%. Среднее ило команды противников {elo2}, средний WR {enemyWr}%");
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "FinishPollAsync failed for {PollId}", pollId);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _pollRunning, 0);
+            }
         }
-        
-        private static async Task<int[]> GettInfo(string summonerName)
+
+        public string DescribePollState()
         {
-            int[] data = new int[2];
-            data[0] = 0;
-            data[1] = 0;
-            int numtryes = 0;
-            var summoner = await _riotApi.GetSummonerByNameAsync(summonerName);
-            while (summoner == null && numtryes < 5)
+            var s = _botState.Current;
+            string lastPoll = s.LastPredictionPollUtc == DateTime.MinValue ? "never" : Services.HealthState.FormatAge(DateTime.UtcNow - s.LastPredictionPollUtc) + " ago";
+            var next = PredictionCatalog.Find(s.NextPredictionKey) ?? PredictionCatalog.WinLose;
+            return $"Опросы: {(s.PredictionPollEnabled ? "on" : "off")} | следующая ставка: {next.PollLabel} | последний опрос: {lastPoll} | идет сейчас: {(_pollRunning == 1 ? "да" : "нет")} | интервал: {PollInterval.TotalHours:0}ч";
+        }
+
+        public async Task<string> SetNextKindAsync(string key)
+        {
+            if (string.Equals(key, "clear", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "winlose", StringComparison.OrdinalIgnoreCase))
             {
-                summoner = await _riotApi.GetSummonerByNameAsync(summonerName);
-                numtryes++;
-                Thread.Sleep(2000);
+                await _botState.UpdateStateAsync(s => s.NextPredictionKey = null);
+                return "Следующая ставка: вин/луз.";
             }
-            if (summoner == null)
-                return data;
-            var rank = await _riotApi.GetLeagueEntriesBySummonerAsync(summoner.Id);
-            if (rank == null) return data;
-            var rankedSoloQueue = rank.FirstOrDefault(Queues => Queues.QueueType == "RANKED_SOLO_5x5");
-            if (rankedSoloQueue != null)
-            {
-                data[0] = (int)Math.Round((double)rankedSoloQueue.Wins * 100 / (rankedSoloQueue.Wins + rankedSoloQueue.Losses), MidpointRounding.AwayFromZero);
-                var sRank = $"{rankedSoloQueue.Tier} {rankedSoloQueue.Rank}";
-                data[1] = int.Parse(StringUtil.ConvertRank(sRank, true));
-            }
-            return data;
-        }    */
+            var kind = PredictionCatalog.Find(key);
+            if (kind == null) return $"Неизвестный тип «{key}». Доступные: {ListKinds()}";
+            await _botState.UpdateStateAsync(s => s.NextPredictionKey = kind.Key);
+            return $"Следующая ставка: {kind.PollLabel} ({kind.Key}).";
+        }
+
+        public static string ListKinds() =>
+            string.Join(", ", PredictionCatalog.Alternatives.Select(k => $"{k.Key}={k.PollLabel}"));
+
+        #endregion
 
         private async Task UpdateDailyStats(bool won)
         {

@@ -1,4 +1,4 @@
-﻿using SkillzBot.MODELS;
+using SkillzBot.MODELS;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
@@ -13,6 +13,13 @@ using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 
 namespace SkillzBot.Interfaces
 {
+    public record PollChoiceResult(string Title, int Votes);
+    public record PollResult(string Id, string Status, IReadOnlyList<PollChoiceResult> Choices)
+    {
+        public bool IsFinished => Status == "COMPLETED" || Status == "TERMINATED" || Status == "ARCHIVED";
+        public bool IsActive => Status == "ACTIVE";
+    }
+
     public interface ITwitchService
     {
         // Status Checks
@@ -29,6 +36,10 @@ namespace SkillzBot.Interfaces
         Task End_WinLoose_Prediction(bool win, int tryes = 0);
         Task CencelePrediction();
         Task<GetPredictionsResponse> GetCurrentPredPublic();
+
+        // Polls
+        Task<string> CreatePollAsync(string title, IReadOnlyList<string> choices, int durationSec);
+        Task<PollResult> GetPollAsync(string pollId);
 
         // Rewards
         Task<GetCustomRewardsResponse> GetAllRewards();

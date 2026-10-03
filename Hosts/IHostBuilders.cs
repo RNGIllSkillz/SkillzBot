@@ -143,6 +143,11 @@ namespace SkillzBot.Hosts
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
                         .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("riot"));
 
+                    services.AddHttpClient(ChampionNames.HttpClientName, client => client.Timeout = RiotTimeout)
+                        .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+                        .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("riot"));
+                    services.AddSingleton<ChampionNames>();
+
                     services.AddHttpClient<IMmrService, MmrApiService>(client => client.Timeout = MmrTimeout)
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
                         .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("mmr"));
