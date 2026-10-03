@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using SkillzBot.Utils;
 using SkillzBot.IRC;
@@ -15,9 +15,9 @@ namespace SkillzBot.IllSkillzBot
 {
     public class IllPredictions
     {
-        private static string CurrentMatchID;
-        private static string PlatformID;
-        private static readonly int _maxGameLengthsec = 5400;
+        private string CurrentMatchID;
+        private string PlatformID;
+        private const int _maxGameLengthsec = 5400;
         private readonly ILogger<IllPredictions> _logger;
         private readonly IRiotApiService _riotApi;
         private readonly ITtvIRCClient _ircClient;
@@ -72,22 +72,12 @@ namespace SkillzBot.IllSkillzBot
             string currentGameID = PlatformID + Convert.ToString(currentGame.GameId);
             var rank = await _riotApi.GetLeagueEntriesBySummonerAsync();
             if (rank == null) return;
-            _botState.Current.InMatch = true;
-            int wchance = 100;
-            foreach (var mType in rank)
+            await SetInMatchAsync(true);
+            try
             {
-                if (mType.QueueType == QueueType.RANKED_SOLO_5x5)
-                    wchance = 100;
-            }
-            while (true)
-            {
-                try
-                {
-                    if (IntUtil.GetChance(wchance))
-                    {
-                        await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180);
-                        break;
-                    }
+                // Only the win/loss prediction is live. The alternative prediction types below
+                // are kept commented out for reference.
+                await Prediction_WIN_LOOSE(currentGameID, "Вин или луз?", "вин", "луз", 180);
                     /*if (IntUtil.GetChance(15))
                     {
                         await Prediction_MAX_FLAG_2(currentGameID, "У кого будет больше убийств", tChannel, "Оппонент", p => p.Kills, 300);
@@ -163,15 +153,19 @@ namespace SkillzBot.IllSkillzBot
                         await Prediction_MAX_KDA(currentGame, currentGameID, "У кого будет самый высокий KDA", 300);
                         break;
                     }*/
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error starting prediction task");
-                    _botState.Current.InMatch = false; 
-                }
             }
-            _botState.Current.InMatch = false;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error running prediction task");
+            }
+            finally
+            {
+                await SetInMatchAsync(false);
+            }
         }
+
+        private Task SetInMatchAsync(bool value) => _botState.UpdateStateAsync(s => s.InMatch = value);
+
         private async Task Prediction_WIN_LOOSE(string currentGameID, string Title, string blue, string red, int sec)
         {
             await _twitchService.Start_2_Prediction(Title, blue, red, sec);
@@ -190,7 +184,7 @@ namespace SkillzBot.IllSkillzBot
                 {
                     if (DateTimeOffset.Now.ToUnixTimeSeconds() > maxGameTime)
                     {
-                        _botState.Current.InMatch = false;
+                        await SetInMatchAsync(false);
                         await _ircClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{currentGameID}");
                         _logger.LogWarning("Match tracking timed out after 1.5 hours for Match ID: {CurrentGameID}", currentGameID);
                         break;
@@ -207,7 +201,7 @@ namespace SkillzBot.IllSkillzBot
 
                         if (errorThreshHold > 5)
                         {
-                            _botState.Current.InMatch = false;
+                            await SetInMatchAsync(false);
                             break;
                         }
                         else
@@ -229,26 +223,26 @@ namespace SkillzBot.IllSkillzBot
                         continue;
                     }
 
-                    _botState.Current.InMatch = false;
+                    await SetInMatchAsync(false);
                     var participant = _riotApi.GetParticipantByMatch(onMatch);
                     if (participant != null)
                     {
                         if (onMatch.Info.GameDuration > 300)
                         {
-                            _gameState.Current.NumGames++;
                             bool won = participant.Win;
 
                             await _twitchService.End_WinLoose_Prediction(won, 0);
                             if (_botState.Current.Debug)
                                 _logger.LogDebug("Матч завершен {Win}", won);
 
-                            if (won)
-                                _gameState.Current.NumWins++;
-                            else
-                                _gameState.Current.NumLosses++;
+                            await _gameState.UpdateStateAsync(s =>
+                            {
+                                s.NumGames++;
+                                if (won) s.NumWins++;
+                                else s.NumLosses++;
+                            });
 
                             await UpdateDailyStats(won);
-                            await _gameState.SaveAsync();
                         }
                         else
                         {
@@ -258,7 +252,7 @@ namespace SkillzBot.IllSkillzBot
                     }
                     else
                     {
-                        _botState.Current.AutoPred = false;
+                        await _botState.UpdateStateAsync(s => s.AutoPred = false);
                         _logger.LogCritical("Critical error in GetParticipantByMatch. Participant could not be found. Auto-predictions disabled.");
                         await _ircClient.SendMessage("Критическая ошибка: не удалось найти призывателя в матче. Автоставки выключены.");
                     }
@@ -266,7 +260,7 @@ namespace SkillzBot.IllSkillzBot
             }
             finally
             {
-                _botState.Current.InMatch = false;
+                await SetInMatchAsync(false);
             }
         }
         /*
@@ -1017,67 +1011,51 @@ namespace SkillzBot.IllSkillzBot
 
         private async Task UpdateDailyStats(bool won)
         {
-            var buffdata = await _riotApi.GetRankBySummonerAsync();
             const int LowEloMaxLP = 100;
+            var buffdata = await _riotApi.GetRankBySummonerAsync();
             if (buffdata == null) return;
-            if (int.TryParse(buffdata[1], out int bufflp))
+
+            if (!int.TryParse(buffdata[1], out int bufflp))
             {
-                bool isHighElo = buffdata[2].Equals("master", StringComparison.OrdinalIgnoreCase) ||
-                                 buffdata[2].Equals("grandmaster", StringComparison.OrdinalIgnoreCase) ||
-                                 buffdata[2].Equals("challenger", StringComparison.OrdinalIgnoreCase);
+                _logger.LogError("UpdateDailyStats() -> cant convert LP to int. buffdata: {data}", string.Join(" ", buffdata));
+                return;
+            }
+
+            string newRank = buffdata[0];
+            string newTier = buffdata[2];
+            bool isHighElo = newTier.Equals("master", StringComparison.OrdinalIgnoreCase) ||
+                             newTier.Equals("grandmaster", StringComparison.OrdinalIgnoreCase) ||
+                             newTier.Equals("challenger", StringComparison.OrdinalIgnoreCase);
+
+            await _gameState.UpdateStateAsync(s =>
+            {
+                bool divisionChanged = newRank != s.Elo || newTier != s.Tier;
 
                 if (won)
                 {
                     if (!isHighElo)
                     {
-                        if (buffdata[0] != _gameState.Current.Elo || buffdata[2] != _gameState.Current.Tier) // Promoted
-                        {
-                            _gameState.Current.EarnedLP += LowEloMaxLP - _gameState.Current.StartLP + bufflp;
-                            _gameState.Current.StartLP = bufflp; // StartLP in the new division
-                        }
-                        else // Regular win
-                        {
-                            _gameState.Current.EarnedLP += bufflp - _gameState.Current.StartLP;
-                            _gameState.Current.StartLP = bufflp;
-                        }
+                        // Promoted: finish the old division (100 LP) and add the LP in the new one.
+                        s.EarnedLP += divisionChanged ? LowEloMaxLP - s.StartLP + bufflp : bufflp - s.StartLP;
                     }
-                    else // High Elo win
+                    else
                     {
-                        if (_gameState.Current.Tier.Equals("diamond", StringComparison.OrdinalIgnoreCase)) // Promoted to Master
-                            _gameState.Current.EarnedLP += LowEloMaxLP - _gameState.Current.StartLP + bufflp;
-                        else
-                            _gameState.Current.EarnedLP += bufflp - _gameState.Current.StartLP;
-                        _gameState.Current.StartLP = bufflp;
+                        bool promotedToMaster = string.Equals(s.Tier, "diamond", StringComparison.OrdinalIgnoreCase);
+                        s.EarnedLP += promotedToMaster ? LowEloMaxLP - s.StartLP + bufflp : bufflp - s.StartLP;
                     }
                 }
-                else // Lost
+                else
                 {
-                    if (!isHighElo)
-                    {
-                        if (buffdata[0] != _gameState.Current.Elo || buffdata[2] != _gameState.Current.Tier) // Demoted
-                        {
-                            _gameState.Current.EarnedLP -= _gameState.Current.StartLP + (LowEloMaxLP - bufflp);
-                            _gameState.Current.StartLP = bufflp;
-                        }
-                        else // Regular loss
-                        {
-                            _gameState.Current.EarnedLP -= _gameState.Current.StartLP - bufflp;
-                            _gameState.Current.StartLP = bufflp;
-                        }
-                    }
-                    else // High Elo loss
-                    {
-                        _gameState.Current.EarnedLP -= _gameState.Current.StartLP - bufflp;
-                        _gameState.Current.StartLP = bufflp;
-                    }
+                    if (!isHighElo && divisionChanged)
+                        s.EarnedLP -= s.StartLP + (LowEloMaxLP - bufflp); // Demoted
+                    else
+                        s.EarnedLP -= s.StartLP - bufflp;
                 }
-                _gameState.Current.Elo = buffdata[0];
-                _gameState.Current.Tier = buffdata[2];
-            }
-            else
-            {
-                _logger.LogError("UpdateDailyStats() -> cant convert LP to int. buffdata: {data}", string.Join(" ", buffdata));
-            }
+
+                s.StartLP = bufflp;
+                s.Elo = newRank;
+                s.Tier = newTier;
+            });
         }
     }
 }

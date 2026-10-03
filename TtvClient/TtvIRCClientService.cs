@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
@@ -8,16 +8,16 @@ using System.Threading.Tasks;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
-using TwitchLib.Communication.Events; 
+using TwitchLib.Communication.Events;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
-using TwitchLib.PubSub.Events;
 using OnConnectedEventArgs = TwitchLib.Client.Events.OnConnectedEventArgs;
-using OnConnectionErrorArgs = TwitchLib.Client.Events.OnConnectionErrorArgs;
-using OnMessageReceivedArgs = TwitchLib.Client.Events.OnMessageReceivedArgs;
-using OnUserTimedoutArgs = TwitchLib.Client.Events.OnUserTimedoutArgs;
 
 namespace SkillzBot.IRC
 {
+    /// <summary>
+    /// Reads chat over IRC. Outbound messages go through StreamElements, so sending does
+    /// not depend on the IRC connection state.
+    /// </summary>
     sealed class TtvIRCClientService : ITtvIRCClient
     {
         private readonly ILogger<TtvIRCClientService> _logger;
@@ -27,8 +27,10 @@ namespace SkillzBot.IRC
         private readonly IBotStateService _botState;
         private readonly IStreamElementsService _streamElementsService;
 
-        private DateTimeOffset _lastActivity = DateTimeOffset.UtcNow;
-        public DateTimeOffset LastActivity => _lastActivity;
+        // Updated on every byte that crosses the socket (PING/PONG, JOIN/PART, PRIVMSG), so a
+        // quiet chat is not mistaken for a dead connection.
+        private long _lastActivityTicks = DateTimeOffset.UtcNow.UtcTicks;
+        public DateTimeOffset LastActivity => new DateTimeOffset(Interlocked.Read(ref _lastActivityTicks), TimeSpan.Zero);
 
         private TwitchClient _client;
         private bool _isInitialized = false;
@@ -62,6 +64,8 @@ namespace SkillzBot.IRC
         public bool IsConnected => _client?.IsConnected ?? false;
         public bool IsInitialized => _isInitialized && !_isDisposed;
 
+        private void TouchActivity() => Interlocked.Exchange(ref _lastActivityTicks, DateTimeOffset.UtcNow.UtcTicks);
+
         public async Task<bool> InitializeAsync()
         {
             if (_isDisposed) return false;
@@ -77,7 +81,7 @@ namespace SkillzBot.IRC
         public async Task<bool> ReconnectAsync()
         {
             _logger.LogWarning("Forcing Reconnect sequence...");
-            _lastActivity = DateTimeOffset.UtcNow;
+            TouchActivity();
             if (_isDisposed) return false;
             return await ConnectToTwitchAsync();
         }
@@ -103,7 +107,6 @@ namespace SkillzBot.IRC
                 {
                     try
                     {
-                        // Dispose old client (async)
                         await DisposeClientInstanceAsync();
 
                         var credentials = new ConnectionCredentials(_config.BotTwitchName, _config.BotTwitchAuth);
@@ -111,10 +114,8 @@ namespace SkillzBot.IRC
                         RegisterEventHandlers();
                         _client.Initialize(credentials, _config.ChannelName);
 
-                        // Use TaskCompletionSource to await the ACTUAL OnConnected event
                         var connectedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-                        // Use AsyncEventHandler and return Task.CompletedTask
                         AsyncEventHandler<OnConnectedEventArgs> onConnectedHandler = (s, e) =>
                         {
                             connectedTcs.TrySetResult(true);
@@ -135,14 +136,12 @@ namespace SkillzBot.IRC
                         {
                             _logger?.LogInformation("Connecting to Twitch IRC (Attempt {Attempt})...", attempt);
 
-                            // ConnectAsync returns boolean in newer TwitchLib versions
                             if (!await _client.ConnectAsync())
                             {
                                 _logger?.LogWarning("ConnectAsync returned false immediately.");
                                 continue;
                             }
 
-                            // Wait up to 15 seconds for the OnConnected event
                             var timeoutTask = Task.Delay(15000);
                             var completedTask = await Task.WhenAny(connectedTcs.Task, timeoutTask);
 
@@ -160,12 +159,12 @@ namespace SkillzBot.IRC
                                     if (_client.IsConnected)
                                     {
                                         _isInitialized = true;
-                                        _lastActivity = DateTimeOffset.UtcNow; // Success! Reset timer.
+                                        TouchActivity();
                                         _logger?.LogInformation("Twitch IRC Connected Successfully.");
                                         return true;
                                     }
                                     await Task.Delay(500);
-                                }                                
+                                }
                             }
                         }
                         finally
@@ -203,6 +202,8 @@ namespace SkillzBot.IRC
             _client.OnMessageReceived += Client_OnMessageReceived;
             _client.OnUserTimedout += Client_OnUserTimedout;
             _client.OnDisconnected += Client_OnDisconnected;
+            _client.OnReconnected += Client_OnReconnected;
+            _client.OnSendReceiveData += Client_OnSendReceiveData;
         }
 
         private async Task DisposeClientInstanceAsync()
@@ -214,6 +215,8 @@ namespace SkillzBot.IRC
                     _client.OnMessageReceived -= Client_OnMessageReceived;
                     _client.OnUserTimedout -= Client_OnUserTimedout;
                     _client.OnDisconnected -= Client_OnDisconnected;
+                    _client.OnReconnected -= Client_OnReconnected;
+                    _client.OnSendReceiveData -= Client_OnSendReceiveData;
 
                     if (_client.IsConnected)
                     {
@@ -227,20 +230,30 @@ namespace SkillzBot.IRC
                 finally { _client = null; }
             }
         }
-        
+
+        private Task Client_OnSendReceiveData(object sender, OnSendReceiveDataArgs e)
+        {
+            TouchActivity();
+            return Task.CompletedTask;
+        }
+
+        private Task Client_OnReconnected(object sender, OnConnectedEventArgs e)
+        {
+            TouchActivity();
+            _logger?.LogInformation("Twitch IRC client reconnected on its own.");
+            return Task.CompletedTask;
+        }
+
         private async Task Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
         {
-            _lastActivity = DateTimeOffset.UtcNow;
-            if (OnMessageReceived != null)
+            TouchActivity();
+            var handler = OnMessageReceived;
+            if (handler != null)
             {
-                await OnMessageReceived.Invoke(e);
+                await handler.Invoke(e);
             }
         }
-        private void Client_OnLog(object sender, OnLogArgs e)
-        {
-            // Update the timestamp whenever data flows
-            _lastActivity = DateTimeOffset.UtcNow;
-        }
+
         private async Task Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
             try
@@ -286,15 +299,14 @@ namespace SkillzBot.IRC
             {
                 _logger?.LogInformation("Processing stream down event");
 
-                _botState.Current.BroadcasterIsOnline = false;
-                _botState.Current.FirstQuizOfTheDay = true;
+                await _botState.UpdateStateAsync(s =>
+                {
+                    s.BroadcasterIsOnline = false;
+                    s.FirstQuizOfTheDay = true;
+                });
 
-                // Simple check if user is online, avoiding deep logic here if possible
                 string chatMessage = _gameState.Current.EarnedLP < 0 ? STRINGS.OnStreadDownLowLP : STRINGS.OnStreadDownHighLP;
                 await SendMessage(chatMessage);
-
-                // Discord notification remains
-                //await _discordClient.SendEmbedMsg("Stream Ended", "", _gameState.Current.SummonerName, "", "", null, false, "");
             }
             catch (Exception ex)
             {
@@ -307,7 +319,7 @@ namespace SkillzBot.IRC
             try
             {
                 _logger?.LogInformation("Processing stream up event");
-                _botState.Current.BroadcasterIsOnline = true;
+                await _botState.UpdateStateAsync(s => s.BroadcasterIsOnline = true);
                 await SendMessage(string.Format(STRINGS.OnStreamUP, _config.ChannelName));
             }
             catch (Exception ex)
@@ -329,7 +341,7 @@ namespace SkillzBot.IRC
 
         public async Task SendMessage(string messageToSend, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(messageToSend) || _botState.Current.IsSilent || !IsConnected) return;
+            if (string.IsNullOrWhiteSpace(messageToSend) || _botState.Current.IsSilent) return;
             try
             {
                 if (messageToSend.Length <= MESSAGE_MAX_LENGTH)
@@ -363,26 +375,28 @@ namespace SkillzBot.IRC
                 if (startIndex < message.Length) await Task.Delay(SMALL_DELAY_MS, cancellationToken);
             }
         }
-        private async Task Client_OnDisconnected(object sender, OnDisconnectedArgs e)
+
+        private Task Client_OnDisconnected(object sender, OnDisconnectedArgs e)
         {
-            // Just log. The HostedService monitors IsConnected and will trigger the Reconnect.
+            // Just log. The hosted service monitors IsConnected and triggers the reconnect.
             _logger?.LogWarning("Twitch IRC Client raised OnDisconnected event.");
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
+
         public void Dispose()
         {
             _isDisposed = true;
             _isInitialized = false;
-            _connectionLock.Wait();
+
+            // Do not block shutdown forever if a connection attempt is in flight.
+            bool locked = _connectionLock.Wait(TimeSpan.FromSeconds(5));
             try
             {
-                // Fire and forget disposal since we are in void Dispose
                 _ = DisposeClientInstanceAsync();
             }
             finally
             {
-                _connectionLock.Release();
-                _connectionLock.Dispose();
+                if (locked) _connectionLock.Release();
             }
         }
     }

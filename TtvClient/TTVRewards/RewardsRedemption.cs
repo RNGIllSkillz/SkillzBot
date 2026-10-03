@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
@@ -15,11 +15,8 @@ namespace SkillzBot.TtvClient.TTVRewards
 {
     public class RewardsRedemption
     {
-        private static bool CencelUvalIsWating = false;
-        private static string CencelUvalUserName = "";
-        private static readonly HashSet<Task> _runningTasks = new HashSet<Task>();
-        private static readonly HashSet<string> mods = new HashSet<string>();
-        private static readonly object _lock = new object();
+        private bool CencelUvalIsWating = false;
+        private string CencelUvalUserName = "";
 
         private readonly IDatabaseService _database;
         private readonly ITtvIRCClient _ircClient;
@@ -80,7 +77,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     }
                     else
                     {
-                        if (!Convert.ToBoolean(user.isPartner) && !Convert.ToBoolean(user.isMod) && !mods.Contains(user.Name))
+                        if (!Convert.ToBoolean(user.isPartner) && !Convert.ToBoolean(user.isMod) && !_modInteractions.IsModPendingRestore(user.Name))
                         {
                             if (!Convert.ToBoolean(user.isVip))
                             {
@@ -146,7 +143,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         }
                         else
                         {
-                            if (!Convert.ToBoolean(user.isPartner) && !Convert.ToBoolean(user.isMod) && !mods.Contains(user.Name))
+                            if (!Convert.ToBoolean(user.isPartner) && !Convert.ToBoolean(user.isMod) && !_modInteractions.IsModPendingRestore(user.Name))
                             {
                                 double duration = 600;
                                 if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
@@ -211,13 +208,13 @@ namespace SkillzBot.TtvClient.TTVRewards
                             double duration = 600;
                             if (user.UvalTimer > DateTimeOffset.Now.ToUnixTimeSeconds())
                                 duration = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds() + 600;
-                            await _twitchService.TimeOutModerator(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP);
+                            // Times out once and schedules the re-mod in the background without blocking EventSub.
+                            await _modInteractions.TimeOutModeratorAsync(user, Convert.ToInt32(duration), STRINGS.TimeOutReason_TimeOutVIP);
                             await _ircClient.SendMessage(string.Format(STRINGS.TimeOutReward_chatMessage, UserName, uName, duration, user.UvalCon + 1));
                             if (UserName != _config.RootUser)
                                 await _twitchService.ApproveReward(rewardID, redemID);
                             else
                                 await _twitchService.CencelReward(rewardID, redemID);
-                            await TimeOutModerator(user, duration, STRINGS.TimeOutReason_TimeOutVIP);
                         }
                         else
                             await _twitchService.CencelReward(rewardID, redemID);
@@ -255,7 +252,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         }
                         else
                         {
-                            if (!Convert.ToBoolean(user.isPartner) && !Convert.ToBoolean(user.isMod) && !mods.Contains(user.Name))
+                            if (!Convert.ToBoolean(user.isPartner) && !Convert.ToBoolean(user.isMod) && !_modInteractions.IsModPendingRestore(user.Name))
                             {
                                 if (!Convert.ToBoolean(user.isSub) & !Convert.ToBoolean(user.isVip))
                                 {
@@ -432,7 +429,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                         {
                             [Convert.ToBoolean(user.isSub)] = "IsSub",
                             [Convert.ToBoolean(user.isVip)] = "IsVip",
-                            [mods.Contains(user.Name)] = "IsMod"
+                            [_modInteractions.IsModPendingRestore(user.Name)] = "IsMod"
                         };
                         string subscriptionType = subscriptionMap.GetValueOrDefault(true, "IsUnsub");
                         var CenceleCost = await CalculateCancelUvalCost(_twitchService, subscriptionType, uvalTime);
@@ -502,33 +499,6 @@ namespace SkillzBot.TtvClient.TTVRewards
 
             await _ircClient.SendMessage($"@{UserName} GPT not implemented.");
             await _twitchService.CencelReward(rewardID, redemID);
-        }
-        public async Task TimeOutModerator(UserObject user, double duration, string reason)
-        {
-            await _twitchService.TimeOutModerator(user, Convert.ToInt32(duration), reason);
-            if (Convert.ToBoolean(user.isMod))
-            {
-                Task backgroundTask = _modInteractions.UserUntimeoutTrigger(user.Name);
-                lock (_lock)
-                {
-                    if (_runningTasks.Contains(backgroundTask)) return;
-                    _runningTasks.Add(backgroundTask);
-                    mods.Add(user.Name);
-                }
-                try
-                {
-                    await backgroundTask;
-                }
-                finally
-                {
-                    lock (_lock)
-                    {
-                        _runningTasks.Remove(backgroundTask);
-                        mods.Remove(user.Name);
-                    }
-                }
-            }
-            return;
         }
         private async Task<int> CalculateCancelUvalCost(ITwitchService twitchService, string subscriptionType, double remainingDuration)
         {

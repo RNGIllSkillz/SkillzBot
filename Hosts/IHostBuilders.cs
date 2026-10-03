@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -17,13 +17,14 @@ using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Interfaces;
 using SkillzBot.IRC;
+using SkillzBot.Logging;
 using SkillzBot.MySQL;
 using SkillzBot.QuartZ;
 using SkillzBot.Services;
 using SkillzBot.Services.Infrastructure;
+using SkillzBot.Services.Proxy;
 using SkillzBot.Services.State;
 using SkillzBot.Services.Writers;
-using SkillzBot.SubUtils;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
 using System;
@@ -35,31 +36,65 @@ namespace SkillzBot.Hosts
     internal class IHostBuilders
     {
         private readonly LoggingLevelSwitch _levelSwitch;
+
+        // Every outbound HTTP call is bounded so a slow upstream cannot stall the chat loop.
+        private static readonly TimeSpan StreamElementsTimeout = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan RiotTimeout = TimeSpan.FromSeconds(8);
+        private static readonly TimeSpan MmrTimeout = TimeSpan.FromSeconds(8);
+
         public IHostBuilders(LoggingLevelSwitch levelSwitch, IConfiguration configuration = null)
         {
             _levelSwitch = levelSwitch;
         }
+
+        // Pooled sockets are recycled before the remote side drops them, which avoids
+        // "connection reset by peer" on reuse. ProxyService routes a client through the
+        // configured proxy only when its purpose is listed in ProxyApplyTo.
+        private static Func<IServiceProvider, HttpMessageHandler> PrimaryHandler(string purpose) =>
+            sp => sp.GetRequiredService<ProxyService>().CreateHandler(purpose);
 
         public IHost BuildMainApplicationHost(string[] args)
         {
             return Host.CreateDefaultBuilder(args)
                 .UseSerilog((context, services, configuration) =>
                 {
-                    // Basic Serilog setup
+                    // Compact, grep-friendly lines: one event per line, short component name,
+                    // one-line exception summary. Full stack traces go to the errors file only.
+                    const string compactTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{Component:l}] {Message:lj}{ExceptionShort:l}{NewLine}";
+                    const string consoleTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] [{Component:l}] {Message:lj}{ExceptionShort:l}{NewLine}";
+                    const string detailedTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{Component:l}] {Message:lj}{NewLine}{Exception}";
+
                     configuration
                         .MinimumLevel.ControlledBy(_levelSwitch)
-                        .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                        .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
                         .MinimumLevel.Override("System", LogEventLevel.Warning)
+                        .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
                         .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
                         .Enrich.FromLogContext()
-                        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+                        .Enrich.With<CompactLogEnricher>()
+                        .WriteTo.Console(outputTemplate: consoleTemplate);
                     try
                     {
                         var paths = services.GetService<IPathProvider>();
                         if (paths != null)
                         {
-                            string logFile = System.IO.Path.Combine(paths.DataPath, "logs", $"{System.DateTime.Now:yyyy-MM-dd}.log");
-                            configuration.WriteTo.File(logFile, rollingInterval: RollingInterval.Infinite);
+                            string logDir = System.IO.Path.Combine(paths.DataPath, "logs");
+                            // bot-yyyyMMdd.log: everything at the current level, compact.
+                            configuration.WriteTo.Async(sink => sink.File(
+                                System.IO.Path.Combine(logDir, "bot-.log"),
+                                rollingInterval: RollingInterval.Day,
+                                retainedFileCountLimit: 30,
+                                shared: false,
+                                outputTemplate: compactTemplate));
+                            // errors-yyyyMMdd.log: warnings and errors only, with full stack traces.
+                            configuration.WriteTo.Async(sink => sink.File(
+                                System.IO.Path.Combine(logDir, "errors-.log"),
+                                restrictedToMinimumLevel: LogEventLevel.Warning,
+                                rollingInterval: RollingInterval.Day,
+                                retainedFileCountLimit: 60,
+                                shared: false,
+                                outputTemplate: detailedTemplate));
                         }
                     }
                     catch { /* Fallback if paths not ready */ }
@@ -74,7 +109,6 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<BotConfigModel>(sp =>
                     {
                         var pathProvider = sp.GetRequiredService<IPathProvider>();
-                        // Ensure config exists before reading
                         if (!System.IO.File.Exists(pathProvider.ConfigPath))
                         {
                             throw new System.IO.FileNotFoundException($"Config not found at {pathProvider.ConfigPath}");
@@ -82,6 +116,9 @@ namespace SkillzBot.Hosts
 
                         return BotConfigurationFactory.Create(pathProvider.ConfigPath);
                     });
+
+                    services.AddSingleton<HealthState>();
+                    services.AddSingleton<ProxyService>();
 
                     // 3. State Management
                     services.AddSingleton<IBotStateService, BotStateService>();
@@ -97,29 +134,21 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<IRiotApiService, RiotApiService>();
 
                     // HTTP Clients
-                    services.AddHttpClient("StreamElementsClient")
+                    services.AddHttpClient("StreamElementsClient", client => client.Timeout = StreamElementsTimeout)
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
-                        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-                        {
-                            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
-                        });
+                        .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("streamelements"));
                     services.AddSingleton<IStreamElementsService, StreamElementsService>();
 
-                    services.AddHttpClient<RiotHttpHandler>()
-                        .SetHandlerLifetime(TimeSpan.FromMinutes(5)) 
-                        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-                        {
-                            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
-                        });
-
-                    services.AddHttpClient<IMmrService, MmrApiService>()
+                    services.AddHttpClient<RiotHttpHandler>(client => client.Timeout = RiotTimeout)
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
-                        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-                        {
-                            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
-                        });
+                        .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("riot"));
+
+                    services.AddHttpClient<IMmrService, MmrApiService>(client => client.Timeout = MmrTimeout)
+                        .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+                        .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("mmr"));
 
                     // 6. Bot Logic / Features
+                    services.AddSingleton<LinkDetector>();
                     services.AddSingleton<IllChatFilters>();
                     services.AddSingleton<IllGames>();
                     services.AddSingleton<IllModeratorsInteractions>();
@@ -137,7 +166,6 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<IIllAccess, IllAccess>();
                     services.AddSingleton<CooldownManager>();
                     services.AddSingleton<DiscordClient>();
-                    services.AddSingleton<SubCheck>();
 
                     services.AddSingleton<ConfigWriterService>();
                     services.AddSingleton<MediaQueueService>();
@@ -145,13 +173,15 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<SubscriptionService>();
                     services.AddSingleton<FlagWriterService>();
                     services.AddSingleton<ExtractMessageService>();
-                    services.AddSingleton<IYouTubeService, YouTubeApiService>();                    
+                    services.AddSingleton<IYouTubeService, YouTubeApiService>();
 
                     // 8. Hosted Services (Running in background)
-                    services.AddHostedService<StartupInitializer>(); // Runs Once
-                    services.AddHostedService<TTVEventSub>();        // Runs Forever
-                    services.AddHostedService<TwitchIrcHostedService>(); // Runs Forever
-                    services.AddHostedService<MatchMonitoringService>(); // Runs Forever
+                    services.AddHostedService(sp => sp.GetRequiredService<ProxyService>()); // Starts the proxy sidecar if configured
+                    services.AddHostedService<StartupInitializer>();      // Runs once
+                    services.AddHostedService<TTVEventSub>();             // EventSub websocket + watchdog
+                    services.AddHostedService<TwitchIrcHostedService>();  // IRC + chat loop
+                    services.AddHostedService<MatchMonitoringService>();  // Riot polling
+                    services.AddHostedService<HealthReporter>();          // Periodic one-line health log
                 })
                 .Build();
         }

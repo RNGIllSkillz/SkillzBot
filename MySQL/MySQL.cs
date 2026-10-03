@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using MySql.Data.MySqlClient;
 using System.Threading.Tasks;
@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using SkillzBot.MySQL;
 using System.Data;
 using SkillzBot.Interfaces;
+using SkillzBot.Services;
 using SkillzBot.Services.Writers;
 using System.Threading;
 
@@ -20,6 +21,7 @@ namespace SkillzBot.MYSQL
         private readonly DatabaseConfiguration _config;
         private readonly ILogger<MySqlDatabaseService> _logger;
         private readonly ExtractMessageService _extractMessageService;
+        private readonly HealthState _health;
         private readonly string _connectionString;
         private bool _isInitialized = false;
         private bool _disposed = false;
@@ -28,13 +30,15 @@ namespace SkillzBot.MYSQL
         private long _sessionMessages = 0;
 
         public MySqlDatabaseService(IOptions<DatabaseConfiguration> config, 
-            ILogger<MySqlDatabaseService> logger, 
-            ExtractMessageService extractMessageService)
+            ILogger<MySqlDatabaseService> logger,
+            ExtractMessageService extractMessageService,
+            HealthState health)
         {
             _config = config.Value ?? throw new ArgumentNullException(nameof(config));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _connectionString = BuildConnectionString();
             _extractMessageService = extractMessageService;
+            _health = health;
         }
 
         private string BuildConnectionString()
@@ -76,6 +80,33 @@ namespace SkillzBot.MYSQL
             }
         }
         private void CountQuery() => Interlocked.Increment(ref _sessionQueries);
+
+        // Circuit breaker: after a failed connection attempt, further calls fail instantly for a
+        // short window instead of each waiting out the connection timeout.
+        private static readonly TimeSpan CircuitOpenDuration = TimeSpan.FromSeconds(10);
+        private long _circuitOpenUntilTicks = 0;
+
+        private async Task<MySqlConnection> OpenConnectionAsync()
+        {
+            if (DateTime.UtcNow.Ticks < Interlocked.Read(ref _circuitOpenUntilTicks))
+                throw new DatabaseUnavailableException("Database circuit is open after a recent connection failure.");
+
+            var connection = new MySqlConnection(_connectionString);
+            try
+            {
+                await connection.OpenAsync();
+                return connection;
+            }
+            catch (Exception ex)
+            {
+                var openUntil = DateTime.UtcNow.Add(CircuitOpenDuration);
+                Interlocked.Exchange(ref _circuitOpenUntilTicks, openUntil.Ticks);
+                _health.MarkDbFailure(openUntil);
+                await connection.DisposeAsync();
+                _logger.LogError(ex, "MySQL connection failed; database calls are suspended for {Seconds}s.", CircuitOpenDuration.TotalSeconds);
+                throw new DatabaseUnavailableException("Could not open a MySQL connection.", ex);
+            }
+        }
         private async Task CreateDatabaseIfNotExistsAsync()
         {
             var builder = new MySqlConnectionStringBuilder(_connectionString) { Database = "" };
@@ -84,15 +115,6 @@ namespace SkillzBot.MYSQL
             await connection.OpenAsync();
             await using var command = new MySqlCommand(sql.Replace("@database", _config.DatabaseName), connection);
             await command.ExecuteNonQueryAsync();
-        }
-
-        private string BuildConnectionStringWithoutDatabase()
-        {
-            var builder = new MySqlConnectionStringBuilder(_connectionString)
-            {
-                Database = ""
-            };
-            return builder.ConnectionString;
         }
 
         private async Task CreateTablesAsync()
@@ -153,8 +175,7 @@ namespace SkillzBot.MYSQL
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
             };
 
-            await using var connection = new MySqlConnection(_connectionString);
-            await connection.OpenAsync();
+            await using var connection = await OpenConnectionAsync();
 
             foreach (var (tableName, createSql) in tables)
             {
@@ -174,8 +195,7 @@ namespace SkillzBot.MYSQL
                 "CREATE INDEX IF NOT EXISTS `idx_user_roulettcon` ON `dbUserTable` (`roulettCon` DESC)"
             };
 
-            await using var connection = new MySqlConnection(_connectionString);
-            await connection.OpenAsync();
+            await using var connection = await OpenConnectionAsync();
 
             foreach (var indexSql in indexes)
             {
@@ -191,21 +211,28 @@ namespace SkillzBot.MYSQL
             }
         }
 
-        public async Task<UserObject> GetUserAsync(int twitchId)
+        public async Task<UserObject> GetUserAsync(long twitchId)
         {
             CountQuery();
             const string sql = @"SELECT * FROM dbUserTable WHERE TwitchID = @TwitchID";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@TwitchID", twitchId);
                 await using var reader = await command.ExecuteReaderAsync();
                 if (await reader.ReadAsync()) return MapUserFromReader(reader);
                 return new UserObject { dbID = -404 };
             }
-            catch { return new UserObject { dbID = -404 }; }
+            catch (DatabaseUnavailableException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load user by TwitchID={TwitchID}", twitchId);
+                throw;
+            }
         }
 
         public async Task<UserObject> GetUserAsync(string name)
@@ -215,21 +242,27 @@ namespace SkillzBot.MYSQL
             const string sql = @"SELECT * FROM dbUserTable WHERE Name = @Name COLLATE utf8mb4_unicode_ci";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@Name", name.Trim());
                 await using var reader = await command.ExecuteReaderAsync();
                 if (await reader.ReadAsync()) return MapUserFromReader(reader);
                 return new UserObject { dbID = -404 };
             }
-            catch { return new UserObject { dbID = -404 }; }
+            catch (DatabaseUnavailableException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load user by name {Name}", name);
+                throw;
+            }
         }
 
         // Helper to safely read values handling DBNull and type conversion
         private T SafeGet<T>(IDataReader reader, string column, T defaultValue = default)
         {
-            CountQuery();
             try
             {
                 int ordinal = reader.GetOrdinal(column);
@@ -244,11 +277,10 @@ namespace SkillzBot.MYSQL
 
         private UserObject MapUserFromReader(IDataReader reader)
         {
-            CountQuery();
             return new UserObject
             {
                 dbID = SafeGet<int>(reader, "dbID"),
-                TwitchID = SafeGet<int>(reader, "TwitchID"),
+                TwitchID = SafeGet<long>(reader, "TwitchID"),
                 Name = SafeGet<string>(reader, "Name"),
                 isSub = SafeGet<int>(reader, "isSub"),
                 isVip = SafeGet<int>(reader, "isVip"),
@@ -300,8 +332,7 @@ namespace SkillzBot.MYSQL
 
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
 
                 await using var command = new MySqlCommand(sql, connection);
                 AddUserParametersToCommand(command, user);
@@ -382,8 +413,7 @@ namespace SkillzBot.MYSQL
 
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 AddUserParametersToCommand(command, user);
                 await command.ExecuteNonQueryAsync();
@@ -416,14 +446,13 @@ namespace SkillzBot.MYSQL
             command.Parameters.AddWithValue("@IsPartner", user.isPartner);
         }
 
-        public async Task SaveMessageAsync(int twitchId, string name, string message, double timestamp)
+        public async Task SaveMessageAsync(long twitchId, string name, string message, double timestamp)
         {
             CountQuery();
             const string sql = @"INSERT INTO dbUserMessageTable (TwitchID, Name, Message, TimeStamp) VALUES (@TwitchID, @Name, @Message, @TimeStamp)";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@TwitchID", twitchId);
                 command.Parameters.AddWithValue("@Name", name ?? string.Empty);
@@ -446,25 +475,31 @@ namespace SkillzBot.MYSQL
             const string sql = @"INSERT INTO dbUserMessageTable (TwitchID, Name, Message, TimeStamp) VALUES (@TwitchID, @Name, @Message, @TimeStamp)";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var transaction = await connection.BeginTransactionAsync();
                 await using var command = new MySqlCommand(sql, connection, transaction);
-                var twitchIdParam = command.Parameters.Add("@TwitchID", MySqlDbType.Int32);
+                var twitchIdParam = command.Parameters.Add("@TwitchID", MySqlDbType.Int64);
                 var nameParam = command.Parameters.Add("@Name", MySqlDbType.VarChar);
                 var messageParam = command.Parameters.Add("@Message", MySqlDbType.Text);
                 var timestampParam = command.Parameters.Add("@TimeStamp", MySqlDbType.Double);
                 await command.PrepareAsync();
+                int saved = 0;
                 foreach (var msg in messages)
                 {
-                    twitchIdParam.Value = int.Parse(msg.TtvID);
+                    if (!long.TryParse(msg.TtvID, out long twitchId) || !double.TryParse(msg.TimeStamp, out double timestamp))
+                    {
+                        _logger.LogWarning("Skipping message with unparsable id/timestamp from {Name}", msg.Name);
+                        continue;
+                    }
+                    twitchIdParam.Value = twitchId;
                     nameParam.Value = msg.Name ?? string.Empty;
                     messageParam.Value = msg.Message ?? string.Empty;
-                    timestampParam.Value = Convert.ToDouble(msg.TimeStamp);
+                    timestampParam.Value = timestamp;
                     await command.ExecuteNonQueryAsync();
+                    saved++;
                 }
                 await transaction.CommitAsync();
-                Interlocked.Add(ref _sessionMessages, messages.Count);
+                Interlocked.Add(ref _sessionMessages, saved);
             }
             catch (Exception ex)
             {
@@ -485,8 +520,7 @@ namespace SkillzBot.MYSQL
             var sql = $@"SELECT Name, {columnName} FROM dbUserTable WHERE {columnName} > 0 ORDER BY {columnName} DESC LIMIT @Limit";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@Limit", limit);
                 await using var reader = await command.ExecuteReaderAsync();
@@ -515,8 +549,7 @@ namespace SkillzBot.MYSQL
             if (!validColumns.Contains(columnName)) { _logger.LogError("Invalid column access: {ColumnName}", columnName); return new[] { 0, 0 }; }
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 var valueSql = $"SELECT {columnName} FROM dbUserTable WHERE Name = @UserName";
                 await using var valueCommand = new MySqlCommand(valueSql, connection);
                 valueCommand.Parameters.AddWithValue("@UserName", userName);
@@ -545,8 +578,7 @@ namespace SkillzBot.MYSQL
             const string sql = "DELETE FROM dbUserTable WHERE Name = @Name";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@Name", userName);
                 var rowsAffected = await command.ExecuteNonQueryAsync();
@@ -560,7 +592,7 @@ namespace SkillzBot.MYSQL
             }
         }
 
-        public async Task AddPointsAsync(int amount, int? twitchId = null)
+        public async Task AddPointsAsync(int amount, long? twitchId = null)
         {
             CountQuery();
             string sql;
@@ -568,8 +600,7 @@ namespace SkillzBot.MYSQL
             else sql = "UPDATE dbUserTable SET Points = Points + @Amount WHERE IsOnline = 1";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@Amount", amount);
                 if (twitchId.HasValue) command.Parameters.AddWithValue("@TwitchID", twitchId.Value);
@@ -584,8 +615,7 @@ namespace SkillzBot.MYSQL
             const string sql = "SELECT Question, Answer, Prize FROM dbQuiz WHERE dbID = @ID";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@ID", id);
                 await using var reader = await command.ExecuteReaderAsync();
@@ -603,14 +633,13 @@ namespace SkillzBot.MYSQL
             catch (Exception ex) { _logger.LogError(ex, "Failed to get quiz"); throw; }
         }
 
-        public async Task AddQuizPointsAsync(int amount, int twitchId)
+        public async Task AddQuizPointsAsync(int amount, long twitchId)
         {
             CountQuery();
             const string sql = @"UPDATE dbUserTable SET QuizPoints = QuizPoints + @Amount, QuizTotal = QuizTotal + @Amount WHERE TwitchID = @TwitchID";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@Amount", amount);
                 command.Parameters.AddWithValue("@TwitchID", twitchId);
@@ -619,14 +648,13 @@ namespace SkillzBot.MYSQL
             catch (Exception ex) { _logger.LogError(ex, "Failed to add quiz points"); throw; }
         }
 
-        public async Task SpendQuizPointsAsync(int amount, int twitchId)
+        public async Task SpendQuizPointsAsync(int amount, long twitchId)
         {
             CountQuery();
             const string sql = @"UPDATE dbUserTable SET QuizPoints = GREATEST(0, QuizPoints - @Amount) WHERE TwitchID = @TwitchID";
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var command = new MySqlCommand(sql, connection);
                 command.Parameters.AddWithValue("@Amount", amount);
                 command.Parameters.AddWithValue("@TwitchID", twitchId);
@@ -643,8 +671,7 @@ namespace SkillzBot.MYSQL
                 const string offlineAllSql = "UPDATE dbUserTable SET IsOnline = 0";
                 try
                 {
-                    await using var connection = new MySqlConnection(_connectionString);
-                    await connection.OpenAsync();
+                    await using var connection = await OpenConnectionAsync();
                     await using var command = new MySqlCommand(offlineAllSql, connection);
                     await command.ExecuteNonQueryAsync();
                 }
@@ -653,8 +680,7 @@ namespace SkillzBot.MYSQL
             }
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
                 await using var transaction = await connection.BeginTransactionAsync();
                 const string createTempSql = @"CREATE TEMPORARY TABLE temp_online_users (Name VARCHAR(30) NOT NULL, PRIMARY KEY (Name)) ENGINE=MEMORY";
                 await using var createCommand = new MySqlCommand(createTempSql, connection, transaction);
@@ -689,8 +715,7 @@ namespace SkillzBot.MYSQL
 
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
 
                 const string databasesSql = @"
                     SELECT DISTINCT TABLE_SCHEMA 
@@ -768,8 +793,7 @@ namespace SkillzBot.MYSQL
             CountQuery();
             try
             {
-                await using var connection = new MySqlConnection(_connectionString);
-                await connection.OpenAsync();
+                await using var connection = await OpenConnectionAsync();
 
                 // Get Total Users
                 long totalUsers = 0;
@@ -810,5 +834,12 @@ namespace SkillzBot.MYSQL
         {
             if (!_disposed && disposing) { _disposed = true; }
         }
+    }
+
+    /// <summary>Raised when the database cannot be reached; callers degrade instead of waiting.</summary>
+    public sealed class DatabaseUnavailableException : Exception
+    {
+        public DatabaseUnavailableException(string message) : base(message) { }
+        public DatabaseUnavailableException(string message, Exception inner) : base(message, inner) { }
     }
 }

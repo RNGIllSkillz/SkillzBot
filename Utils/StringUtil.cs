@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,31 +18,6 @@ namespace SkillzBot.Utils
         private static readonly Regex _twitchClipRegex = new Regex(@"https?:\/\/clips\.twitch\.tv\/[A-Za-z0-9_-]+", RegexOptions.Compiled);
         private static readonly Regex _apiTokenRegex = new Regex(@"^(oauth:|RGAPI-|)[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
 
-        private static readonly HashSet<char> CharsToRemove = new HashSet<char> { ' ', '.', ',', '!', '_', '-' };
-
-        // Lookup Tables
-        private static readonly char[] _normalizationMap = new char[char.MaxValue + 1];
-        private static readonly char[][] _obfuscationMap = new char[char.MaxValue + 1][];
-
-        private static readonly Dictionary<char, char[]> Mappings = new Dictionary<char, char[]>
-        {
-            { 'a', new[] { 'a','а', 'а', '@', 'Ä', 'Â', 'Ⓐ', 'Å', 'ⓐ', '⒜', 'ḁ', 'ạ', 'ả', 'ầ', 'ấ', 'ẩ', 'ẫ', 'ặ', 'ẵ', 'ẳ', 'ằ', 'ắ', 'ậ', 'ẚ', 'ᾱ', 'ᾲ', 'ᾳ', 'ᾴ', 'ᾷ', 'ᾶ', 'ã', 'æ', 'å', 'ā', 'ă', 'ǎ', 'ą', 'ȁ', 'ȃ', 'ǡ', 'ǟ', 'ǻ', 'ȧ', 'ȁ' } },
-            { 'b', new[] { 'в', 'B', '฿', 'ᛒ', 'Ɓ', 'Ḅ', 'Ƃ', 'Ḇ', 'Ḃ', 'Ꞗ', 'Ƀ', 'ᛔ', 'v', 'ദ', '൫', 'ℬ', 'Ḇ' } },
-            { 'o', new[] { 'о', 'o', '0', 'ó', 'ô', 'õ', 'ò', 'ó', 'ø', 'ö', 'ō', 'ŏ', 'ő', 'ȯ', 'ȫ', 'ȭ', 'ơ', 'ờ', 'ớ', 'ở', 'ỡ', 'ợ', 'ọ', 'ø', 'ǫ', 'ǭ', 'ǿ', 'ȍ', 'ȏ', 'ⓞ', '⒪', '○', '◯', '◎', '◌', '◍', '◐', '◑', '⚪', 'ꝋ', 'Ꝍ' } },
-            { 'i', new[] { 'и', 'i', 'u', 'ⓤ', '⒰', 'υ', 'ṳ', 'ṵ', 'ṷ', 'ὓ', 'ὔ', 'ὕ', 'ὖ', 'ὗ', '1', '!' } },
-            { 'r', new[] { 'р', 'p', 'r', 'ρ', 'ℛ', 'ℙ', 'ℜ', 'ℝ', 'Ⓟ', 'Ⓡ', 'Ɽ', 'ᖇ', '℞', '℟', 'Ṙ', 'Ṗ', 'Ṕ', 'Ṛ', 'Ṝ', 'Ṟ', 'ᴘ', '☈' } },
-            { 'p', new[] { 'п', 'π', 'n', 'ń', 'ǹ', 'ṅ', 'ň', 'ñ', 'ņ', 'ƞ', 'ṇ', 'ṋ', 'p', 'ρ', 'ℙ', 'Ⓟ', 'Ṗ', 'Ṕ', 'ᴘ', '♫' } },
-            { 'h', new[] { 'н', 'H', 'ℋ', 'ℍ', 'Ḥ', 'Ḧ', 'Ḩ', 'Ἢ', 'Ἡ', 'Ἦ', 'Ἠ', 'Ḫ', 'Ἤ', 'Ἥ', 'Ἧ', 'ᾘ', 'ᾙ', 'ᾟ', 'ᾞ', 'ᾝ', 'H', 'ᾜ', 'ᾛ', 'ᾚ' } },
-            { 'd', new[] { 'д', 'g', 'D' } },
-            { 'm', new[] { 'м', 'm', 'ⓜ', '⒨', 'ṃ', 'ḿ', 'ṁ', 'm', '♏', 'Ḿ', 'Ṁ', 'Ṃ', 'ന' } },
-            { 'c', new[] { 'с', 'c', 'ⓒ', '⒞', 'ḉ', 'c', 'ℂ', '℃', '₡', '∁', 'C' } },
-            { 'y', new[] { 'у', 'y', 'ⓨ', 'ẙ', 'ỳ', 'ỵ', 'ỷ', 'ỹ', 'ẏ', 'y' } },
-            { 'x', new[] { 'х', 'x', 'ⓧ', '⒳', '✖', '✗', '✘', 'ẋ', 'ẍ', 'x', 'Ẍ', 'Ẋ', 'X', 'ⅹ', '乂', '×', '✕', '⨯', '⤫', '⤬' } },
-            { 'k', new[] { 'k', 'к', 'ⓚ', '⒦', 'к', 'ḱ', 'ḳ', 'ḵ', 'k', '₭', 'Ḱ', 'Ḳ', 'Ḵ', 'K' } },
-            { 't', new[] { 'T', 'Ṫ', 'Ṭ', 'Ť', 'Ţ', 'Ț', 'Ⱦ', 'Ƭ', 'ᴛ', 'Ｔ', 'т', '₮', 'Ṱ', 'Ṯ' } },
-            { 'e', new[] { 'е', 'e', 'ⓔ', '⒠', 'ℯ', '∊', 'ḕ', '€', 'ḗ', 'ḙ', 'ḛ', 'ḝ', 'ẹ', 'ẻ', 'ẽ', 'ế', 'ề', 'ể', 'ễ', 'ệ', 'e', 'Ẹ', 'Ḝ', 'Ḛ', 'Ḙ', 'Ḗ', 'Ḕ', 'Ẽ', 'Ế', 'Ề', 'Ể', 'Ễ', 'Ἑ', 'Ἒ', 'Ἐ', 'Έ', 'Ὲ' } }
-        };
-
         static StringUtil()
         {
             // Initialize Ranks
@@ -60,129 +34,6 @@ namespace SkillzBot.Utils
                 { "unranked", 0 }
             };
 
-            // Initialize Normalization Map (Default 1:1)
-            for (int i = 0; i < _normalizationMap.Length; i++)
-                _normalizationMap[i] = (char)i;
-
-            // Fill Maps from Source of Truth
-            foreach (var entry in Mappings)
-            {
-                char targetBase = entry.Key;
-
-                // 1. Populate Obfuscation (Shuffle)
-                _obfuscationMap[targetBase] = entry.Value;
-
-                // 2. Populate Normalization (Filter)
-                foreach (char variant in entry.Value)
-                {
-                    _normalizationMap[variant] = targetBase;
-                }
-            }
-        }
-
-        // ==========================================
-        // NORMALIZATION & OBFUSCATION
-        // ==========================================
-
-        /// <summary>
-        /// Converts obfuscated chars to base chars, but preserves structure.
-        /// "H0x0l is bad" -> "hohol is bad"
-        /// </summary>
-        public static string Normalize(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-            char[] result = new char[input.Length];
-            for (int i = 0; i < input.Length; i++)
-            {
-                result[i] = char.ToLowerInvariant(_normalizationMap[input[i]]);
-            }
-            return new string(result);
-        }
-
-        public static string GetAggressiveString(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-
-            // Stack allocation for speed
-            Span<char> result = input.Length <= 1024
-                ? stackalloc char[input.Length]
-                : new char[input.Length];
-
-            int pos = 0;
-            char lastChar = '\0'; // Tracker for deduplication
-
-            for (int i = 0; i < input.Length; i++)
-            {
-                char c = input[i];
-
-                // 1. Normalize the char (get base version, e.g. '0' -> 'o')
-                char normalizedChar = _normalizationMap[c];
-
-                // 2. Filter: Only keep Letters and Digits.
-                if (char.IsLetterOrDigit(normalizedChar))
-                {
-                    char lower = char.ToLowerInvariant(normalizedChar);
-
-                    // 3. Deduplicate: Only add if different from the previous char
-                    if (lower != lastChar)
-                    {
-                        result[pos++] = lower;
-                        lastChar = lower;
-                    }
-                }
-            }
-            return result.Slice(0, pos).ToString();
-        }
-        public static bool IsZalgo(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return false;
-
-            int markCount = 0;
-            int nastySymbolCount = 0;
-
-            foreach (char c in input)
-            {
-                if (c >= '\u20D0' && c <= '\u20FF')
-                {
-                    nastySymbolCount++;
-                }
-
-                var category = CharUnicodeInfo.GetUnicodeCategory(c);
-                if (category == UnicodeCategory.NonSpacingMark ||
-                    category == UnicodeCategory.EnclosingMark ||
-                    category == UnicodeCategory.SpacingCombiningMark)
-                {
-                    markCount++;
-                }
-            }
-            if (nastySymbolCount > 3) return true;
-            if (markCount > 10) return true;
-            if (input.Length > 5 && (double)markCount / input.Length > 0.35) return true;
-
-            return false;
-        }
-        public static string Shuffle(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-
-            char[] result = new char[input.Length];
-            Random rng = Random.Shared;
-
-            for (int i = 0; i < input.Length; i++)
-            {
-                char current = char.ToLowerInvariant(input[i]);
-                char[] variants = _obfuscationMap[current];
-
-                if (variants != null && variants.Length > 0)
-                {
-                    result[i] = variants[rng.Next(variants.Length)];
-                }
-                else
-                {
-                    result[i] = current;
-                }
-            }
-            return new string(result);
         }
 
         // ==========================================
@@ -212,27 +63,6 @@ namespace SkillzBot.Utils
         {
             if (string.IsNullOrEmpty(input)) return Array.Empty<string>();
             return input.Split(new[] { ' ', '|' }, StringSplitOptions.RemoveEmptyEntries);
-        }
-
-        public static string[] SplitAllWordsDiffSep(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return Array.Empty<string>();
-            return input.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
-        }
-
-        public static string[] SplitTwoWords(string inputString)
-        {
-            if (string.IsNullOrEmpty(inputString)) return Array.Empty<string>();
-
-            // Optimized to not scan the whole string
-            int firstSpace = inputString.IndexOf(' ');
-            if (firstSpace == -1) return new string[] { inputString, "" };
-
-            return new string[]
-            {
-                inputString.Substring(0, firstSpace),
-                inputString.Substring(firstSpace + 1)
-            };
         }
 
         public static string GetCommandFromUserInput(string[] wordsArray)
@@ -291,32 +121,6 @@ namespace SkillzBot.Utils
             return i;
         }
 
-        public static string Clean(string str)
-        {
-            if (string.IsNullOrEmpty(str)) return string.Empty;
-
-            var sb = new StringBuilder(str.Length);
-            string lowerStr = str.ToLower();
-            if (lowerStr.Length > 0 && !CharsToRemove.Contains(lowerStr[0]))
-            {
-                sb.Append(lowerStr[0]);
-            }
-
-            for (int i = 1; i < lowerStr.Length; i++)
-            {
-                char currentChar = lowerStr[i];
-
-                if (!CharsToRemove.Contains(currentChar))
-                {
-                    if (sb.Length == 0 || sb[sb.Length - 1] != currentChar)
-                    {
-                        sb.Append(currentChar);
-                    }
-                }
-            }
-            return sb.ToString();
-        }
-        
         public static string RemoveWhitespace(string input)
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;

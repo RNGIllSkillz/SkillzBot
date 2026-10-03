@@ -2,11 +2,9 @@
   "profiles": {
     "SkillzBot": {
       "commandName": "Project",
-      "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "applicationUrl": "https://localhost:50855;http://localhost:50856"
+        "ENV_CHANNEL_NAME": "your_channel_login"
+      }
     }
   }
 }

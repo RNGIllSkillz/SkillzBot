@@ -1,4 +1,4 @@
-﻿using F23.StringSimilarity;
+using F23.StringSimilarity;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.IllSTRINGS;
@@ -33,9 +33,10 @@ namespace SkillzBot.IllSkillzBot
         private readonly IIllAccess _illAccess;
         private readonly IStreamElementsService _streamElementsService;
 
-        //debug
         private long _totalMessagesProcessed = 0;
         private int _pendingMessageCount = 0;
+        private long _lastLagAlertTicks = 0;
+        private long _lastDbWarningTicks = 0;
 
         private const int HardTimeoutSec = 600;
         private const int TimeoutSec = 300;
@@ -43,17 +44,22 @@ namespace SkillzBot.IllSkillzBot
 
         private readonly Channel<OnMessageReceivedArgs> _messageChannel;
         private const int SaveBufferCount = 20;
+        /// <summary>Upper bound for unsaved messages kept in memory while the database is down.</summary>
+        private const int MaxBufferedMessages = 5000;
+        private const int LagAlertThreshold = 5;
+        private static readonly TimeSpan LagAlertInterval = TimeSpan.FromSeconds(30);
 
         private const string SPAM_MARKER = "___SPAM___";
+
         public IllChatMessageHandler
             (
-            ILogger<IllChatMessageHandler> logger, 
+            ILogger<IllChatMessageHandler> logger,
             IllChatFilters chatFilters,
-            IDatabaseService database, 
-            IllCommandHandler commandHandler, 
-            IllGames illGames, 
-            IllCommands illCommands, 
-            ITwitchService twitchService, 
+            IDatabaseService database,
+            IllCommandHandler commandHandler,
+            IllGames illGames,
+            IllCommands illCommands,
+            ITwitchService twitchService,
             IBotStateService botState,
             IllModeratorsInteractions modInteractions,
             IIllAccess illAccess,
@@ -76,13 +82,14 @@ namespace SkillzBot.IllSkillzBot
                 SingleWriter = true  // Only the IRC client writes
             });
         }
+
         public Task HandleMessage(OnMessageReceivedArgs e)
         {
-            // Just push to queue.
             Interlocked.Increment(ref _pendingMessageCount);
             _messageChannel.Writer.TryWrite(e);
             return Task.CompletedTask;
         }
+
         public async Task StartProcessingLoop(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Chat Message Processing Loop Started.");
@@ -92,9 +99,14 @@ namespace SkillzBot.IllSkillzBot
                 while (_messageChannel.Reader.TryRead(out var e))
                 {
                     int currentPending = Interlocked.Decrement(ref _pendingMessageCount);
-                    if (currentPending > 3)
+                    if (currentPending >= LagAlertThreshold)
                     {
-                        _logger.LogWarning("[LAG ALERT] Chat Queue is backing up! Pending messages: {Count}", currentPending);
+                        long now = DateTime.UtcNow.Ticks;
+                        if (now - Interlocked.Read(ref _lastLagAlertTicks) > LagAlertInterval.Ticks)
+                        {
+                            Interlocked.Exchange(ref _lastLagAlertTicks, now);
+                            _logger.LogWarning("[LAG ALERT] Chat Queue is backing up! Pending messages: {Count}", currentPending);
+                        }
                     }
                     try
                     {
@@ -107,6 +119,7 @@ namespace SkillzBot.IllSkillzBot
                 }
             }
         }
+
         public async Task ProcessMessageInternal(OnMessageReceivedArgs e)
         {
             var sw = Stopwatch.StartNew();
@@ -115,16 +128,7 @@ namespace SkillzBot.IllSkillzBot
             SaveToBuffer(e);
             var tracker = AddToTracker(e.ChatMessage.Username, e.ChatMessage.Message);
 
-            UserObject user = null;
-            try
-            {
-                user = await GetAddUser(e.ChatMessage);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to Get/Add user {User}. Skipping processing.", e.ChatMessage.Username);
-                return;
-            }
+            UserObject user = await GetAddUser(e.ChatMessage);
             if (user == null) return;
 
             user.messageCon++;
@@ -142,7 +146,7 @@ namespace SkillzBot.IllSkillzBot
                 if (_chatFilters.CheckBooB(e.ChatMessage.Message))
                 {
                     await _twitchService.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic);
-                    await _database.UpdateUserAsync(user);
+                    await SaveUserAsync(user);
                     return;
                 }
 
@@ -152,12 +156,13 @@ namespace SkillzBot.IllSkillzBot
                 }
 
                 if (await _chatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName).ConfigureAwait(false))
-                {                   
-                    _ = Task.Run(async () => {
+                {
+                    _ = Task.Run(async () =>
+                    {
                         try
                         {
                             var updatedUser = await _modInteractions.IllFilterTrigger(user, e.ChatMessage.Id);
-                            await _database.UpdateUserAsync(updatedUser);
+                            await SaveUserAsync(updatedUser);
                         }
                         catch (Exception ex)
                         {
@@ -172,15 +177,14 @@ namespace SkillzBot.IllSkillzBot
                 if (CheckSpam(tracker, e.ChatMessage.Message))
                 {
                     await _twitchService.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam);
-                    await _database.UpdateUserAsync(user);
+                    await SaveUserAsync(user);
                     return;
                 }
 
-                string normalizedMsg = StringUtil.Normalize(e.ChatMessage.Message);
-                if (normalizedMsg.Contains("хохол") || normalizedMsg.Contains("хахол"))
+                if (_chatFilters.ContainsBlockedPhrase(e.ChatMessage.Message))
                 {
                     await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason);
-                    await _database.UpdateUserAsync(user);
+                    await SaveUserAsync(user);
                     return;
                 }
 
@@ -194,7 +198,7 @@ namespace SkillzBot.IllSkillzBot
             {
                 user = await _commandHandler.CommandHandler(user, e.ChatMessage.Message);
             }
-            await _database.UpdateUserAsync(user);
+            await SaveUserAsync(user);
 
             sw.Stop();
             Interlocked.Increment(ref _totalMessagesProcessed);
@@ -210,7 +214,31 @@ namespace SkillzBot.IllSkillzBot
                 string perfMsg = $"[Perf] Time: {sw.ElapsedMilliseconds}ms | RAM: {memoryUsed:F2} MB";
                 await _streamElementsService.SendChatMessage(perfMsg).ConfigureAwait(false);
             }
-            return;
+        }
+
+        /// <summary>Persists the user unless it is a transient fallback object; never throws.</summary>
+        private async Task SaveUserAsync(UserObject user)
+        {
+            if (user == null || user.IsTransient) return;
+            try
+            {
+                await _database.UpdateUserAsync(user);
+            }
+            catch (Exception ex)
+            {
+                WarnDatabaseDown(ex, "Failed to persist user {User}", user.Name);
+            }
+        }
+
+        private void WarnDatabaseDown(Exception ex, string message, params object[] args)
+        {
+            // The same failure repeats for every message while the DB is down; log it at most once a minute.
+            long now = DateTime.UtcNow.Ticks;
+            if (now - Interlocked.Read(ref _lastDbWarningTicks) > TimeSpan.FromMinutes(1).Ticks)
+            {
+                Interlocked.Exchange(ref _lastDbWarningTicks, now);
+                _logger.LogError(ex, message, args);
+            }
         }
 
         private void SaveToBuffer(OnMessageReceivedArgs e)
@@ -222,25 +250,33 @@ namespace SkillzBot.IllSkillzBot
                 Name = e.ChatMessage.Username,
                 TimeStamp = DateTimeOffset.Now.ToUnixTimeSeconds().ToString()
             });
+
+            // Bound memory while the database is unreachable: drop the oldest entries.
+            while (_messagesBuffer.Count > MaxBufferedMessages && _messagesBuffer.TryDequeue(out _)) { }
         }
 
         public async Task SaveBuffer(bool IsForced)
         {
             if (_messagesBuffer.IsEmpty) return;
             if (_messagesBuffer.Count < SaveBufferCount && !IsForced) return;
-            List<MessageBuffer> temp = new List<MessageBuffer>();
-            lock (_messagesBuffer)
-            {               
-                while (_messagesBuffer.TryDequeue(out var msg))
-                {
-                    temp.Add(msg);
-                }
-                _messagesBuffer.Clear();
-            }
-            if (temp.Count > 0)
+
+            var batch = new List<MessageBuffer>();
+            while (_messagesBuffer.TryDequeue(out var msg))
             {
-                await _database.SaveMessagesAsync(temp);
-            }            
+                batch.Add(msg);
+            }
+            if (batch.Count == 0) return;
+
+            try
+            {
+                await _database.SaveMessagesAsync(batch);
+            }
+            catch (Exception)
+            {
+                // Put the batch back so it is retried on the next flush instead of being lost.
+                foreach (var msg in batch) _messagesBuffer.Enqueue(msg);
+                throw;
+            }
         }
 
         private UserChatTracker AddToTracker(string username, string message)
@@ -253,6 +289,7 @@ namespace SkillzBot.IllSkillzBot
             }
             return tracker;
         }
+
         public void PruneTrackers()
         {
             var now = DateTimeOffset.Now.ToUnixTimeSeconds();
@@ -276,15 +313,30 @@ namespace SkillzBot.IllSkillzBot
                 _logger.LogDebug("Pruned {Count} inactive user trackers.", keysToRemove.Count);
             }
         }
+
+        /// <summary>
+        /// Loads the user from the database, creating or refreshing the row as needed.
+        /// When the database is unreachable a transient user is built from the chat
+        /// metadata so moderation and commands keep working.
+        /// </summary>
         private async Task<UserObject> GetAddUser(ChatMessage chatmessage)
         {
-            if (!int.TryParse(chatmessage.UserId, out int ttvid))
+            if (!long.TryParse(chatmessage.UserId, out long ttvid))
             {
                 _logger.LogError("GetAddUser(): TtvID Conversion Error for user {Username}", chatmessage.Username);
                 return null;
             }
 
-            UserObject user = await _database.GetUserAsync(ttvid);
+            UserObject user;
+            try
+            {
+                user = await _database.GetUserAsync(ttvid);
+            }
+            catch (Exception ex)
+            {
+                WarnDatabaseDown(ex, "Database unreachable; processing {User} with a transient profile.", chatmessage.Username);
+                return BuildTransientUser(chatmessage, ttvid);
+            }
 
             bool needsUpdate = false;
 
@@ -302,19 +354,39 @@ namespace SkillzBot.IllSkillzBot
                 needsUpdate = true;
             }
 
+            ApplyChatMetadata(user, chatmessage);
+
+            if (needsUpdate)
+            {
+                try
+                {
+                    await _database.AddOrUpdateUserAsync(user);
+                }
+                catch (Exception ex)
+                {
+                    WarnDatabaseDown(ex, "Failed to add/update user {User}; continuing with a transient profile.", chatmessage.Username);
+                    user.IsTransient = true;
+                }
+            }
+
+            return user;
+        }
+
+        private static UserObject BuildTransientUser(ChatMessage chatmessage, long ttvid)
+        {
+            var user = new UserObject { dbID = -404, TwitchID = ttvid, IsTransient = true };
+            ApplyChatMetadata(user, chatmessage);
+            return user;
+        }
+
+        private static void ApplyChatMetadata(UserObject user, ChatMessage chatmessage)
+        {
             user.Name = chatmessage.Username;
             user.isSub = chatmessage.UserDetail.IsSubscriber ? 1 : 0;
             user.isVip = chatmessage.UserDetail.IsVip ? 1 : 0;
             user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
             user.isMod = chatmessage.UserDetail.IsModerator ? 1 : 0;
             user.isPartner = chatmessage.UserDetail.IsPartner ? 1 : 0;
-
-            if (needsUpdate)
-            {
-                await _database.AddOrUpdateUserAsync(user);
-            }
-
-            return user;
         }
 
         private bool CheckSpam(UserChatTracker tracker, string currentMessage)
@@ -356,20 +428,10 @@ namespace SkillzBot.IllSkillzBot
             }
             return false;
         }
-        public (int Pending, long Processed) GetStats()
+
+        public (int Pending, long Processed, int Buffered) GetStats()
         {
-            return (_pendingMessageCount, _totalMessagesProcessed);
-        }
-        private async Task LogStatsAsync(CancellationToken token)
-        {
-            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
-            while (await timer.WaitForNextTickAsync(token))
-            {
-                var stats = GetStats();
-                _logger.LogInformation(
-                    "Chat Handler Stats - Pending: {Pending}, Processed: {Processed}",
-                    stats.Pending, stats.Processed);
-            }
+            return (_pendingMessageCount, _totalMessagesProcessed, _messagesBuffer.Count);
         }
     }
 }

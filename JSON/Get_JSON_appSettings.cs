@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Newtonsoft.Json;
 
 namespace SkillzBot.JSON.Settings
@@ -93,6 +93,12 @@ namespace SkillzBot.JSON.Settings
         public ulong DiscordNoteID { get; set; }
         [JsonProperty("DiscordSpamID")]
         public ulong DiscordSpamID { get; set; }
+        [JsonProperty("ProxyUrl")]
+        public string ProxyUrl { get; set; }
+        [JsonProperty("ProxyCorePath")]
+        public string ProxyCorePath { get; set; }
+        [JsonProperty("ProxyApplyTo")]
+        public string ProxyApplyTo { get; set; }
     }
 
     public partial class SettingsJson

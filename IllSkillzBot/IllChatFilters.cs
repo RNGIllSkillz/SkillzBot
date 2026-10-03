@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using SkillzBot.IllConfiguration;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.Services.Writers;
-using SkillzBot.IllConfiguration;
 using SkillzBot.Utils;
 using System;
 using System.Collections.Concurrent;
@@ -11,7 +11,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TwitchLib.Client.Events;
-using urldetector.detection;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -23,33 +22,40 @@ namespace SkillzBot.IllSkillzBot
         private readonly BotConfigModel _config;
         private readonly FlagWriterService _flagWriter;
         private readonly IYouTubeService _youTubeService;
+        private readonly LinkDetector _linkDetector;
 
-        private AhoCorasick _pichkaMatcher;
-        private HashSet<string> _mediaBlacklist;
-        private HashSet<string> _channelBlacklist;
-        private HashSet<string> _dictionary;
-        private readonly BannedWordsTrie _bannedWordsTrie = new();
-        private HashSet<string> _whitelist;
-        private ConcurrentDictionary<string, byte> _userBlacklist;
+        private AhoCorasick _pichkaMatcher = new AhoCorasick();
+        private HashSet<string> _mediaBlacklist = new HashSet<string>();
+        private HashSet<string> _channelBlacklist = new HashSet<string>();
+        private ConcurrentDictionary<string, byte> _userBlacklist = new ConcurrentDictionary<string, byte>();
 
-        private static readonly int[] Arabic2 = Enumerable.Range('\ufb50', 687).ToArray();
+        // Dictionary-driven slur detector (dic.txt + dicWhiteList.txt).
+        private volatile ProfanityDetector _profanity = ProfanityDetector.Build(Array.Empty<string>(), Array.Empty<string>());
+        // Hard-coded phrases that get their own (shorter) timeout in the message handler.
+        private static readonly ProfanityDetector BlockedPhrases =
+            ProfanityDetector.Build(new[] { "хохол", "хахол" }, Array.Empty<string>());
+
         private const int CharsInRow = 29;
         private const int ArabCharsInRow = 4;
         private const int RowsNum = 3;
+        private const char ArabicPresentationStart = 'ﭐ';
+        private const char ArabicPresentationEnd = '︀';
 
-        public IllChatFilters(ILogger<IllChatFilters> logger, 
-            ITwitchService twitchService, 
-            BotConfigModel config, 
+        public IllChatFilters(ILogger<IllChatFilters> logger,
+            ITwitchService twitchService,
+            BotConfigModel config,
             FlagWriterService flagWriter,
             IYouTubeService youTubeService,
-            IPathProvider paths)
+            IPathProvider paths,
+            LinkDetector linkDetector)
         {
-            _logger = logger; 
+            _logger = logger;
             _twitchService = twitchService;
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _flagWriter = flagWriter;
             _youTubeService = youTubeService;
             _paths = paths ?? throw new ArgumentNullException(nameof(paths));
+            _linkDetector = linkDetector ?? throw new ArgumentNullException(nameof(linkDetector));
             ReloadFilters();
         }
 
@@ -58,30 +64,25 @@ namespace SkillzBot.IllSkillzBot
             _logger.LogInformation("Reloading chat filters from files...");
             try
             {
-                _mediaBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.MediaListFileName)));
-                _channelBlacklist = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.ChannelListFileName)));
-                _dictionary = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.DicFileName)));
-                _whitelist = new HashSet<string>(File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.DicWhiteListFileName)));
+                _mediaBlacklist = new HashSet<string>(ReadLines(_paths.SharedPath, _config.FilePaths.MediaListFileName));
+                _channelBlacklist = new HashSet<string>(ReadLines(_paths.SharedPath, _config.FilePaths.ChannelListFileName));
                 _userBlacklist = new ConcurrentDictionary<string, byte>(
-                    File.ReadLines(Path.Combine(_paths.DataPath, _config.FilePaths.UserBlacklistFileName))
-                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                    ReadLines(_paths.DataPath, _config.FilePaths.UserBlacklistFileName)
                         .Distinct()
-                        .Select(x => new KeyValuePair<string, byte>(x, 0))
-                );
+                        .Select(x => new KeyValuePair<string, byte>(x, 0)));
 
-                _bannedWordsTrie.BuildTrie(_dictionary);
+                var banned = ReadLines(_paths.SharedPath, _config.FilePaths.DicFileName).ToList();
+                var whitelist = ReadLines(_paths.SharedPath, _config.FilePaths.DicWhiteListFileName).ToList();
+                _profanity = ProfanityDetector.Build(banned, whitelist);
 
-                var pichkaLines = File.ReadLines(Path.Combine(_paths.SharedPath, _config.FilePaths.PichkaListFileName));
-                _pichkaMatcher = new AhoCorasick();
-                foreach (var line in pichkaLines)
-                {
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        _pichkaMatcher.AddPattern(line);
-                    }
-                }
-                _pichkaMatcher.Build();
-                _logger.LogInformation("Chat filters reloaded successfully.");
+                var pichka = new AhoCorasick();
+                foreach (var line in ReadLines(_paths.SharedPath, _config.FilePaths.PichkaListFileName))
+                    pichka.AddPattern(line);
+                pichka.Build();
+                _pichkaMatcher = pichka;
+
+                _logger.LogInformation("Chat filters reloaded: {Banned} banned words, {White} whitelist words, {Users} blacklisted users.",
+                    _profanity.BannedWordCount, _profanity.WhitelistCount, _userBlacklist.Count);
             }
             catch (Exception ex)
             {
@@ -89,12 +90,19 @@ namespace SkillzBot.IllSkillzBot
             }
         }
 
+        private static IEnumerable<string> ReadLines(string directory, string fileName)
+        {
+            var path = Path.Combine(directory, fileName);
+            if (!File.Exists(path)) return Enumerable.Empty<string>();
+            return File.ReadLines(path).Select(l => l.Trim()).Where(l => !string.IsNullOrEmpty(l));
+        }
+
         public bool CheckBooB(string message)
         {
             bool hasSuspiciousChars = false;
             foreach (char c in message)
             {
-                if ((c >= '\u2800' && c <= '\u28FF') || (c >= '\u2580' && c <= '\u259F'))
+                if ((c >= '⠀' && c <= '⣿') || (c >= '▀' && c <= '▟'))
                 {
                     hasSuspiciousChars = true;
                     break;
@@ -104,38 +112,26 @@ namespace SkillzBot.IllSkillzBot
 
             return _pichkaMatcher.ContainsAny(message);
         }
-        public bool CheckTreck(string ID)
-        {
-            return _mediaBlacklist.Contains(ID);
-        }
-        public bool CheckChannel(string channelName)
-        {
-            return _channelBlacklist.Contains(channelName);
-        }
+
+        public bool CheckTreck(string ID) => _mediaBlacklist.Contains(ID);
+
+        public bool CheckChannel(string channelName) => _channelBlacklist.Contains(channelName);
+
+        /// <summary>Dictionary slur check. Writes a flag record and returns true on a hit.</summary>
         public async Task<bool> ZapCheck(string message, string name)
         {
             if (string.IsNullOrWhiteSpace(message)) return false;
 
-            string processingMsg = StringUtil.Normalize(message);
+            var bannedWord = _profanity.Find(message);
+            if (bannedWord == null) return false;
 
-            if (_whitelist != null)
-            {
-                foreach (var white in _whitelist)
-                {
-                    processingMsg = processingMsg.Replace(white, " ");
-                }
-            }
-
-            string squashedMsg = StringUtil.GetAggressiveString(processingMsg);
-            var bannedWord = _bannedWordsTrie.FindBannedWord(squashedMsg);
-
-            if (bannedWord != null)
-            {
-                await _flagWriter.WriteAsync($"{name} : {message} (detected: {bannedWord})");
-                return true;
-            }
-            return false;
+            await _flagWriter.WriteAsync($"{name} : {message} (detected: {bannedWord})");
+            return true;
         }
+
+        /// <summary>Hard-coded ethnic slur check that is independent of dic.txt.</summary>
+        public bool ContainsBlockedPhrase(string message) => BlockedPhrases.Find(message) != null;
+
         public async Task<List<string>> YouTubeFilter(string ID)
         {
             List<string> output = new List<string>();
@@ -162,56 +158,51 @@ namespace SkillzBot.IllSkillzBot
                 return output;
             }
         }
-        public bool IsUserBlacklisted(string userID)
-        {
-            return _userBlacklist.ContainsKey(userID);
-        }
+
+        public bool IsUserBlacklisted(string userID) => _userBlacklist.ContainsKey(userID);
+
+        /// <summary>
+        /// Deletes messages from non-moderators that contain links, except a single
+        /// clip link from this channel.
+        /// </summary>
         public async Task<bool> DeleteLinks(UserObject user, OnMessageReceivedArgs e)
         {
             if (user.isMod == 1 || user.IsBroadcaster == 1) return false;
-            if (!NetUtil.IsValidLink(e.ChatMessage.Message)) return false;
-            UrlDetector parser = new UrlDetector(e.ChatMessage.Message, UrlDetectorOptions.Default);
-            var detectedUrls = parser.Detect();
-            if (detectedUrls.Count == 1)
+
+            int links = await _linkDetector.CountLinksAsync(e.ChatMessage.Message).ConfigureAwait(false);
+            if (links == 0) return false;
+
+            if (links == 1)
             {
                 var clipId = StringUtil.ExtractClipId(e.ChatMessage.Message);
-                if (clipId == null || !await _twitchService.CheckClipExistence(clipId).ConfigureAwait(false))
-                {
-                    await _twitchService.DeleteMessage(e.ChatMessage.Id);
-                    return true;
-                }
+                if (clipId != null && await _twitchService.CheckClipExistence(clipId).ConfigureAwait(false))
+                    return false;
             }
-            if (detectedUrls.Count > 1)
-            {
-                await _twitchService.DeleteMessage(e.ChatMessage.Id);
-                return true;
-            }
-            return false;
+
+            await _twitchService.DeleteMessage(e.ChatMessage.Id);
+            return true;
         }
+
         public bool FilterASCII(OnMessageReceivedArgs e)
         {
-            if (e.ChatMessage.CustomRewardId != _config.ChannelIds.Pi4KaId)
-            {
-                //if (StringUtil.IsZalgo(e.ChatMessage.Message))
-                    //return true;
-                int count = StringUtil.CheckASCII(e.ChatMessage.Message);
-                if (count / CharsInRow >= RowsNum && e.ChatMessage.Message.Length / CharsInRow > RowsNum)
-                    return true;
-                var arabicCount = Arabic2.Select(b => e.ChatMessage.Message.Count(f => f == (char)b)).Sum();
-                if (arabicCount / ArabCharsInRow >= RowsNum && e.ChatMessage.Message.Length / ArabCharsInRow >= RowsNum)
-                    return true;
-                if (e.ChatMessage.Message.Contains("ﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞ"))
-                    return true;
-            }
-            return false;
+            if (e.ChatMessage.CustomRewardId == _config.ChannelIds.Pi4KaId) return false;
+
+            string message = e.ChatMessage.Message;
+            int count = StringUtil.CheckASCII(message);
+            if (count / CharsInRow >= RowsNum && message.Length / CharsInRow > RowsNum)
+                return true;
+
+            int arabicCount = 0;
+            foreach (char c in message)
+                if (c >= ArabicPresentationStart && c < ArabicPresentationEnd) arabicCount++;
+            if (arabicCount / ArabCharsInRow >= RowsNum && message.Length / ArabCharsInRow >= RowsNum)
+                return true;
+
+            return message.Contains("ﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞﱞ");
         }
-        public void EditUserBlackList(string UserTtvID)
-        {
-            _userBlacklist.TryRemove(UserTtvID, out _);
-        }
-        public void AddToWhiteList(string WordToAdd)
-        {
-            _whitelist.Add(WordToAdd);
-        }
+
+        public void EditUserBlackList(string UserTtvID) => _userBlacklist.TryRemove(UserTtvID, out _);
+
+        public void AddToWhiteList(string WordToAdd) => _profanity.AddWhitelist(WordToAdd);
     }
 }

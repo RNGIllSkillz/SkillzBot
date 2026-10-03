@@ -1,6 +1,7 @@
-﻿using SkillzBot.Interfaces;
+using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -9,9 +10,9 @@ namespace SkillzBot.Utils
 #nullable enable
     public class CooldownManager
     {
-        private record CooldownKey(string CommandName, int? TwitchID);
+        private record CooldownKey(string CommandName, long? TwitchID);
 
-        private readonly Dictionary<CooldownKey, DateTime> _cooldowns = new();
+        private readonly ConcurrentDictionary<CooldownKey, DateTime> _cooldowns = new();
         private readonly Dictionary<string, TimeSpan> _cooldownDurations = new();
         private readonly Dictionary<string, bool> _allowBypassCooldown = new();
         private readonly Dictionary<string, bool> _isGlobal = new();
@@ -107,7 +108,7 @@ namespace SkillzBot.Utils
 
             foreach (var key in keysToRemove)
             {
-                _cooldowns.Remove(key);
+                _cooldowns.TryRemove(key, out _);
             }
         }
     }

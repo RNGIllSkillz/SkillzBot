@@ -1,10 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
-using SkillzBot.Hosts;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
-using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.IllConfiguration;
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
@@ -20,19 +16,20 @@ namespace SkillzBot.IllSkillzBot
         private readonly ITwitchService _twitchService;
         private readonly IBotStateService _botState;
         private readonly IIllAccess _illAccess;
+        private readonly IllModeratorsInteractions _modInteractions;
 
         private static QuizzObject _Quizz = new QuizzObject();
         private static readonly List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
         private static readonly object _ActiveUsers_ListLock = new object();
 
-        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService, IBotStateService botState, IIllAccess illAccess)
+        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService, IBotStateService botState, IIllAccess illAccess, IllModeratorsInteractions modInteractions)
         {
             _ircClient = ircClient ?? throw new ArgumentNullException(nameof(ircClient));
-            _database = database ?? throw new ArgumentNullException(nameof(database));            
+            _database = database ?? throw new ArgumentNullException(nameof(database));
             _twitchService = twitchService;
             _botState = botState;
             _illAccess = illAccess;
-            //_botState.Current.QuizIsRunning = false;
+            _modInteractions = modInteractions ?? throw new ArgumentNullException(nameof(modInteractions));
         }
         public async Task<UserObject> Rulette(UserObject user)
         {
@@ -51,11 +48,12 @@ namespace SkillzBot.IllSkillzBot
                     user.roulettCon = 0;
                     if (Convert.ToBoolean(user.isMod))
                     {
+                        // Twitch removes moderator status on timeout; this path schedules the re-mod.
                         if (!isGod)
-                            await _twitchService.TimeOutModerator(user, 600, STRINGS.RouletteTimeOut);
+                            await _modInteractions.TimeOutModeratorAsync(user, 600, STRINGS.RouletteTimeOut);
                     }
                     else
-                        await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut);                    
+                        await _twitchService.TimeOutUser(user, 600, STRINGS.RouletteTimeOut);
                 }
                 else
                 {
@@ -125,16 +123,6 @@ namespace SkillzBot.IllSkillzBot
             await _ircClient.SendMessage("Need to upgrade SQLReader logic at Quizz()");
             await Task.CompletedTask;
         }
-        private bool CheckQuizzAnswer(string message)
-        {
-            if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return false;
-            //if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return false;
-            //_botState.Current.QuizIsRunning = false;
-            //if (_botState.Current.AntiBotProtectionLvl == 2)
-            //    lock (_ActiveUsers_ListLock)
-            //        Quizz_ActiveUsers_List.Clear();
-            return true;
-        }
         public void QuizzActiveUser(string ttvID)
         {
             lock (_ActiveUsers_ListLock)
@@ -169,6 +157,7 @@ namespace SkillzBot.IllSkillzBot
         }
         public async Task<UserObject> UserGuessAnswer(UserObject user, string message)
         {
+            if (string.IsNullOrEmpty(_Quizz.QuizzAnswer)) return user;
             if (!_botState.Current.FirstQuizOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
             if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return user;
 
