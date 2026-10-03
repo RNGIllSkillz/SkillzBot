@@ -72,12 +72,14 @@ namespace SkillzBot.Services
             string irc = _irc.IsConnected ? "connected" : "DOWN";
             string eventSub = _health.EventSubConnected ? "connected" : "DOWN";
             string db = _health.DbCircuitOpen ? "CIRCUIT-OPEN" : "ok";
+            string se = _health.StreamElementsFailures == 0 ? "ok" : $"FAILING x{_health.StreamElementsFailures}";
 
             return $"Health | up={HealthState.FormatAge(uptime)} ram={ramMb:F0}MB threads={process.Threads.Count}" +
                    $" | irc={irc} traffic={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastActivity)}" +
                    $" | eventsub={eventSub} since={HealthState.FormatAge(_health.EventSubSinceUtc)} lastEvent={HealthState.FormatAge(_health.EventSubLastEventUtc)} reconnects={_health.EventSubReconnects}" +
                    $" | chat pending={pending} processed={processed} buffered={buffered}" +
                    $" | db={db} failures={_health.DbFailures}" +
+                   $" | se={se} lastOk={HealthState.FormatAge(_health.StreamElementsLastOkUtc)}" +
                    $" | proxy={_proxy.Describe()}" +
                    $" | silent={s.IsSilent} sub={s.IsSubActive} filter={s.ChatFilterLvl} autopred={s.AutoPred} inMatch={s.InMatch} online={s.BroadcasterIsOnline}";
         }

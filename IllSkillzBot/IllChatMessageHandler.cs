@@ -202,9 +202,15 @@ namespace SkillzBot.IllSkillzBot
 
             sw.Stop();
             Interlocked.Increment(ref _totalMessagesProcessed);
-            if (sw.ElapsedMilliseconds > 500)
+            // Commands that call the Riot API take ~1s through the proxy; only longer stalls are worth a warning.
+            if (sw.ElapsedMilliseconds > 1500)
             {
                 _logger.LogWarning("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
+                    e.ChatMessage.Username, sw.ElapsedMilliseconds, e.ChatMessage.Message);
+            }
+            else if (sw.ElapsedMilliseconds > 500)
+            {
+                _logger.LogDebug("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
                     e.ChatMessage.Username, sw.ElapsedMilliseconds, e.ChatMessage.Message);
             }
 

@@ -199,7 +199,10 @@ namespace SkillzBot.IllSkillzBot
             string key = _botState.Current.NextPredictionKey;
             var kind = PredictionCatalog.Find(key) ?? PredictionCatalog.WinLose;
             if (!string.IsNullOrEmpty(key))
+            {
+                _logger.LogInformation("Chat-chosen prediction type {Key} is used for this game.", kind.Key);
                 await _botState.UpdateStateAsync(s => s.NextPredictionKey = null);
+            }
             return kind;
         }
 
@@ -367,7 +370,7 @@ namespace SkillzBot.IllSkillzBot
         private async Task<ActivePrediction> StartWinLoseAsync(string matchId)
         {
             var predictionId = await CreateOnTwitchAsync(() => _twitchService.Start_2_Prediction(PredictionCatalog.WinLose.Title, "вин", "луз", PredictionWindowSec).AsTask());
-            if (_botState.Current.Debug) _logger.LogDebug("Ставка запущена");
+            _logger.LogInformation("Prediction started: winlose ({Title}) id {PredictionId} for {MatchId}.", PredictionCatalog.WinLose.Title, predictionId ?? "none", matchId);
             return NewActive(PredictionCatalog.WinLose, matchId, predictionId, null);
         }
 
@@ -438,7 +441,8 @@ namespace SkillzBot.IllSkillzBot
             }
 
             bool won = participant.Win;
-            if (_botState.Current.Debug) _logger.LogDebug("Матч завершен {Win}", won);
+            _logger.LogInformation("Match {MatchId} finished: {Result} after {Duration} ({Kind}, prediction {PredictionId}).",
+                active.MatchId, won ? "win" : "loss", Services.HealthState.FormatAge(TimeSpan.FromSeconds(match.Info.GameDuration)), active.Kind.Key, active.PredictionId ?? "none");
 
             if (!active.StatsRecorded)
             {
@@ -507,6 +511,7 @@ namespace SkillzBot.IllSkillzBot
             if (kind.Scope == PredictionScope.WinLose)
             {
                 await _twitchService.End_WinLoose_Prediction(won, 0);
+                _logger.LogInformation("Prediction {PredictionId} resolved: {Outcome}.", active.PredictionId, won ? "вин" : "луз");
                 return;
             }
 
@@ -523,15 +528,19 @@ namespace SkillzBot.IllSkillzBot
                                 bool streamerWins = result.Outcome == LaneOutcome.StreamerWins;
                                 await _twitchService.End_WinLoose_Prediction(streamerWins, 0);
                                 var opponentName = await _championNames.GetNameAsync((Champion)result.OpponentChampionId);
+                                _logger.LogInformation("Prediction {PredictionId} resolved: {Key} streamer {StreamerValue} vs {Opponent} {OpponentValue} -> {Winner}.",
+                                    active.PredictionId, kind.Key, result.StreamerValue, opponentName, result.OpponentValue, streamerWins ? "streamer" : "opponent");
                                 await _ircClient.SendMessage(
                                     $"Итог ставки «{kind.PollLabel}»: {StreamerLabel} {PredictionCatalog.FormatValue(result.StreamerValue, kind.Metric)} vs {opponentName} {PredictionCatalog.FormatValue(result.OpponentValue, kind.Metric)}. " +
                                     (streamerWins ? "Стример доминировал на лайне PogChamp" : "git gud"));
                                 break;
                             case LaneOutcome.Tie:
+                                _logger.LogWarning("Prediction {PredictionId} canceled: lane tie ({Key}).", active.PredictionId, kind.Key);
                                 await _ircClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                                 await _twitchService.CencelePrediction();
                                 break;
                             default:
+                                _logger.LogWarning("Prediction {PredictionId} canceled: lane opponent not found ({Key}).", active.PredictionId, kind.Key);
                                 await _ircClient.SendMessage("Не удалось определить оппонента на лайне. Ставка отменена PoroSad");
                                 await _twitchService.CencelePrediction();
                                 break;
@@ -548,6 +557,7 @@ namespace SkillzBot.IllSkillzBot
                         var result = PredictionCatalog.ResolveGroup(group, kind.Metric);
                         if (result.IsTie)
                         {
+                            _logger.LogWarning("Prediction {PredictionId} canceled: tie ({Key}).", active.PredictionId, kind.Key);
                             await _ircClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
                             await _twitchService.CencelePrediction();
                             break;
@@ -560,6 +570,7 @@ namespace SkillzBot.IllSkillzBot
                             break;
                         }
                         var endResult = await _twitchService.End_Multy_Prediction(outcomeTitle);
+                        _logger.LogInformation("Prediction {PredictionId} resolved: {Key} winner {Outcome} ({Value}) -> {EndResult}.", active.PredictionId, kind.Key, outcomeTitle, result.WinnerValue, endResult);
                         if (endResult == "OK")
                             await _ircClient.SendMessage($"Итог ставки «{kind.PollLabel}»: {outcomeTitle} ({PredictionCatalog.FormatValue(result.WinnerValue, kind.Metric)}) PogChamp");
                         else
@@ -676,6 +687,7 @@ namespace SkillzBot.IllSkillzBot
 
                 if (winner == null || winner.Votes == 0)
                 {
+                    _logger.LogInformation("Poll {PollId}: nobody voted, next prediction stays winlose.", pollId);
                     await _botState.UpdateStateAsync(s => s.NextPredictionKey = null);
                     await _ircClient.SendMessage("Никто не проголосовал, остается вин/луз.");
                     return;
@@ -686,6 +698,7 @@ namespace SkillzBot.IllSkillzBot
                            ?? PredictionCatalog.WinLose;
 
                 await _botState.UpdateStateAsync(s => s.NextPredictionKey = kind.Scope == PredictionScope.WinLose ? null : kind.Key);
+                _logger.LogInformation("Poll {PollId}: chat chose {Key} for the next game.", pollId, kind.Key);
 
                 if (kind.Scope == PredictionScope.WinLose)
                     await _ircClient.SendMessage($"Чат выбрал вин/луз ({winner.Votes} голосов).");

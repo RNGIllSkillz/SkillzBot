@@ -4,6 +4,7 @@ using SkillzBot.JSON.MediaHistory;
 using SkillzBot.JSON.MediaQueue;
 using SkillzBot.JSON.StreamElements;
 using SkillzBot.IllConfiguration;
+using SkillzBot.Services;
 using System;
 using System.Collections.Generic;
 using System.Threading.Channels;
@@ -33,10 +34,21 @@ namespace SkillzBot.API.StreamElements
         private static readonly TimeSpan MaxMessageAge = TimeSpan.FromSeconds(45);
         private long _lastDropLogTicks = 0;
 
-        public StreamElementsService(IHttpClientFactory httpClientFactory, BotConfigModel config, ILogger<StreamElementsService> logger)
+        // After CircuitFailureThreshold consecutive failures chat goes through the IRC fallback
+        // for CircuitOpenDuration, then one StreamElements attempt (no retry) probes recovery.
+        private const int CircuitFailureThreshold = 2;
+        private static readonly TimeSpan CircuitOpenDuration = TimeSpan.FromSeconds(60);
+        private int _consecutiveFailures;
+        private DateTime _circuitOpenUntilUtc = DateTime.MinValue;
+        private readonly HealthState _health;
+
+        public Func<string, CancellationToken, Task> FallbackSender { get; set; }
+
+        public StreamElementsService(IHttpClientFactory httpClientFactory, BotConfigModel config, ILogger<StreamElementsService> logger, HealthState health)
         {
             _config = config;
             _logger = logger;
+            _health = health;
 
             _validToken = !string.IsNullOrEmpty(_config.StreamElementsApiToken);
             _httpClient = httpClientFactory.CreateClient("StreamElementsClient");
@@ -75,7 +87,9 @@ namespace SkillzBot.API.StreamElements
                 {
                     return await action();
                 }
-                catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+                // An HttpClient timeout surfaces as TaskCanceledException with a TimeoutException inside
+                // (its token is the client's own, already cancelled), so it must be told apart from a caller cancel.
+                catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || !ex.CancellationToken.IsCancellationRequested)
                 {
                     retries++;
                     if (retries > 3)
@@ -166,9 +180,22 @@ namespace SkillzBot.API.StreamElements
 
         public Task SendChatMessage(string message, CancellationToken token = default)
         {
-            if (!_validToken || string.IsNullOrWhiteSpace(message)) return Task.CompletedTask;
+            if (string.IsNullOrWhiteSpace(message)) return Task.CompletedTask;
+            if (!_validToken) return SendViaFallbackAsync(message, token);
             _messageQueue.Writer.TryWrite(new QueuedMessage(message, DateTimeOffset.UtcNow));
             return Task.CompletedTask;
+        }
+
+        private async Task SendViaFallbackAsync(string message, CancellationToken token)
+        {
+            var fallback = FallbackSender;
+            if (fallback == null)
+            {
+                _logger.LogWarning("No fallback sender; chat message dropped: {Text}", message);
+                return;
+            }
+            try { await fallback(message, token); }
+            catch (Exception ex) { _logger.LogError(ex, "Fallback (IRC) send failed"); }
         }
 
         private async Task ProcessQueueAsync()
@@ -186,7 +213,7 @@ namespace SkillzBot.API.StreamElements
                             continue;
                         }
 
-                        await SendWithRetryAsync(msg.Text);
+                        await DeliverAsync(msg.Text);
                         await Task.Delay(MSG_RATE_LIMIT_MS, _shutdownCts.Token);
                     }
                 }
@@ -211,15 +238,44 @@ namespace SkillzBot.API.StreamElements
             }
         }
 
-        private async Task SendWithRetryAsync(string message)
+        /// <summary>Sends through StreamElements while it works, otherwise through the IRC fallback.</summary>
+        private async Task DeliverAsync(string message)
         {
-            const int attempts = 2;
+            bool circuitOpen = DateTime.UtcNow < _circuitOpenUntilUtc;
+            if (circuitOpen)
+            {
+                await SendViaFallbackAsync(message, _shutdownCts.Token);
+                return;
+            }
+
+            bool probing = _consecutiveFailures >= CircuitFailureThreshold; // half-open: one try only
+            bool sent = await SendWithRetryAsync(message, probing ? 1 : 2);
+            _health?.MarkStreamElementsResult(sent);
+            if (sent)
+            {
+                if (_consecutiveFailures >= CircuitFailureThreshold)
+                    _logger.LogInformation("StreamElements is reachable again; chat goes through it.");
+                _consecutiveFailures = 0;
+                return;
+            }
+
+            _consecutiveFailures++;
+            if (_consecutiveFailures >= CircuitFailureThreshold)
+            {
+                _circuitOpenUntilUtc = DateTime.UtcNow + CircuitOpenDuration;
+                _logger.LogWarning("StreamElements failed {Count} times in a row; chat goes through IRC for the next {Seconds}s.", _consecutiveFailures, (int)CircuitOpenDuration.TotalSeconds);
+            }
+            await SendViaFallbackAsync(message, _shutdownCts.Token);
+        }
+
+        private async Task<bool> SendWithRetryAsync(string message, int attempts)
+        {
             for (int attempt = 1; attempt <= attempts; attempt++)
             {
                 try
                 {
                     await PerformApiPostAsync(message);
-                    return;
+                    return true;
                 }
                 catch (OperationCanceledException) when (_shutdownCts.IsCancellationRequested)
                 {
@@ -233,10 +289,12 @@ namespace SkillzBot.API.StreamElements
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send queued message via StreamElements");
-                    return;
+                    // One line, no stack: the outage itself is what matters here.
+                    _logger.LogWarning("StreamElements send failed ({Type}: {Message}).", ex.GetType().Name, ex.InnerException?.Message ?? ex.Message);
+                    return false;
                 }
             }
+            return false;
         }
 
         private async Task PerformApiPostAsync(string message)

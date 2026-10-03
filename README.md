@@ -218,4 +218,8 @@ YouTube (и при желании другие внешние API) можно п
 
 Формат строки: `2026-10-02 22:56:34.021 [INF] [TTVEventSub] текст`. Второе поле в скобках - компонент (`TtvIRCClientService`, `TTVEventSub`, `IllChatMessageHandler`, `MySqlDatabaseService`, `StreamElementsService`, `RiotApiService`...).
 
-Каждые 5 минут пишется строка `Health | up=... | irc=... traffic=... | eventsub=... lastEvent=... | chat pending=... | db=... | ...` с состоянием всех подключений. Для разбора инцидента достаточно прислать `errors-*.log` за день и фрагмент `bot-*.log` вокруг нужного времени (строки `Health` до и после покажут, что именно отвалилось). Команда `!service` показывает то же состояние прямо в чате, `!debug` включает уровень Debug.
+Каждые 5 минут пишется строка `Health | up=... | irc=... traffic=... | eventsub=... lastEvent=... | chat pending=... | db=... | se=... | ...` с состоянием всех подключений.
+
+Сообщения в чат идут через StreamElements. Если два запроса подряд не проходят (таймаут, обрыв), бот на 60 секунд переключает чат на прямую отправку через IRC от своего аккаунта, затем пробует StreamElements снова; в логе это строки `StreamElements failed N times in a row; chat goes through IRC` и `StreamElements is reachable again`, в строке `Health` - поле `se=ok|FAILING xN`. Без токена StreamElements чат сразу идет через IRC.
+
+Жизненный цикл ставки виден в `bot-*.log` по строкам `New game detected`, `Prediction started`, `Match ... finished`, `Prediction ... resolved` и `Poll ...: chat chose <key>` / `Chat-chosen prediction type <key> is used for this game`. Для разбора инцидента достаточно прислать `errors-*.log` за день и фрагмент `bot-*.log` вокруг нужного времени (строки `Health` до и после покажут, что именно отвалилось). Команда `!service` показывает то же состояние прямо в чате, `!debug` включает уровень Debug.
