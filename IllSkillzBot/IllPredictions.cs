@@ -32,7 +32,6 @@ namespace SkillzBot.IllSkillzBot
         private const int RemakeThresholdSec = 300;
         private const int PollDurationSec = 120;
         private const int PollReminderAfterSec = PollDurationSec / 2;
-        private bool _announceUnavailable; // set after the first failed /announcement (missing scope), then plain messages only
         // The next poll is due after a random amount of *live* time (offline time does not count).
         private static readonly TimeSpan MinLiveBetweenPolls = TimeSpan.FromHours(3);
         private static readonly TimeSpan MaxLiveBetweenPolls = TimeSpan.FromHours(5);
@@ -663,27 +662,15 @@ namespace SkillzBot.IllSkillzBot
             }
         }
 
-        /// <summary>
-        /// Tells chat the poll is open: a highlighted /announcement when the token allows it
-        /// (moderator:manage:announcements), otherwise a regular message.
-        /// </summary>
+        /// <summary>Same style as the prediction-start notice: three identical lines back to back, then the options.</summary>
         private async Task AnnouncePollStartAsync(List<string> choices)
         {
-            string text = $"ОПРОС над чатом: {PredictionCatalog.PollTitle} Варианты: {string.Join(" | ", choices)}. Голосуем {PollDurationSec / 60} мин PopNemo";
-            if (!_announceUnavailable)
+            for (int i = 0; i < 3; i++)
             {
-                try
-                {
-                    if (await _twitchService.Announce(text)) return;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning("Poll announcement failed ({Error}); using plain chat messages from now on.", ex.Message);
-                }
-                _announceUnavailable = true;
-                _logger.LogWarning("Chat announcements are unavailable (token needs moderator:manage:announcements); poll notices go out as plain messages.");
+                await _ircClient.SendMessage("Опрос на некст ставку запущен PopNemo PopNemo PopNemo");
+                await Task.Delay(100);
             }
-            await _ircClient.SendMessage(text);
+            await _ircClient.SendMessage($"{PredictionCatalog.PollTitle} Варианты: {string.Join(" | ", choices)}. Голосуем {PollDurationSec / 60} мин, опрос над чатом.");
         }
 
         /// <summary>Halfway through the poll, reminds chat that it is still open.</summary>
