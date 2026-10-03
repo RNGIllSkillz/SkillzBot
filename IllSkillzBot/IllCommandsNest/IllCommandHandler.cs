@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.Utils;
@@ -86,6 +86,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
                 new("!antibot", illCommands.SetAntiBotLvl, RequiresCooldown: true, 10, BypassCooldown: false, AccessLevel.Mod),
                 new("!prediction", illCommands.Prediction, RequiredAccessLevel: AccessLevel.Mod),
+                new("!predpoll", illCommands.PredPoll, RequiredAccessLevel: AccessLevel.Mod),
+                new("!nextpred", illCommands.NextPred, RequiredAccessLevel: AccessLevel.Mod),
                 new("!lang", illCommands.ChangeLanguage, RequiredAccessLevel: AccessLevel.Mod),
                 new("!silent", illCommands.ToggleSilentMode, RequiredAccessLevel: AccessLevel.Mod),
                 new("!unban", illCommands.RemoveUserFromBlacklist, RequiredAccessLevel: AccessLevel.Mod),

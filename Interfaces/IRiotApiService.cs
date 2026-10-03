@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Camille.RiotGames.MatchV5;
 using Camille.RiotGames.SummonerV4;
@@ -10,6 +10,8 @@ namespace SkillzBot.Interfaces
     public interface IRiotApiService
     {
         Task<bool> InitializeAsync();
+        /// <summary>PUUID of the tracked summoner, or null until the Riot API has resolved it.</summary>
+        string CurrentPuuid { get; }
         Task<CurrentGameInfo> GetCurrentGameAsync();
         Task<List<string>> GetRankBySummonerAsync();
         Task<Match> GetMatchAsync(string matchID);

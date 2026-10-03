@@ -49,6 +49,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly IMmrService _mmrService;
         private readonly HealthState _health;
         private readonly ProxyService _proxy;
+        private readonly IllPredictions _predictions;
 
         private string _ludka = "";
 
@@ -76,10 +77,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             SubscriptionService subscriptionService,
             IMmrService mmrService,
             HealthState health,
-            ProxyService proxy)
+            ProxyService proxy,
+            IllPredictions predictions)
         {
             _health = health;
             _proxy = proxy;
+            _predictions = predictions;
             _ircClient = ircClient;
             //_modInteractions = modInteractions;
             _chatFilters = chatFilters;
@@ -142,6 +145,40 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             }
             else
                 await _ircClient.SendMessage($"{user.Name} Не правильная команда! (!prediction on/off)");
+        }
+
+        /// <summary>!predpoll on|off|now|status - chat poll that picks the next prediction type.</summary>
+        public async Task PredPoll(UserObject user, string[] input)
+        {
+            string arg = input.Length > 1 ? input[1].ToLowerInvariant() : "status";
+            switch (arg)
+            {
+                case "on":
+                    await _botState.UpdateStateAsync(s => s.PredictionPollEnabled = true);
+                    await _ircClient.SendMessage($"@{user.Name} Опросы ставок включены.");
+                    break;
+                case "off":
+                    await _botState.UpdateStateAsync(s => s.PredictionPollEnabled = false);
+                    await _ircClient.SendMessage($"@{user.Name} Опросы ставок выключены.");
+                    break;
+                case "now":
+                    await _ircClient.SendMessage($"@{user.Name} {await _predictions.StartPollAsync()}");
+                    break;
+                default:
+                    await _ircClient.SendMessage($"@{user.Name} {_predictions.DescribePollState()}");
+                    break;
+            }
+        }
+
+        /// <summary>!nextpred list|clear|&lt;key&gt; - force the type of the next prediction.</summary>
+        public async Task NextPred(UserObject user, string[] input)
+        {
+            if (input.Length < 2 || input[1].Equals("list", StringComparison.OrdinalIgnoreCase))
+            {
+                await _ircClient.SendMessage($"@{user.Name} Типы ставок (!nextpred <key>): winlose, {IllPredictions.ListKinds()}");
+                return;
+            }
+            await _ircClient.SendMessage($"@{user.Name} {await _predictions.SetNextKindAsync(input[1])}");
         }
 
         public async Task LpCommand(UserObject user, string[] command)

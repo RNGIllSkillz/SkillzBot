@@ -1,4 +1,4 @@
-﻿namespace SkillzBot.MODELS
+namespace SkillzBot.MODELS
 {
     public class BotStateModel
     {
@@ -15,5 +15,11 @@
         public int ChatFilterLvl { get; set; }
         public int AntiBotProtectionLvl { get; set; }
         public bool PerformanceDebugMode { get; set; }
+
+        /// <summary>Prediction type chosen by chat for the next game; null means win/lose.</summary>
+        public string NextPredictionKey { get; set; }
+        /// <summary>When the last "which prediction next" poll was started (UTC).</summary>
+        public System.DateTime LastPredictionPollUtc { get; set; }
+        public bool PredictionPollEnabled { get; set; } = true;
     }
 }
