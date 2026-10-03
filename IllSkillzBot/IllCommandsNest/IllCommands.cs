@@ -9,6 +9,7 @@ using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.Services;
 using SkillzBot.Services.Infrastructure;
+using SkillzBot.Services.Proxy;
 using SkillzBot.Services.Writers;
 using SkillzBot.IllConfiguration;
 using SkillzBot.TtvClient.TTVRewards;
@@ -47,6 +48,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly SubscriptionService _subscriptionService;
         private readonly IMmrService _mmrService;
         private readonly HealthState _health;
+        private readonly ProxyService _proxy;
 
         private string _ludka = "";
 
@@ -73,9 +75,11 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             BlacklistService blacklistService,
             SubscriptionService subscriptionService,
             IMmrService mmrService,
-            HealthState health)
+            HealthState health,
+            ProxyService proxy)
         {
             _health = health;
+            _proxy = proxy;
             _ircClient = ircClient;
             //_modInteractions = modInteractions;
             _chatFilters = chatFilters;
@@ -838,7 +842,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
 
             string output =
                 $"[SYS] UpTime: {uptime:dd\\:hh\\:mm} |RAM: {ramUsage:F0}MB |Threads: {threadCount} || " +
-                $"[NET] IRC: {ircStatus} | EventSub: {eventSubStatus} || " +
+                $"[NET] IRC: {ircStatus} | EventSub: {eventSubStatus} | Proxy: {_proxy.Describe()} || " +
                 $"[DB] {dbStatus} | Sess msgs: {dbStats.SessionMessagesSaved} | New users: {dbStats.SessionNewUsers} | Qry: {dbStats.SessionQueries} | " +
                 $"Total {dbStats.TotalMessages} msgs / {dbStats.TotalUsers} users";
 

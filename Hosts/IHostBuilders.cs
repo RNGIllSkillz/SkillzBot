@@ -22,6 +22,7 @@ using SkillzBot.MySQL;
 using SkillzBot.QuartZ;
 using SkillzBot.Services;
 using SkillzBot.Services.Infrastructure;
+using SkillzBot.Services.Proxy;
 using SkillzBot.Services.State;
 using SkillzBot.Services.Writers;
 using SkillzBot.TtvClient.TTVRewards;
@@ -46,12 +47,11 @@ namespace SkillzBot.Hosts
             _levelSwitch = levelSwitch;
         }
 
-        private static SocketsHttpHandler CreatePrimaryHandler() => new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            // Drop idle sockets before the remote side does, which avoids "connection reset by peer" on reuse.
-            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30)
-        };
+        // Pooled sockets are recycled before the remote side drops them, which avoids
+        // "connection reset by peer" on reuse. ProxyService routes a client through the
+        // configured proxy only when its purpose is listed in ProxyApplyTo.
+        private static Func<IServiceProvider, HttpMessageHandler> PrimaryHandler(string purpose) =>
+            sp => sp.GetRequiredService<ProxyService>().CreateHandler(purpose);
 
         public IHost BuildMainApplicationHost(string[] args)
         {
@@ -118,6 +118,7 @@ namespace SkillzBot.Hosts
                     });
 
                     services.AddSingleton<HealthState>();
+                    services.AddSingleton<ProxyService>();
 
                     // 3. State Management
                     services.AddSingleton<IBotStateService, BotStateService>();
@@ -135,16 +136,16 @@ namespace SkillzBot.Hosts
                     // HTTP Clients
                     services.AddHttpClient("StreamElementsClient", client => client.Timeout = StreamElementsTimeout)
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
-                        .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler);
+                        .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("streamelements"));
                     services.AddSingleton<IStreamElementsService, StreamElementsService>();
 
                     services.AddHttpClient<RiotHttpHandler>(client => client.Timeout = RiotTimeout)
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
-                        .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler);
+                        .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("riot"));
 
                     services.AddHttpClient<IMmrService, MmrApiService>(client => client.Timeout = MmrTimeout)
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
-                        .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler);
+                        .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("mmr"));
 
                     // 6. Bot Logic / Features
                     services.AddSingleton<LinkDetector>();
@@ -175,6 +176,7 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<IYouTubeService, YouTubeApiService>();
 
                     // 8. Hosted Services (Running in background)
+                    services.AddHostedService(sp => sp.GetRequiredService<ProxyService>()); // Starts the proxy sidecar if configured
                     services.AddHostedService<StartupInitializer>();      // Runs once
                     services.AddHostedService<TTVEventSub>();             // EventSub websocket + watchdog
                     services.AddHostedService<TwitchIrcHostedService>();  // IRC + chat loop

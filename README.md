@@ -162,6 +162,29 @@ dotnet publish -c Release
 
 Проект собирается под `net6.0` и публикуется как самодостаточный single-file для `linux-x64`. Канал выбирается переменной окружения `ENV_CHANNEL_NAME`; конфиг ожидается в `Channels_Data/<канал>/DATA/<канал>.ini`.
 
+## Прокси для YouTube (и других внешних API)
+
+YouTube (и при желании другие внешние API) можно пустить через прокси. Ссылка задается в конфиге канала:
+
+| Ключ | Назначение |
+|------|------------|
+| `ProxyUrl` | Ссылка на прокси: `http://[user:pass@]host:port`, `socks5://host:port`, `vless://uuid@host:port?...#name`, `hysteria2://password@host:port/?sni=...#name` (`hy2://` тоже принимается). Пусто - прокси выключен. |
+| `ProxyCorePath` | Путь к бинарнику `xray` или `hysteria` (или к папке с ним). Если не задан, бинарник ищется рядом с ботом, в `Channels_Data/_shared/`, в `Channels_Data/<канал>/DATA/proxy/` и в `PATH`. |
+| `ProxyApplyTo` | Какие клиенты ходят через прокси, через запятую: `youtube` (по умолчанию), `riot`, `streamelements`, `mmr`, `all`. Twitch и Discord через прокси не ходят. |
+
+Как бот поднимает прокси:
+
+| Ссылка | Режим | Что нужно на сервере |
+|--------|-------|----------------------|
+| `http://`, `socks5://` | Прямое использование | Ничего |
+| `vless://` c `security=tls` или `none`, `type=tcp` или `ws`, без `flow` | Встроенный клиент VLESS (без внешних программ) | Ничего |
+| `vless://` c `security=reality`, `flow=xtls-rprx-vision`, `type=grpc/xhttp/httpupgrade` | Сайдкар `xray` | Бинарник [xray-core](https://github.com/XTLS/Xray-core/releases) |
+| `hysteria2://` | Сайдкар `hysteria` | Бинарник [hysteria](https://github.com/apernet/hysteria/releases) (`hysteria-linux-amd64`, переименовать в `hysteria`) |
+
+В режиме сайдкара бот сам генерирует конфиг (`Channels_Data/<канал>/DATA/proxy/*.json`), запускает ядро с SOCKS5 на `127.0.0.1:<свободный порт>`, перезапускает его при падении и останавливает при выходе. Если ядро для ссылки не найдено, прокси отключается, об этом пишется ошибка в лог. Состояние прокси видно в строке `Health` (`proxy=xray up socks5:... restarts=0 [youtube]`) и в `!service`.
+
+Переменные окружения `HTTP_PROXY`/`HTTPS_PROXY` после переезда на `ProxyUrl` лучше убрать: они заворачивают в прокси вообще весь трафик бота, включая Twitch и StreamElements.
+
 ## Логи
 
 Папка `Channels_Data/<канал>/DATA/logs/`, ротация по дням:

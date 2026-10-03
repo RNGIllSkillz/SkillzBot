@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.Interfaces;
+using SkillzBot.Services.Proxy;
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -22,6 +23,7 @@ namespace SkillzBot.Services
         private readonly IllChatMessageHandler _chat;
         private readonly HealthState _health;
         private readonly IBotStateService _botState;
+        private readonly ProxyService _proxy;
         private readonly ILogger<HealthReporter> _logger;
 
         public HealthReporter(
@@ -29,8 +31,10 @@ namespace SkillzBot.Services
             IllChatMessageHandler chat,
             HealthState health,
             IBotStateService botState,
+            ProxyService proxy,
             ILogger<HealthReporter> logger)
         {
+            _proxy = proxy;
             _irc = irc;
             _chat = chat;
             _health = health;
@@ -74,6 +78,7 @@ namespace SkillzBot.Services
                    $" | eventsub={eventSub} since={HealthState.FormatAge(_health.EventSubSinceUtc)} lastEvent={HealthState.FormatAge(_health.EventSubLastEventUtc)} reconnects={_health.EventSubReconnects}" +
                    $" | chat pending={pending} processed={processed} buffered={buffered}" +
                    $" | db={db} failures={_health.DbFailures}" +
+                   $" | proxy={_proxy.Describe()}" +
                    $" | silent={s.IsSilent} sub={s.IsSubActive} filter={s.ChatFilterLvl} autopred={s.AutoPred} inMatch={s.InMatch} online={s.BroadcasterIsOnline}";
         }
     }

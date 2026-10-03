@@ -1,4 +1,4 @@
-﻿using SkillzBot.IllConfiguration;
+using SkillzBot.IllConfiguration;
 using SkillzBot.Readers;
 using System;
 using System.Collections.Generic;
@@ -46,6 +46,12 @@ namespace SkillzBot.Configuration
                 DiscordNoteID = botConfigs.DiscordNoteID,
                 DiscordSpamID = botConfigs.DiscordSpamID,
                 RootUser = "rng_backtrack",
+
+                ProxyUrl = botConfigs.ProxyUrl?.Trim(),
+                ProxyCorePath = botConfigs.ProxyCorePath?.Trim(),
+                ProxyApplyTo = string.IsNullOrWhiteSpace(botConfigs.ProxyApplyTo)
+                    ? new[] { "youtube" }
+                    : botConfigs.ProxyApplyTo.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
 
                 Database = new DatabaseConfig(
                     botConfigs.MySQL_IP,

@@ -1,5 +1,9 @@
-﻿using Google.Apis.Services;
+using Google.Apis.Http;
+using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
+using SkillzBot.Services.Proxy;
+using System.Net;
+using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Interfaces;
 using SkillzBot.IllConfiguration; 
@@ -19,7 +23,7 @@ namespace SkillzBot.API.YouTube
         private readonly bool _isValidToken;
         private readonly List<string> _requestParts;
 
-        public YouTubeApiService(BotConfigModel config, ILogger<YouTubeApiService> logger)
+        public YouTubeApiService(BotConfigModel config, ILogger<YouTubeApiService> logger, ProxyService proxy)
         {
             _logger = logger;
             _isValidToken = StringUtil.IsValidApiToken(config.YouTubeApiToken);
@@ -29,8 +33,12 @@ namespace SkillzBot.API.YouTube
                 _youTubeClient = new YouTubeService(new BaseClientService.Initializer()
                 {
                     ApiKey = config.YouTubeApiToken,
-                    ApplicationName = "IllSkillzBot v3.0"
+                    ApplicationName = "IllSkillzBot v3.0",
+                    HttpClientFactory = new ProxyAwareHttpClientFactory(proxy),
+                    HttpClientTimeout = TimeSpan.FromSeconds(20),
                 });
+                if (proxy.AppliesTo("youtube"))
+                    _logger.LogInformation("YouTube API requests go through the outbound proxy ({Proxy}).", proxy.Describe());
             }
             else
             {
@@ -44,6 +52,21 @@ namespace SkillzBot.API.YouTube
                  "Snippet",
                  "Status"
             };
+        }
+
+        /// <summary>Lets the Google client use the bot's proxy-aware socket handler.</summary>
+        private sealed class ProxyAwareHttpClientFactory : HttpClientFactory
+        {
+            private readonly ProxyService _proxy;
+            public ProxyAwareHttpClientFactory(ProxyService proxy) { _proxy = proxy; }
+
+            protected override HttpMessageHandler CreateHandler(CreateHttpClientArgs args)
+            {
+                return _proxy.CreateHandler("youtube", h =>
+                {
+                    if (args.GZipEnabled) h.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                });
+            }
         }
 
         public async Task<List<string>> SearchByIdAsync(string vidID)
