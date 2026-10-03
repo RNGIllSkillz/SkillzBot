@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 
 namespace SkillzBot.Services.Infrastructure
@@ -10,6 +10,8 @@ namespace SkillzBot.Services.Infrastructure
         public string DataPath { get; private set; }
         public string SharedPath { get; private set; }
         public string ConfigPath { get; private set; }
+        /// <summary>Pre-json location of the config; copied to <see cref="ConfigPath"/> once if found.</summary>
+        public string LegacyConfigPath { get; private set; }
 
         public PathProvider()
         {
@@ -20,7 +22,8 @@ namespace SkillzBot.Services.Infrastructure
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             DataPath = Path.Combine(baseDir, $"Channels_Data/{_channelName}/DATA/");
             SharedPath = Path.Combine(baseDir, "Channels_Data/_shared/");
-            ConfigPath = Path.Combine(DataPath, $"{_channelName}.ini");
+            ConfigPath = Path.Combine(DataPath, $"{_channelName}.json");
+            LegacyConfigPath = Path.Combine(DataPath, $"{_channelName}.ini");
 
             EnsureDirectoriesExist();
         }

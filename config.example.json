@@ -1,0 +1,46 @@
+{
+  "_comment": "Copy to Channels_Data/<channel>/DATA/<channel>.json. Keys marked (required) must be set; the rest may be empty strings to disable a feature.",
+
+  "ChannelName": "streamer_login (required)",
+  "BrodcasterId": "123456789 (Twitch user id of the channel)",
+  "RootUser": "your_twitch_login (required; owner of the !root commands)",
+
+  "BotTwitchName": "bot_login",
+  "BotTwitchAuth": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (required; IRC token of the bot account)",
+  "TApiClientId": "twitch application client id",
+  "TApiAccessToken": "broadcaster user token: channel:manage:predictions channel:manage:polls channel:manage:redemptions moderator:manage:banned_users moderator:manage:chat_messages moderator:read:chatters channel:manage:moderators channel:manage:vips user:manage:whispers clips:edit",
+
+  "RiotApiToken": "RGAPI-xxxxxxxx (required)",
+  "Summoner_Name": "GameName#TAG",
+  "SummonerRegion": "euw",
+
+  "StreamElementsApiToken": "JWT token (chat replies and song requests go through StreamElements)",
+  "StreamElementsID": "StreamElements channel id",
+
+  "YouTubeApiToken": "Google API key for song request validation",
+  "GPTApiToken": "",
+
+  "MySQL_IP": "127.0.0.1",
+  "MySQL_Port": 3306,
+  "MySQL_User": "skillzbot",
+  "MySQL_password": "secret",
+
+  "DiscordBotToken": "",
+  "DiscordNoteID": 0,
+  "DiscordSpamID": 0,
+
+  "ZakazTrekaId": "channel points reward id: song request",
+  "Pi4KaId": "reward id: ascii art pass",
+  "UvalId": "reward id: timeout an unsubscribed user",
+  "UvalSabId": "reward id: timeout a subscriber",
+  "UvalVipId": "reward id: timeout a VIP",
+  "uvalMod": "reward id: timeout a moderator",
+  "CenceleUval": "reward id: cancel a timeout",
+  "EmoteModeId": "reward id: emote-only mode",
+
+  "ChatFilterLvl": 3,
+
+  "ProxyUrl": "",
+  "ProxyCorePath": "",
+  "ProxyApplyTo": "youtube"
+}

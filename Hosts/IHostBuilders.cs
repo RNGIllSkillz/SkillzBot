@@ -111,7 +111,16 @@ namespace SkillzBot.Hosts
                         var pathProvider = sp.GetRequiredService<IPathProvider>();
                         if (!System.IO.File.Exists(pathProvider.ConfigPath))
                         {
-                            throw new System.IO.FileNotFoundException($"Config not found at {pathProvider.ConfigPath}");
+                            if (System.IO.File.Exists(pathProvider.LegacyConfigPath))
+                            {
+                                // Same JSON content, new extension. The .ini stays behind as a backup.
+                                System.IO.File.Copy(pathProvider.LegacyConfigPath, pathProvider.ConfigPath);
+                                Log.Warning("Config migrated from {Old} to {New}; the old file is kept as a backup and is no longer read.", pathProvider.LegacyConfigPath, pathProvider.ConfigPath);
+                            }
+                            else
+                            {
+                                throw new System.IO.FileNotFoundException($"Config not found at {pathProvider.ConfigPath} (see config.example.json)");
+                            }
                         }
 
                         return BotConfigurationFactory.Create(pathProvider.ConfigPath);

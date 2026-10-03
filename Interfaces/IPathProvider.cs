@@ -1,7 +1,8 @@
-﻿public interface IPathProvider
+public interface IPathProvider
 {
     string DataPath { get; }
     string SharedPath { get; }
     string ConfigPath { get; }
+    string LegacyConfigPath { get; }
     string GetFullPath(string relativePath, bool isShared = false);
 }
