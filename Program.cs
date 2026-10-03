@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using SkillzBot.Hosts;
@@ -14,18 +14,25 @@ namespace IllSkillzBot
     {
         static async Task Main(string[] args)
         {
-            // Global settings
             Console.OutputEncoding = Encoding.UTF8;
             var culture = new CultureInfo("ru-RU");
             CultureInfo.DefaultThreadCurrentCulture = culture;
             CultureInfo.DefaultThreadCurrentUICulture = culture;
 
-            // Initial Bootstrap Logger (just for startup errors)
+            // Bootstrap logger for startup errors; replaced by the host's Serilog configuration.
             var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .WriteTo.Console()
                 .CreateLogger();
+
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+                Log.Fatal(e.ExceptionObject as Exception, "Unhandled Domain Exception");
+            TaskScheduler.UnobservedTaskException += (s, e) =>
+            {
+                Log.Error(e.Exception, "Unobserved task exception");
+                e.SetObserved();
+            };
 
             try
             {
@@ -35,7 +42,6 @@ namespace IllSkillzBot
                 using var host = hostBuilders.BuildMainApplicationHost(args);
 
                 Log.Information("Starting Host...");
-                await InitializeApplicationAsync();                
                 await host.RunAsync();
             }
             catch (Exception ex)
@@ -47,16 +53,6 @@ namespace IllSkillzBot
             {
                 Log.CloseAndFlush();
             }
-        }        
-        private static async Task InitializeApplicationAsync()
-        {
-            AppDomain.CurrentDomain.UnhandledException += (s, e) => 
-                Log.Fatal((Exception)e.ExceptionObject, "Unhandled Domain Exception");   
-            Console.OutputEncoding = Encoding.UTF8;
-            var culture = new CultureInfo("ru-RU");
-            CultureInfo.DefaultThreadCurrentCulture = culture;
-            CultureInfo.DefaultThreadCurrentUICulture = culture;            
-            await Task.CompletedTask;
-        }        
+        }
     }
 }

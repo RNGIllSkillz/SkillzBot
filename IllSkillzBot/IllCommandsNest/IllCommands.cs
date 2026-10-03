@@ -1,4 +1,4 @@
-﻿using Camille.Enums;
+using Camille.Enums;
 using Camille.RiotGames.LeagueV4;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -281,78 +281,66 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         public async Task<LP> GetLpAsync(string summonerName = null, string region = null)
         {
             bool isForCurrentUser = string.IsNullOrEmpty(summonerName);
-            LeagueEntry[] rank;
+            LeagueEntry[] rank = isForCurrentUser
+                ? await _riotApi.GetLeagueEntriesBySummonerAsync()
+                : await _riotApi.GetLeagueEntriesBySummonerAsync(summonerName, region);
+            return BuildLp(rank);
+        }
 
-            if (isForCurrentUser)
-            {
-                rank = await _riotApi.GetLeagueEntriesBySummonerAsync();
-            }
-            else
-            {
-                rank = await _riotApi.GetLeagueEntriesBySummonerAsync(summonerName, region);
-            }
+        private static LP BuildLp(LeagueEntry[] rank)
+        {
+            if (rank == null) return new LP { RANK = "Riot API error", LPoints = null };
 
-            if (rank != null)
+            var soloQueueRank = rank.FirstOrDefault(mType => mType.QueueType == QueueType.RANKED_SOLO_5x5);
+            if (soloQueueRank == null) return new LP { RANK = "Калибровка", LPoints = null };
+
+            if (soloQueueRank.MiniSeries != null)
             {
-                var soloQueueRank = rank.FirstOrDefault(mType => mType.QueueType == QueueType.RANKED_SOLO_5x5);
-                if (soloQueueRank != null)
+                var promo = soloQueueRank.MiniSeries.Progress.Select(prog => prog switch
                 {
-                    if (soloQueueRank.MiniSeries != null)
-                    {
-                        var promo = soloQueueRank.MiniSeries.Progress.Select(prog => prog switch
-                        {
-                            'L' => "❌",
-                            'W' => "✅",
-                            'N' => "➖",
-                            _ => ""
-                        }).ToList();
+                    'L' => "❌",
+                    'W' => "✅",
+                    'N' => "➖",
+                    _ => ""
+                }).ToList();
 
-                        string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{soloQueueRank.Tier} {soloQueueRank.Rank}", true)) + 1), false);
-                        string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        return new LP { RANK = "ПРОМО В " + subs[0], LPoints = string.Join(" ", promo) };
-                    }
-                    else
-                    {
-                        return new LP { RANK = $"{soloQueueRank.Tier} {soloQueueRank.Rank}", LPoints = soloQueueRank.LeaguePoints.ToString() };
-                    }
-                }
-                return new LP { RANK = "Калибровка", LPoints = null };
+                string tier = StringUtil.ConvertRank(Convert.ToString(int.Parse(StringUtil.ConvertRank($"{soloQueueRank.Tier} {soloQueueRank.Rank}", true)) + 1), false);
+                string[] subs = tier.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                return new LP { RANK = "ПРОМО В " + subs[0], LPoints = string.Join(" ", promo) };
             }
-            return new LP { RANK = "Riot API error", LPoints = null };
+
+            return new LP { RANK = $"{soloQueueRank.Tier} {soloQueueRank.Rank}", LPoints = soloQueueRank.LeaguePoints.ToString() };
         }
 
         public async Task ShowLPAsync(string sender)
         {
-            var lpData = await GetLpAsync();
+            // One Riot call serves rank, LP and win/loss.
+            var leagueEntries = await _riotApi.GetLeagueEntriesBySummonerAsync();
+            var lpData = BuildLp(leagueEntries);
             if (lpData.RANK == "Riot API error" || lpData.RANK == null)
             {
                 await _ircClient.SendMessage("Riot API error");
                 return;
             }
 
+            var state = _gameState.Current;
             if (lpData.RANK.StartsWith("ПРОМО"))
             {
-                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, _gameState.Current.SummonerName, lpData.RANK, lpData.LPoints));
+                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPPromo, sender, state.SummonerName, lpData.RANK, lpData.LPoints));
             }
             else if (lpData.RANK == "Калибровка")
             {
-                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, _gameState.Current.SummonerName, _gameState.Current.NumGames, _gameState.Current.NumWins, _gameState.Current.NumLosses, _gameState.Current.EarnedLP));
+                await _ircClient.SendMessage(string.Format(STRINGS.ShowLPCalibration, sender, state.SummonerName, state.NumGames, state.NumWins, state.NumLosses, state.EarnedLP));
             }
             else
             {
                 var rankParts = lpData.RANK.Split(' ');
-                var rank = await _riotApi.GetRankBySummonerAsync(); // Note: This might be redundant if we just want Win/Loss, optimized slightly below
                 int wins = 0, losses = 0;
-
-                var leagueEntries = await _riotApi.GetLeagueEntriesBySummonerAsync();
-                if (leagueEntries != null)
-                {
-                    var soloQ = leagueEntries.FirstOrDefault(q => q.QueueType == QueueType.RANKED_SOLO_5x5);
-                    if (soloQ != null) { wins = soloQ.Wins; losses = soloQ.Losses; }
-                }
+                var soloQ = leagueEntries.FirstOrDefault(q => q.QueueType == QueueType.RANKED_SOLO_5x5);
+                if (soloQ != null) { wins = soloQ.Wins; losses = soloQ.Losses; }
 
                 int WR = (wins + losses > 0) ? (int)Math.Ceiling(wins * 100.0 / (wins + losses)) : 0;
-                await _ircClient.SendMessage(string.Format(STRINGS.ShowLP, sender, _gameState.Current.SummonerName, rankParts[0], rankParts[1], lpData.LPoints, WR, _gameState.Current.NumGames, _gameState.Current.NumWins, _gameState.Current.NumLosses, _gameState.Current.EarnedLP));
+                await _ircClient.SendMessage(string.Format(STRINGS.ShowLP, sender, state.SummonerName, rankParts[0], rankParts[1], lpData.LPoints, WR, state.NumGames, state.NumWins, state.NumLosses, state.EarnedLP));
             }
         }
 
@@ -481,7 +469,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var history = await _streamElementsService.GetHistory();
             if (history == null || !history.History.Any()) return;
             var lastSong = history.History[0].Song;
-            int userID = await _mediaQueueService.GetUserIdByTrackIdAsync(lastSong.VideoId);
+            long userID = await _mediaQueueService.GetUserIdByTrackIdAsync(lastSong.VideoId);
             await _blacklistService.AddToMediaBlacklistAsync(lastSong.VideoId);
             if (userID != -1)
             {

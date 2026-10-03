@@ -1,10 +1,12 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Serilog.Core;
 using Serilog.Events;
+using SkillzBot.Discord;
 using SkillzBot.Interfaces;
 
 namespace SkillzBot.Hosts
@@ -18,6 +20,7 @@ namespace SkillzBot.Hosts
         private readonly ILogger<StartupInitializer> _logger;
         private readonly IRiotApiService _riotApi;
         private readonly LoggingLevelSwitch _levelSwitch;
+        private readonly DiscordClient _discord;
 
         public StartupInitializer(
             IBotStateService botState,
@@ -26,7 +29,8 @@ namespace SkillzBot.Hosts
             QuartzBackgroundTaskManager quartz,
             ILogger<StartupInitializer> logger,
             IRiotApiService riotApi,
-            LoggingLevelSwitch levelSwitch)
+            LoggingLevelSwitch levelSwitch,
+            DiscordClient discord)
         {
             _botState = botState;
             _gameState = gameState;
@@ -35,6 +39,7 @@ namespace SkillzBot.Hosts
             _logger = logger;
             _riotApi = riotApi;
             _levelSwitch = levelSwitch;
+            _discord = discord;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -67,14 +72,31 @@ namespace SkillzBot.Hosts
             }
 
             _logger.LogInformation("Initializing Riot API...");
-            var apiResult = await _riotApi.InitializeAsync();
-            if (apiResult)            
-                _logger.LogInformation("Riot API ready.");            
-            else            
-                _logger.LogWarning("Riot API failed to initialize (Token might be missing or invalid).");            
+            try
+            {
+                var apiResult = await _riotApi.InitializeAsync();
+                if (apiResult)
+                    _logger.LogInformation("Riot API ready.");
+                else
+                    _logger.LogWarning("Riot API failed to initialize (Token might be missing or invalid).");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Riot API initialization threw; it will retry on first use.");
+            }
 
             _logger.LogInformation("Scheduling Quartz Tasks...");
             await _quartz.ScheduleTasks();
+
+            _logger.LogInformation("Starting Discord client...");
+            try
+            {
+                await _discord.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Discord failed to start; continuing without it.");
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -88,8 +110,8 @@ namespace SkillzBot.Hosts
                 _paths.GetFullPath("pichkaList.txt", true),
                 _paths.GetFullPath("mediaqueue.txt", false),
                 _paths.GetFullPath("userblacklist.txt", false),
-                _paths.GetFullPath("mediaList.txt", false),
-                _paths.GetFullPath("channelList.txt", false),
+                _paths.GetFullPath("mediaList.txt", true),
+                _paths.GetFullPath("channelList.txt", true),
                 _paths.GetFullPath("Subscription.txt", false),
             };
 

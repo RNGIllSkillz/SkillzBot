@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SkillzBot.Interfaces;
 using SkillzBot.IllConfiguration; 
 using System;
@@ -27,7 +27,7 @@ namespace SkillzBot.Services.Infrastructure
         }
 
         // Used by IllCommands to ban users based on track ID
-        public async Task<int> GetUserIdByTrackIdAsync(string trackId)
+        public async Task<long> GetUserIdByTrackIdAsync(string trackId)
         {
             await _lock.WaitAsync();
             try
@@ -40,7 +40,7 @@ namespace SkillzBot.Services.Infrastructure
                     var parts = line.Split(' ');
                     if (parts.Length > 1 && parts[1] == trackId)
                     {
-                        if (int.TryParse(parts[0], out int userId))
+                        if (long.TryParse(parts[0], out long userId))
                             return userId;
                     }
                 }
@@ -57,7 +57,7 @@ namespace SkillzBot.Services.Infrastructure
         }
 
         // Used by RewardsRedemption to add tracks
-        public async Task WriteAsync(int userId, string trackId)
+        public async Task WriteAsync(long userId, string trackId)
         {
             await _lock.WaitAsync();
             try

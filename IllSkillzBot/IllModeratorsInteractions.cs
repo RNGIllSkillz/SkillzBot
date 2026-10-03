@@ -1,13 +1,11 @@
-﻿using SkillzBot.Hosts;
+using Microsoft.Extensions.Logging;
+using SkillzBot.IllConfiguration;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
-using SkillzBot.IRC;
 using SkillzBot.MODELS;
-using SkillzBot.MySQL;
 using System;
-using System.IO;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
-using SkillzBot.IllConfiguration;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -17,8 +15,12 @@ namespace SkillzBot.IllSkillzBot
         private readonly ITtvIRCClient _ircClient;
         private readonly ITwitchService _twitchService;
         private readonly IIllAccess _illAccess;
-        private readonly IBotStateService _botState; 
+        private readonly IBotStateService _botState;
         private readonly BotConfigModel _config;
+        private readonly ILogger<IllModeratorsInteractions> _logger;
+
+        // Moderators whose mod status is waiting to be restored after a timeout, keyed by login.
+        private readonly ConcurrentDictionary<string, Task> _pendingModRestores = new(StringComparer.OrdinalIgnoreCase);
 
         public IllModeratorsInteractions(
             IDatabaseService database,
@@ -26,7 +28,8 @@ namespace SkillzBot.IllSkillzBot
             ITwitchService twitchService,
             IIllAccess illAccess,
             IBotStateService botState,
-            BotConfigModel config)
+            BotConfigModel config,
+            ILogger<IllModeratorsInteractions> logger)
         {
             _database = database;
             _ircClient = ircClient;
@@ -34,7 +37,9 @@ namespace SkillzBot.IllSkillzBot
             _illAccess = illAccess;
             _botState = botState;
             _config = config;
+            _logger = logger;
         }
+
         public async Task<UserObject> IllFilterTrigger(UserObject user, string messageID = null)
         {
             if (user.banCount == 35)
@@ -71,39 +76,77 @@ namespace SkillzBot.IllSkillzBot
             }
             return user;
         }
-        public async Task UserUntimeoutTrigger(string UserName)
+
+        /// <summary>True while a timed-out moderator is waiting to get the sword back.</summary>
+        public bool IsModPendingRestore(string userName) =>
+            !string.IsNullOrEmpty(userName) && _pendingModRestores.ContainsKey(userName);
+
+        /// <summary>
+        /// Times out a user even if they are a moderator. Twitch strips moderator status on
+        /// timeout, so for moderators a background task re-adds it once the timeout expires.
+        /// The caller is never blocked for the duration of the timeout.
+        /// </summary>
+        public async Task TimeOutModeratorAsync(UserObject user, int durationSec, string reason)
         {
-            await Task.Delay(2000).ConfigureAwait(false);
+            await _twitchService.TimeOutModerator(user, durationSec, reason);
+            if (user.isMod == 1)
+                ScheduleModRestore(user, durationSec);
+        }
 
-            int failSafeCounter = 0;
+        private void ScheduleModRestore(UserObject user, int durationSec)
+        {
+            if (_pendingModRestores.ContainsKey(user.Name)) return;
 
-            while (true)
+            var task = Task.Run(() => RestoreModAfterTimeoutAsync(user.Name, user.TwitchID, durationSec));
+            if (!_pendingModRestores.TryAdd(user.Name, task)) return;
+
+            _ = task.ContinueWith(_ => _pendingModRestores.TryRemove(user.Name, out _), TaskScheduler.Default);
+        }
+
+        private async Task RestoreModAfterTimeoutAsync(string userName, long twitchId, int durationSec)
+        {
+            try
             {
-                var user = await _database.GetUserAsync(UserName).ConfigureAwait(false);
-                if (user == null || user.dbID == -404) return;
-                if (user.UvalTimer <= DateTimeOffset.Now.ToUnixTimeSeconds())
-                {
-                    bool success = await _twitchService.AddChannelModerator(user.TwitchID.ToString()).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(durationSec + 2)).ConfigureAwait(false);
 
-                    if (success)
+                // The timeout may have been extended by another redemption; wait it out.
+                for (int i = 0; i < 120; i++)
+                {
+                    double remaining = 0;
+                    try
                     {
+                        var user = await _database.GetUserAsync(userName).ConfigureAwait(false);
+                        if (user.dbID != -404)
+                            remaining = user.UvalTimer - DateTimeOffset.Now.ToUnixTimeSeconds();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not read timeout state for {User}; retrying shortly.", userName);
+                        remaining = 5;
+                    }
+
+                    if (remaining <= 0) break;
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Min(remaining + 1, 60))).ConfigureAwait(false);
+                }
+
+                for (int attempt = 1; attempt <= 6; attempt++)
+                {
+                    if (await _twitchService.AddChannelModerator(twitchId.ToString()).ConfigureAwait(false))
+                    {
+                        _logger.LogInformation("Restored moderator status for {User}.", userName);
                         return;
                     }
-                    else
-                    {
-                        failSafeCounter++;
-                        if (failSafeCounter > 5)
-                        {
-                            await _ircClient.SendMessage($"Ошибка: Не удалось вернуть права модератора для @{UserName}. Возможно пользователь забанен или произошла ошибка API.");
-                            return;
-                        }
-                        await Task.Delay(3000).ConfigureAwait(false);
-                        continue;
-                    }
+                    await Task.Delay(5000).ConfigureAwait(false);
                 }
-                await Task.Delay(1000).ConfigureAwait(false);
+
+                await _ircClient.SendMessage($"Ошибка: Не удалось вернуть права модератора для @{userName}. Возможно пользователь забанен или произошла ошибка API.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Moderator restore task for {User} failed.", userName);
             }
         }
+
         public async Task IllAllModsNotification(string message)
         {
             var mIds = await _twitchService.GetAllMods();
@@ -114,6 +157,7 @@ namespace SkillzBot.IllSkillzBot
                 await Task.Delay(100);
             }
         }
+
         public async Task IllAddModerator(UserObject user, string[] UserInput)
         {
             if (!_illAccess.Root(user)) return;
@@ -136,6 +180,7 @@ namespace SkillzBot.IllSkillzBot
             else
                 await _ircClient.SendMessage(STRINGS.InputERROR);
         }
+
         public async Task IllDeleteModerator(UserObject user, string[] UserInput)
         {
             if (!_illAccess.Root(user)) return;

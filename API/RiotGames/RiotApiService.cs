@@ -1,4 +1,4 @@
-﻿using Camille.Enums;
+using Camille.Enums;
 using Camille.RiotGames;
 using Camille.RiotGames.AccountV1;
 using Camille.RiotGames.LeagueV4;
@@ -28,10 +28,22 @@ namespace SkillzBot.API.RiotGames
         private string _gameName;
         private string _tagLine;
         private bool _isValidToken;
-        private static string lastErrorMessage = null;
+        private string lastErrorMessage = null;
         private Account account;
         private string _normalizedSummonerName;
         private readonly RiotHttpHandler _httpHandler;
+
+        // Camille has no per-call timeout; bound every call so a slow Riot API cannot stall callers.
+        private static readonly TimeSpan ApiTimeout = TimeSpan.FromSeconds(10);
+
+        private static Task<T> Bounded<T>(Task<T> task) => task.WaitAsync(ApiTimeout);
+
+        private RegionalRoute GetRegionalRoute() => (_gameState.Current.SummonerRegion ?? "euw").ToLowerInvariant() switch
+        {
+            "na" => RegionalRoute.AMERICAS,
+            "kr" => RegionalRoute.ASIA,
+            _ => RegionalRoute.EUROPE // Includes EUW, EUNE, RU, TR
+        };
 
         public RiotApiService(
         BotConfigModel config,
@@ -83,20 +95,15 @@ namespace SkillzBot.API.RiotGames
 
             try
             {
-                // Determine routing region (MatchV5 uses RegionalRoute, not PlatformRoute)
-                RegionalRoute route = _gameState.Current.SummonerRegion.ToLower() switch
-                {
-                    "na" => RegionalRoute.AMERICAS,
-                    "kr" => RegionalRoute.ASIA,
-                    _ => RegionalRoute.EUROPE // Includes EUW, EUNE, RU, TR
-                };
+                // MatchV5 uses RegionalRoute, not PlatformRoute
+                RegionalRoute route = GetRegionalRoute();
 
-                var matchIds = await _riotApi.MatchV5().GetMatchIdsByPUUIDAsync(route, _summoner.Puuid, count: 1).ConfigureAwait(false);
+                var matchIds = await Bounded(_riotApi.MatchV5().GetMatchIdsByPUUIDAsync(route, _summoner.Puuid, count: 1)).ConfigureAwait(false);
 
                 if (matchIds == null || matchIds.Length == 0)
                     return null;
 
-                var match = await _riotApi.MatchV5().GetMatchAsync(route, matchIds[0]).ConfigureAwait(false);
+                var match = await Bounded(_riotApi.MatchV5().GetMatchAsync(route, matchIds[0])).ConfigureAwait(false);
 
                 if (match == null)
                     return null;
@@ -134,13 +141,13 @@ namespace SkillzBot.API.RiotGames
         {
             try
             {
-                var account = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, _gameName, _tagLine);
+                var account = await Bounded(_riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, _gameName, _tagLine));
                 if (account == null)
                 {
                     _logger.LogWarning("Riot Account lookup returned null for {GameName}#{TagLine}", _gameName, _tagLine);
                     return null;
                 }
-                return await _riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid);
+                return await Bounded(_riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid));
             }
             catch (Exception ex)
             {
@@ -159,7 +166,7 @@ namespace SkillzBot.API.RiotGames
             {
                 try
                 {
-                    var currentGame = await _riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(_platformRoute, _summoner.Puuid).ConfigureAwait(false);
+                    var currentGame = await Bounded(_riotApi.SpectatorV5().GetCurrentGameInfoByPuuidAsync(_platformRoute, _summoner.Puuid)).ConfigureAwait(false);
                     lastErrorMessage = null;
                     return currentGame;
                 }
@@ -175,8 +182,8 @@ namespace SkillzBot.API.RiotGames
                     // Exponential backoff: 1s, 2s, 3s
                     await Task.Delay(1000 * retryCount).ConfigureAwait(false);
                 }
-                // 2. Fix for Timeouts
-                catch (TaskCanceledException)
+                // 2. Fix for Timeouts (HTTP-level and our own WaitAsync bound)
+                catch (Exception ex) when (ex is TaskCanceledException || ex is TimeoutException)
                 {
                     retryCount++;
                     if (retryCount > 3)
@@ -246,9 +253,9 @@ namespace SkillzBot.API.RiotGames
             {
                 try
                 {
-                    return await _riotApi.MatchV5().GetMatchAsync(RegionalRoute.EUROPE, matchID).ConfigureAwait(false);
+                    return await Bounded(_riotApi.MatchV5().GetMatchAsync(GetRegionalRoute(), matchID)).ConfigureAwait(false);
                 }
-                catch (HttpRequestException ex) when (ex.InnerException is System.IO.IOException)
+                catch (Exception ex) when ((ex is HttpRequestException && ex.InnerException is System.IO.IOException) || ex is TimeoutException || ex is TaskCanceledException)
                 {
                     retryCount++;
                     if (retryCount > 3)
@@ -256,7 +263,7 @@ namespace SkillzBot.API.RiotGames
                         _logger.LogError(ex, "GetMatchAsync failed after 3 retries for match ID {MatchID}", matchID);
                         throw;
                     }
-                    _logger.LogWarning("GetMatchAsync Connection Reset. Retrying {Count}/3...", retryCount);
+                    _logger.LogWarning("GetMatchAsync transient failure ({Type}). Retrying {Count}/3...", ex.GetType().Name, retryCount);
                     await Task.Delay(1000 * retryCount); // Backoff
                 }
                 catch (Exception ex)
@@ -292,7 +299,7 @@ namespace SkillzBot.API.RiotGames
                         var nameParts = SummonerName.Split('#');
                         if (nameParts.Length < 2) return null;
 
-                        var tempAccount = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, nameParts[0], nameParts[1]);
+                        var tempAccount = await Bounded(_riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, nameParts[0], nameParts[1]));
                         if (tempAccount == null) return null;
 
                         var tempPlatform = sRegion.ToLowerInvariant() switch
@@ -304,7 +311,7 @@ namespace SkillzBot.API.RiotGames
                         return await _httpHandler.GetLeagueEntriesByPUUIDAsync(tempPlatform, tempAccount.Puuid).ConfigureAwait(false);
                     }
                 }
-                catch (TaskCanceledException) // Catch Timeout
+                catch (Exception ex) when (ex is TaskCanceledException || ex is TimeoutException)
                 {
                     retryCount++;
                     if (retryCount > 3)
@@ -347,10 +354,10 @@ namespace SkillzBot.API.RiotGames
                     "na" => PlatformRoute.NA1,
                     _ => PlatformRoute.EUW1,
                 };
-                account = await _riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, gameName, tagLine);
+                account = await Bounded(_riotApi.AccountV1().GetByRiotIdAsync(RegionalRoute.EUROPE, gameName, tagLine));
                 if (account == null)
                     throw new InvalidOperationException("Account not found for the given gameName and tagLine.");
-                _summoner = await _riotApi.SummonerV4().GetByPUUIDAsync(newRegion, account.Puuid);
+                _summoner = await Bounded(_riotApi.SummonerV4().GetByPUUIDAsync(newRegion, account.Puuid));
                 return null;
             }
             catch (Exception ex)
@@ -366,7 +373,7 @@ namespace SkillzBot.API.RiotGames
             try
             {
                 if (account == null) return null;
-                return await _riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid);
+                return await Bounded(_riotApi.SummonerV4().GetByPUUIDAsync(_platformRoute, account.Puuid));
             }
             catch (Exception ex)
             {

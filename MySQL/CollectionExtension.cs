@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SkillzBot.MYSQL;
 using SkillzBot.Interfaces;
@@ -19,8 +19,8 @@ namespace SkillzBot.MySQL
                     options.Password = botConfig.Database.Password;
                     options.DatabaseName = botConfig.ChannelName;
                     
-                    options.ConnectionTimeout = 30;
-                    options.CommandTimeout = 30;
+                    options.ConnectionTimeout = 5;   // fail fast when the server is unreachable
+                    options.CommandTimeout = 15;
                     options.MaxPoolSize = 100;
                     options.MinPoolSize = 0;
                     options.Pooling = true;
