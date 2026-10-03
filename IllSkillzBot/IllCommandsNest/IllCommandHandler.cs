@@ -71,6 +71,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 new("!deletevip", illCommands.DeleteVIP, RequiredAccessLevel: AccessLevel.Root),
                 new("!addvip", illCommands.AddVIP, RequiredAccessLevel: AccessLevel.Root),
                 new("!vips", illCommands.Vips, RequiredAccessLevel: AccessLevel.Mod),
+                new("!predstats", illCommands.PredStats, RequiredAccessLevel: AccessLevel.Mod),
                 new("!addmod", modInteractions.IllAddModerator, RequiredAccessLevel: AccessLevel.Root),
                 new("!debug", illCommands.ToggleDebug, RequiredAccessLevel: AccessLevel.Root),
                 new("!addwhite", illCommands.AddTowhiteList, RequiredAccessLevel: AccessLevel.Root),

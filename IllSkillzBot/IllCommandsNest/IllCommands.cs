@@ -51,6 +51,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly ProxyService _proxy;
         private readonly IllPredictions _predictions;
         private readonly Services.Vip.VipRegistryService _vips;
+        private readonly IEngagementRepository _engagement;
 
         private string _ludka = "";
 
@@ -80,9 +81,11 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             HealthState health,
             ProxyService proxy,
             IllPredictions predictions,
-            Services.Vip.VipRegistryService vips)
+            Services.Vip.VipRegistryService vips,
+            IEngagementRepository engagement)
         {
             _vips = vips;
+            _engagement = engagement;
             _health = health;
             _proxy = proxy;
             _predictions = predictions;
@@ -912,6 +915,36 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 default:
                     await _ircClient.SendMessage("!vips | oldest [N] | sync | pin <login> | unpin <login> | since <login> <ГГГГ-ММ-ДД> | auto on|off"); return;
             }
+        }
+
+        /// <summary>!predstats [days]: how chat engages with predictions and polls.</summary>
+        public async Task PredStats(UserObject user, string[] input)
+        {
+            int days = input.Length > 1 && int.TryParse(input[1], out int d) ? Math.Clamp(d, 1, 365) : 30;
+            EngagementSummary s;
+            try { s = await _engagement.GetEngagementSummaryAsync(days); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("PredStats failed: {Error}", ex.Message);
+                await _ircClient.SendMessage("Статистика недоступна (база данных).");
+                return;
+            }
+            if (s.Predictions == 0 && s.Polls == 0)
+            {
+                await _ircClient.SendMessage($"За {days} дн. нет завершенных ставок и опросов в истории.");
+                return;
+            }
+            static string K(double v) => v >= 1000 ? $"{v / 1000:0.#}k" : $"{v:0}";
+            string outcomes = string.Join(", ", s.WinLoseOutcomes.Select(o => $"{o.Title}: ср. {o.AvgUsers:0} чел / {K(o.AvgPoints)}, побед {o.Wins}"));
+            await _ircClient.SendMessage(
+                $"Ставки за {days} дн.: {s.Predictions} (вин/луз {s.WinLose}, другие {s.Other}, вручную {s.ManualPredictions}) | " +
+                $"участников: вин/луз ср. {s.WinLoseAvgUsers:0} (макс {s.WinLoseMaxUsers}), другие ср. {s.OtherAvgUsers:0} | " +
+                $"баллов: ср. {K(s.WinLoseAvgPoints)} за вин/луз, всего {K(s.TotalPoints)} | топ-игроков в истории: {s.KnownBettors}" +
+                (outcomes.Length > 0 ? $" | {outcomes}" : ""));
+            string kinds = string.Join(", ", s.ByKind.Where(k => k.Kind != "winlose").Take(5).Select(k => $"{k.Kind} x{k.Count} (ср. {k.AvgUsers:0} чел)"));
+            await _ircClient.SendMessage(
+                $"Опросы за {days} дн.: {s.Polls}, голосов ср. {s.PollAvgVotes:0} (макс {s.PollMaxVotes})" +
+                (kinds.Length > 0 ? $" | другие ставки: {kinds}" : ""));
         }
 
         public async Task GetServiceStatus(UserObject user)

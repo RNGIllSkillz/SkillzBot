@@ -28,6 +28,8 @@ namespace SkillzBot.MySQL
                 });
 
             services.AddSingleton<IDatabaseService, MySqlDatabaseService>();
+            services.AddSingleton<IVipRepository>(sp => (MySqlDatabaseService)sp.GetRequiredService<IDatabaseService>());
+            services.AddSingleton<IEngagementRepository>(sp => (MySqlDatabaseService)sp.GetRequiredService<IDatabaseService>());
 
             return services;
         }

@@ -22,12 +22,4 @@ namespace SkillzBot.MODELS
         /// <summary>Pinned VIPs are never removed by the automatic rotation.</summary>
         public bool Pinned { get; set; }
     }
-
-    public class VipRegistryModel
-    {
-        public List<VipRecord> Vips { get; set; } = new List<VipRecord>();
-        public DateTime? LastSyncUtc { get; set; }
-        /// <summary>False until the first successful sync; VIPs found by that sync get an unknown date.</summary>
-        public bool Seeded { get; set; }
-    }
 }
