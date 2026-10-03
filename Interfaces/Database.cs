@@ -25,6 +25,8 @@ namespace SkillzBot.Interfaces
         Task DeleteUserAsync(string userName);
         Task AddPointsAsync(int amount, long? twitchId = null);
         Task<QuizzObject> GetQuizAsync(int id);
+        /// <summary>A random row from dbQuiz, or null when the table is empty.</summary>
+        Task<QuizzObject> GetRandomQuizAsync();
         Task AddQuizPointsAsync(int amount, long twitchId);
         Task SpendQuizPointsAsync(int amount, long twitchId);
         Task UpdateOnlineStatusAsync(List<string> chatters);

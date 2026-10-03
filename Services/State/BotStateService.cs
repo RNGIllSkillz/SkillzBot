@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SkillzBot.Configuration;
 using SkillzBot.IllConfiguration;
 using SkillzBot.Interfaces;
@@ -94,6 +94,22 @@ namespace SkillzBot.Services.State
             }
             await SaveAsync();
         }
+
+        public Task SetBroadcasterOnlineAsync(bool online) => UpdateStateAsync(s =>
+        {
+            var now = DateTime.UtcNow;
+            if (online)
+            {
+                if (!s.BroadcasterIsOnline || !s.LiveSinceUtc.HasValue)
+                    s.LiveSinceUtc = now;
+            }
+            else if (s.LiveSinceUtc.HasValue)
+            {
+                s.LiveSecondsBank += Math.Max(0, (now - s.LiveSinceUtc.Value).TotalSeconds);
+                s.LiveSinceUtc = null;
+            }
+            s.BroadcasterIsOnline = online;
+        });
 
         public async Task SaveAsync()
         {

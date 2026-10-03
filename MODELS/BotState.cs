@@ -21,6 +21,12 @@ namespace SkillzBot.MODELS
         /// <summary>When the last "which prediction next" poll was started (UTC).</summary>
         public System.DateTime LastPredictionPollUtc { get; set; }
         public bool PredictionPollEnabled { get; set; } = true;
+        /// <summary>Live seconds accumulated since the last prediction poll, over finished live segments.</summary>
+        public double LiveSecondsBank { get; set; }
+        /// <summary>Start of the current live segment, or null while offline.</summary>
+        public System.DateTime? LiveSinceUtc { get; set; }
+        /// <summary>Live seconds required before the next poll; drawn at random after each poll.</summary>
+        public double NextPollAfterLiveSec { get; set; }
 
         /// <summary>Prediction the bot still owes a resolution for; survives restarts.</summary>
         public ActivePredictionState ActivePrediction { get; set; }

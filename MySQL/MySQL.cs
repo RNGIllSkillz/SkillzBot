@@ -633,6 +633,29 @@ namespace SkillzBot.MYSQL
             catch (Exception ex) { _logger.LogError(ex, "Failed to get quiz"); throw; }
         }
 
+        public async Task<QuizzObject> GetRandomQuizAsync()
+        {
+            CountQuery();
+            const string sql = "SELECT Question, Answer, Prize FROM dbQuiz ORDER BY RAND() LIMIT 1";
+            try
+            {
+                await using var connection = await OpenConnectionAsync();
+                await using var command = new MySqlCommand(sql, connection);
+                await using var reader = await command.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return new QuizzObject
+                    {
+                        QuizzQuestion = reader.GetString("Question"),
+                        QuizzAnswer = reader.GetString("Answer"),
+                        QuizzCost = reader.GetInt32("Prize")
+                    };
+                }
+                return null;
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Failed to get a random quiz"); throw; }
+        }
+
         public async Task AddQuizPointsAsync(int amount, long twitchId)
         {
             CountQuery();

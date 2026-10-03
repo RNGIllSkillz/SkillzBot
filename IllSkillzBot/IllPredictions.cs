@@ -31,7 +31,9 @@ namespace SkillzBot.IllSkillzBot
         private const int NewGameMaxLengthSec = 30;
         private const int RemakeThresholdSec = 300;
         private const int PollDurationSec = 120;
-        private static readonly TimeSpan PollInterval = TimeSpan.FromHours(4);
+        // The next poll is due after a random amount of *live* time (offline time does not count).
+        private static readonly TimeSpan MinLiveBetweenPolls = TimeSpan.FromHours(3);
+        private static readonly TimeSpan MaxLiveBetweenPolls = TimeSpan.FromHours(5);
         private static readonly TimeSpan RecoveryRetryDelay = TimeSpan.FromSeconds(60);
         private static readonly TimeSpan StaleMatchGrace = TimeSpan.FromHours(1);
         private static readonly TimeSpan StalePollAge = TimeSpan.FromDays(1);
@@ -571,11 +573,25 @@ namespace SkillzBot.IllSkillzBot
 
         #region Chat poll for the next prediction type
 
+        private static double LiveSecondsSinceLastPoll(BotStateModel s)
+        {
+            double total = s.LiveSecondsBank;
+            if (s.BroadcasterIsOnline && s.LiveSinceUtc.HasValue)
+                total += Math.Max(0, (DateTime.UtcNow - s.LiveSinceUtc.Value).TotalSeconds);
+            return total;
+        }
+
+        private static double RequiredLiveSeconds(BotStateModel s) =>
+            s.NextPollAfterLiveSec > 0 ? s.NextPollAfterLiveSec : TimeSpan.FromHours(4).TotalSeconds;
+
+        private static double DrawNextPollThresholdSeconds() =>
+            Random.Shared.Next((int)MinLiveBetweenPolls.TotalSeconds, (int)MaxLiveBetweenPolls.TotalSeconds + 1);
+
         private async Task MaybeStartPollAsync()
         {
             var s = _botState.Current;
             if (!s.PredictionPollEnabled || !s.AutoPred || !s.IsSubActive || !s.BroadcasterIsOnline) return;
-            if (DateTime.UtcNow - s.LastPredictionPollUtc < PollInterval) return;
+            if (LiveSecondsSinceLastPoll(s) < RequiredLiveSeconds(s)) return;
             await StartPollAsync();
         }
 
@@ -591,7 +607,15 @@ namespace SkillzBot.IllSkillzBot
                 var choices = new List<string> { PredictionCatalog.WinLose.PollLabel };
                 choices.AddRange(options.Select(o => o.PollLabel));
 
-                await _botState.UpdateStateAsync(st => st.LastPredictionPollUtc = DateTime.UtcNow);
+                // Restart the live-time counter and draw when the next poll becomes due.
+                await _botState.UpdateStateAsync(st =>
+                {
+                    var now = DateTime.UtcNow;
+                    st.LastPredictionPollUtc = now;
+                    st.LiveSecondsBank = 0;
+                    st.LiveSinceUtc = st.BroadcasterIsOnline ? now : null;
+                    st.NextPollAfterLiveSec = DrawNextPollThresholdSeconds();
+                });
 
                 var pollId = await _twitchService.CreatePollAsync(PredictionCatalog.PollTitle, choices, PollDurationSec);
                 if (pollId == null)
@@ -687,7 +711,8 @@ namespace SkillzBot.IllSkillzBot
             string tracking = s.ActivePrediction == null
                 ? "нет"
                 : $"{s.ActivePrediction.MatchId} ({(PredictionCatalog.Find(s.ActivePrediction.KindKey) ?? PredictionCatalog.WinLose).PollLabel}, {Services.HealthState.FormatAge(DateTime.UtcNow - s.ActivePrediction.StartedUtc)})";
-            return $"Опросы: {(s.PredictionPollEnabled ? "on" : "off")} | следующая ставка: {next.PollLabel} | последний опрос: {lastPoll} | идет сейчас: {(_pollRunning == 1 ? "да" : "нет")} | интервал: {PollInterval.TotalHours:0}ч | трекинг матча: {tracking}";
+            string live = $"{Services.HealthState.FormatAge(TimeSpan.FromSeconds(LiveSecondsSinceLastPoll(s)))} из {Services.HealthState.FormatAge(TimeSpan.FromSeconds(RequiredLiveSeconds(s)))}";
+            return $"Опросы: {(s.PredictionPollEnabled ? "on" : "off")} | следующая ставка: {next.PollLabel} | последний опрос: {lastPoll} | эфира с тех пор: {live} | идет сейчас: {(_pollRunning == 1 ? "да" : "нет")} | трекинг матча: {tracking}";
         }
 
         public async Task<string> SetNextKindAsync(string key)

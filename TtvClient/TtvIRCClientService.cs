@@ -299,11 +299,8 @@ namespace SkillzBot.IRC
             {
                 _logger?.LogInformation("Processing stream down event");
 
-                await _botState.UpdateStateAsync(s =>
-                {
-                    s.BroadcasterIsOnline = false;
-                    s.FirstQuizOfTheDay = true;
-                });
+                await _botState.UpdateStateAsync(s => s.FirstQuizOfTheDay = true);
+                await _botState.SetBroadcasterOnlineAsync(false);
 
                 string chatMessage = _gameState.Current.EarnedLP < 0 ? STRINGS.OnStreadDownLowLP : STRINGS.OnStreadDownHighLP;
                 await SendMessage(chatMessage);
@@ -319,7 +316,7 @@ namespace SkillzBot.IRC
             try
             {
                 _logger?.LogInformation("Processing stream up event");
-                await _botState.UpdateStateAsync(s => s.BroadcasterIsOnline = true);
+                await _botState.SetBroadcasterOnlineAsync(true);
                 await SendMessage(string.Format(STRINGS.OnStreamUP, _config.ChannelName));
             }
             catch (Exception ex)
