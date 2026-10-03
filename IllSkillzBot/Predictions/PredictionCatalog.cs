@@ -48,17 +48,17 @@ namespace SkillzBot.IllSkillzBot.Predictions
         /// <summary>Weights are the original random chances of each prediction type.</summary>
         public static readonly IReadOnlyList<PredictionKind> Alternatives = new[]
         {
-            new PredictionKind("kills2",  PredictionScope.Lane, PredictionMetric.Kills,  15, "Киллы: стример vs лайн", "Кто сделает больше убийств на лайне?"),
-            new PredictionKind("cs2",     PredictionScope.Lane, PredictionMetric.Cs,     20, "CS: стример vs лайн",    "У кого будет больше CS на лайне?"),
-            new PredictionKind("gold2",   PredictionScope.Lane, PredictionMetric.Gold,   20, "Голда: стример vs лайн", "Кто заработает больше золота на лайне?"),
-            new PredictionKind("dmg2",    PredictionScope.Lane, PredictionMetric.Damage, 20, "Урон: стример vs лайн",  "Кто нанесет больше урона на лайне?"),
-            new PredictionKind("kda2",    PredictionScope.Lane, PredictionMetric.Kda,    30, "KDA: стример vs лайн",   "У кого будет выше KDA на лайне?"),
+            new PredictionKind("kills2",  PredictionScope.Lane, PredictionMetric.Kills,  15, "Киллы: игрок vs лайн", "Кто сделает больше убийств на лайне?"),
+            new PredictionKind("cs2",     PredictionScope.Lane, PredictionMetric.Cs,     20, "CS: игрок vs лайн",    "У кого будет больше CS на лайне?"),
+            new PredictionKind("gold2",   PredictionScope.Lane, PredictionMetric.Gold,   20, "Голда: игрок vs лайн", "Кто заработает больше золота на лайне?"),
+            new PredictionKind("dmg2",    PredictionScope.Lane, PredictionMetric.Damage, 20, "Урон: игрок vs лайн",  "Кто нанесет больше урона на лайне?"),
+            new PredictionKind("kda2",    PredictionScope.Lane, PredictionMetric.Kda,    30, "KDA: игрок vs лайн",   "У кого будет выше KDA на лайне?"),
 
-            new PredictionKind("kills5",  PredictionScope.Team, PredictionMetric.Kills,  25, "Киллы в команде",        "Команда стримера: у кого больше киллов?"),
-            new PredictionKind("cs5",     PredictionScope.Team, PredictionMetric.Cs,     20, "CS в команде",           "Команда стримера: у кого больше CS?"),
-            new PredictionKind("gold5",   PredictionScope.Team, PredictionMetric.Gold,   15, "Голда в команде",        "Команда стримера: у кого больше золота?"),
-            new PredictionKind("dmg5",    PredictionScope.Team, PredictionMetric.Damage, 18, "Урон в команде",         "Команда стримера: у кого больше урона?"),
-            new PredictionKind("kda5",    PredictionScope.Team, PredictionMetric.Kda,    20, "KDA в команде",          "Команда стримера: у кого выше KDA?"),
+            new PredictionKind("kills5",  PredictionScope.Team, PredictionMetric.Kills,  25, "Киллы в команде",        "Команда игрока: у кого больше киллов?"),
+            new PredictionKind("cs5",     PredictionScope.Team, PredictionMetric.Cs,     20, "CS в команде",           "Команда игрока: у кого больше CS?"),
+            new PredictionKind("gold5",   PredictionScope.Team, PredictionMetric.Gold,   15, "Голда в команде",        "Команда игрока: у кого больше золота?"),
+            new PredictionKind("dmg5",    PredictionScope.Team, PredictionMetric.Damage, 18, "Урон в команде",         "Команда игрока: у кого больше урона?"),
+            new PredictionKind("kda5",    PredictionScope.Team, PredictionMetric.Kda,    20, "KDA в команде",          "Команда игрока: у кого выше KDA?"),
 
             new PredictionKind("kills10", PredictionScope.All,  PredictionMetric.Kills,  5,  "Киллы среди 10",         "Все 10 игроков: у кого больше киллов?"),
             new PredictionKind("cs10",    PredictionScope.All,  PredictionMetric.Cs,     5,  "CS среди 10",            "Все 10 игроков: у кого больше CS?"),

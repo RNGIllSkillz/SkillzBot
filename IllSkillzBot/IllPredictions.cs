@@ -325,7 +325,7 @@ namespace SkillzBot.IllSkillzBot
                                 var opponentName = await _championNames.GetNameAsync((Champion)result.OpponentChampionId);
                                 await _ircClient.SendMessage(
                                     $"Итог ставки «{kind.PollLabel}»: {StreamerLabel} {PredictionCatalog.FormatValue(result.StreamerValue, kind.Metric)} vs {opponentName} {PredictionCatalog.FormatValue(result.OpponentValue, kind.Metric)}. " +
-                                    (streamerWins ? "Стример забрал лайн PogChamp" : "Оппонент оказался сильнее PoroSad"));
+                                    (streamerWins ? "Стример доминировал на лайне PogChamp" : "git gud"));
                                 break;
                             case LaneOutcome.Tie:
                                 await _ircClient.SendMessage("Спорный исход! Ставка будет отменена PoroSad");
