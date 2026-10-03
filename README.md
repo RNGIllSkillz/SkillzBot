@@ -161,14 +161,28 @@
 
 Слова из `dicWhiteList.txt` маскируются внутри слова до поиска запретки, поэтому `книга` и `спидран` не срабатывают. Запретка, разбитая пробелами (`п и д о р`, `пи дор`), ловится; обычные соседние слова (`не грусти`, `выспи дорого`) запреткой не считаются. Чтобы ловить латинские написания, которые не читаются как транслит, добавляйте их в `dic.txt` как есть. После правки словарей выполните `!reloadfilters`.
 
-## Сборка
+## Сборка и деплой (Alpine)
+
+Бот и панель живут на одной машине с Alpine Linux: бот - самодостаточный исполняемый файл `SkillzBot` (`linux-musl-x64`, никаких зависимостей от .NET на хосте) под OpenRC-службой `skillzbot`, панель - статика под системным nginx, который проксирует `/api` на бот. OpenRC (`supervise-daemon`) перезапускает процесс при любом выходе, поэтому «перезапуск» из панели - это просто завершение процесса.
+
+**Первая настройка хоста** (один раз, от root):
+
+```sh
+scp -r deploy/alpine root@192.168.254.154:/root/
+ssh root@192.168.254.154 'APP_DIR=/opt/skillzbot CHANNEL=general_hs_ TZ=Europe/Moscow sh /root/alpine/install.sh'
+```
+
+Скрипт ставит зависимости .NET (`icu-libs icu-data-full krb5-libs libgcc libintl libssl3 libstdc++ zlib`), nginx и tzdata, создает `/opt/skillzbot/{web,Channels_Data,proxy}`, службу `/etc/init.d/skillzbot` с настройками в `/etc/conf.d/skillzbot` (`SKILLZBOT_DIR`, `ENV_CHANNEL_NAME`, `TZ`) и сайт `/etc/nginx/http.d/skillzbot.conf`. Затем переносится папка данных: `Channels_Data/` (конфиг `<канал>.json`, словари, состояния) целиком в `/opt/skillzbot/Channels_Data/` - через смонтированную SMB-шару (`apk add cifs-utils; mount -t cifs //192.168.255.10/skillzbot_data /mnt/old -o username=...`) или `scp -r` с ПК. Если используется прокси, бинарник xray/hysteria кладется в `/opt/skillzbot/proxy/`, а `ProxyCorePath` в конфиге указывает на него.
+
+**Деплой и обновления** - с ПК, из корня репозитория (нужны .NET SDK, node/npm и OpenSSH-клиент; аутентификация ключом или паролем в приглашении ssh, скрипт ничего не хранит):
 
 ```
-dotnet build -c Release
-dotnet publish -c Release
+python deploy\deploy.py --host 192.168.254.154
 ```
 
-Проект собирается под `net6.0` и публикуется как самодостаточный single-file для `linux-x64`. Канал выбирается переменной окружения `ENV_CHANNEL_NAME`; конфиг ожидается в `Channels_Data/<канал>/DATA/<канал>.json` (все ключи с комментариями - в `config.example.json`). Старый `<канал>.ini` при первом запуске автоматически копируется в `<канал>.json`; после этого читается только `.json`. Ключ `RootUser` обязателен - без него бот не стартует.
+Скрипт делает `dotnet publish` для `linux-musl-x64`, собирает панель (`npm run build`), пакует все в tar.gz, заливает по scp, останавливает службу, распаковывает поверх старых файлов (`Channels_Data` не трогается) и запускает службу. Флаги: `--skip-web` / `--skip-bot` (только одна часть), `--no-build` (переиспользовать `deploy/out`), `--no-restart` (только положить файлы - новая сборка поднимется при следующем перезапуске из панели). Ключ для входа без пароля: `ssh-keygen -t ed25519`, затем `type %USERPROFILE%\.ssh\id_ed25519.pub | ssh root@192.168.254.154 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`.
+
+**Эксплуатация.** `rc-service skillzbot status|start|stop|restart`; логи бота - `/opt/skillzbot/Channels_Data/<канал>/DATA/logs/bot-*.log` и `errors-*.log` (их же показывает панель), stdout/stderr процесса - `/var/log/skillzbot.out` и `.err` (ежедневно обрезаются, если выросли больше 50 МБ). Панель доступна на порту 80 этого хоста; снаружи перед ней ставится обратный прокси с TLS. Локальная сборка без деплоя: `dotnet build -c Release`, `cd web && npm run build`.
 
 ## Авто-ставки и опрос чата
 
@@ -202,9 +216,9 @@ Twitch ограничивает число VIP (у канала - `VipLimit` в 
 
 **Эндпоинты** (все под `/api`, JSON): `auth/login`, `auth/callback`, `auth/me`, `auth/logout` | `status`, `state` (GET/PATCH), `gamestate`, `config` (GET/PATCH), `system/info`, `system/restart`, `logs?file=bot|errors&lines=` | `chat/recent`, `chat/stream` (SSE: события `chat` и `health`), `chat/send` | `users`, `users/{login}`, `messages?user=&q=&from=&to=`, `stats/activity`, `stats/engagement`, `stats/predictions`, `stats/polls`, `stats/db` | `predictions/status`, `actions/poll`, `actions/quiz`, `actions/prediction/cancel`, `actions/filters/reload` | `filters` (GET), `filters/{name}` (PUT) | `quiz` (CRUD) | `vips`, `vips/sync`, `vips/{login}` (PATCH) | `editors` (admin).
 
-**Сборка и запуск панели.** Исходники в `web/` (React + Vite + TypeScript, страницы: дашборд, живой чат и история, пользователи, статистика ставок и опросов, VIP, фильтры и словари, викторина, настройки, система с логом и перезапуском). `docker build -t skillzbot-web web/` собирает образ nginx:alpine со статикой; переменная окружения `BOT_UPSTREAM` (по умолчанию `skillzbot:8080`) - адрес контейнера бота, на который nginx проксирует `/api` (SSE идет без буферизации). Пример - `deploy/docker-compose.example.yml`. Перед панелью ставится обратный прокси с TLS (Authentik при желании - как дополнительный слой). Для разработки: `cd web && npm install && npm run dev` с `VITE_API=http://адрес-бота:8080`.
+**Сборка и запуск панели.** Исходники в `web/` (React + Vite + TypeScript, страницы: дашборд, живой чат и история, пользователи, статистика ставок и опросов, VIP, фильтры и словари, викторина, настройки, система с логом и перезапуском). `npm run build` в `web/` собирает статику, `deploy/deploy.py` кладет ее в `/opt/skillzbot/web`, откуда ее отдает nginx (конфиг `deploy/alpine/nginx-skillzbot.conf`, SSE идет без буферизации). Для разработки: `cd web && npm install && npm run dev` с `VITE_API=http://адрес-бота:8080`. `web/Dockerfile` собирает тот же фронт в образ nginx:alpine, если панель нужно запускать контейнером отдельно от бота.
 
-**Перезапуск.** `POST /api/system/restart` корректно завершает процесс бота. На TrueNAS бот запускает лаунчер GigFilesChecker, который в исходном виде стартует процесс один раз; чтобы бот поднимался снова, лаунчер должен работать как супервизор - готовая версия `Main` лежит в `deploy/launcher/Program.cs`: перезапуск при любом выходе, повторная синхронизация файлов с хоста перед каждым стартом (перезапуск из панели подтягивает новую сборку) и передача SIGTERM боту при остановке контейнера.
+**Перезапуск.** `POST /api/system/restart` корректно завершает процесс бота; OpenRC поднимает его заново через 3 секунды (см. раздел «Сборка и деплой»). Если перед этим файлы были обновлены с `--no-restart`, стартует уже новая сборка.
 
 ## Статистика ставок и опросов (!predstats)
 
