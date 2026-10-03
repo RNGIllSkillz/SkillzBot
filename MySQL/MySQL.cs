@@ -61,7 +61,7 @@ namespace SkillzBot.MYSQL
                 MinimumPoolSize = (uint)_config.MinPoolSize,
                 ConvertZeroDateTime = true,
                 AllowZeroDateTime = true,
-                Keepalive = 30,            // detect a silently dropped TCP peer instead of hanging on it
+                // No Keepalive here: MySql.Data implements it with Socket.IOControl, which throws on Linux.
                 ConnectionLifeTime = 300,  // recycle pooled connections before NAT/firewall idle drops
                 SslMode = MySqlSslMode.Preferred
             }.ConnectionString;
