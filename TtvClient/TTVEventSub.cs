@@ -7,6 +7,7 @@ using SkillzBot.Services;
 using SkillzBot.TtvClient.TTVRewards;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ namespace SkillzBot.EventSub
 
         private readonly Dictionary<string, string> SubscriptionsTypes;
         private readonly Services.Vip.VipRegistryService _vips;
+        private readonly IEngagementRepository _engagement;
         private List<string> _lockedRewards = new List<string>();
 
         private volatile bool _isConnected = false;
@@ -63,11 +65,13 @@ namespace SkillzBot.EventSub
             BotConfigModel config,
             IBotStateService botState,
             HealthState health,
-            Services.Vip.VipRegistryService vips)
+            Services.Vip.VipRegistryService vips,
+            IEngagementRepository engagement)
         {
             _ircClient = ircClient;
             _health = health;
             _vips = vips;
+            _engagement = engagement;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
@@ -88,6 +92,8 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelUnban += OnUnban;
             _eventSubWebsocketClient.ChannelBan += OnChannelBan;
             _eventSubWebsocketClient.ChannelChatSettingsUpdate += OnChannelChatSettingsUpdate;
+            _eventSubWebsocketClient.ChannelPredictionEnd += OnPredictionEnd;
+            _eventSubWebsocketClient.ChannelPollEnd += OnPollEnd;
             _eventSubWebsocketClient.ChannelVipAdd += OnVipAdd;
             _eventSubWebsocketClient.ChannelVipRemove += OnVipRemove;
 
@@ -104,6 +110,8 @@ namespace SkillzBot.EventSub
                 { "channel.chat_settings.update", "1"},
                 { "stream.online", "1"},
                 { "stream.offline", "1"},
+                { "channel.prediction.end", "1"},
+                { "channel.poll.end", "1"},
                 { "channel.vip.add", "1"},
                 { "channel.vip.remove", "1"}
             };
@@ -421,6 +429,44 @@ namespace SkillzBot.EventSub
                 await Task.Delay(100);
             }
         }, nameof(OnPrediction));
+
+        private Task OnPredictionEnd(object sender, ChannelPredictionEndArgs e) => OnEvent(async () =>
+        {
+            var ev = e.Payload.Event;
+            var record = new MODELS.PredictionResultRecord
+            {
+                PredictionId = ev.Id, Title = ev.Title, Status = ev.Status, WinningOutcomeId = ev.WinningOutcomeId,
+                StartedUtc = ev.StartedAt.UtcDateTime, EndedUtc = ev.EndedAt.UtcDateTime,
+            };
+            foreach (var o in ev.Outcomes ?? Array.Empty<TwitchLib.EventSub.Core.Models.Predictions.PredictionOutcomes>())
+            {
+                var outcome = new MODELS.PredictionOutcomeRecord
+                {
+                    OutcomeId = o.Id, Title = o.Title, Color = o.Color, Users = o.Users ?? 0, ChannelPoints = o.ChannelPoints ?? 0,
+                    IsWinner = o.Id == ev.WinningOutcomeId,
+                };
+                foreach (var p in o.TopPredictors ?? Array.Empty<TwitchLib.EventSub.Core.Models.Predictions.Predictor>())
+                    if (long.TryParse(p.UserId, out long uid))
+                        outcome.TopPredictors.Add(new MODELS.PredictorRecord { TwitchId = uid, Login = p.UserLogin, PointsUsed = p.ChannelPointsUsed, PointsWon = p.ChannelPointsWon });
+                record.Outcomes.Add(outcome);
+            }
+            await _engagement.PredictionEndedAsync(record);
+            _logger.LogInformation("Prediction {Id} ended ({Status}): {Users} users, {Points} points over {Outcomes} outcomes.",
+                ev.Id, ev.Status, record.Outcomes.Sum(o => o.Users), record.Outcomes.Sum(o => o.ChannelPoints), record.Outcomes.Count);
+        }, nameof(OnPredictionEnd));
+
+        private Task OnPollEnd(object sender, ChannelPollEndArgs e) => OnEvent(async () =>
+        {
+            var ev = e.Payload.Event;
+            var record = new MODELS.PollResultRecord
+            {
+                PollId = ev.Id, Title = ev.Title, Status = ev.Status, StartedUtc = ev.StartedAt.UtcDateTime, EndedUtc = ev.EndedAt.UtcDateTime,
+                Choices = (ev.Choices ?? Array.Empty<TwitchLib.EventSub.Core.Models.Polls.PollChoice>())
+                    .Select(c => new MODELS.PollChoiceRecord { Title = c.Title, Votes = c.Votes ?? 0, ChannelPointsVotes = c.ChannelPointsVotes ?? 0 }).ToList(),
+            };
+            await _engagement.PollEndedAsync(record);
+            _logger.LogInformation("Poll {Id} ended ({Status}): {Votes} votes.", ev.Id, ev.Status, record.Choices.Sum(c => c.Votes));
+        }, nameof(OnPollEnd));
 
         private Task OnVipAdd(object sender, ChannelVipArgs e) => OnEvent(async () =>
         {

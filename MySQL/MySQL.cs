@@ -16,7 +16,7 @@ using System.Threading;
 
 namespace SkillzBot.MYSQL
 {
-    public sealed class MySqlDatabaseService : IDatabaseService, IDisposable
+    public sealed partial class MySqlDatabaseService : IDatabaseService, IDisposable
     {
         private readonly DatabaseConfiguration _config;
         private readonly ILogger<MySqlDatabaseService> _logger;

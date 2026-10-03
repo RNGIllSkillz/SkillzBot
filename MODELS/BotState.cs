@@ -23,6 +23,9 @@ namespace SkillzBot.MODELS
         public bool PredictionPollEnabled { get; set; } = true;
         /// <summary>At the VIP limit, !addvip removes the oldest unpinned VIP to make room.</summary>
         public bool VipAutoRotate { get; set; } = true;
+        public System.DateTime? VipLastSyncUtc { get; set; }
+        /// <summary>False until the first VIP sync; VIPs found by that sync get an unknown date.</summary>
+        public bool VipRegistrySeeded { get; set; }
         /// <summary>Live seconds accumulated since the last prediction poll, over finished live segments.</summary>
         public double LiveSecondsBank { get; set; }
         /// <summary>Start of the current live segment, or null while offline.</summary>

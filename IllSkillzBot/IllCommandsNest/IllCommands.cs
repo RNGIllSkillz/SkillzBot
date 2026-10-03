@@ -51,6 +51,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly ProxyService _proxy;
         private readonly IllPredictions _predictions;
         private readonly Services.Vip.VipRegistryService _vips;
+        private readonly IEngagementRepository _engagement;
+        private readonly IAdminRepository _admin;
 
         private string _ludka = "";
 
@@ -80,9 +82,13 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             HealthState health,
             ProxyService proxy,
             IllPredictions predictions,
-            Services.Vip.VipRegistryService vips)
+            Services.Vip.VipRegistryService vips,
+            IEngagementRepository engagement,
+            IAdminRepository admin)
         {
             _vips = vips;
+            _engagement = engagement;
+            _admin = admin;
             _health = health;
             _proxy = proxy;
             _predictions = predictions;
@@ -737,7 +743,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (_botState.Current.Debug)
                 _loggingSwitch.MinimumLevel = LogEventLevel.Debug;
             else
-                _loggingSwitch.MinimumLevel = LogEventLevel.Warning;
+                _loggingSwitch.MinimumLevel = LogEventLevel.Information;
 
             await _ircClient.SendMessage($"Debug mode is now {_botState.Current.Debug}");
         }
@@ -912,6 +918,75 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                 default:
                     await _ircClient.SendMessage("!vips | oldest [N] | sync | pin <login> | unpin <login> | since <login> <ГГГГ-ММ-ДД> | auto on|off"); return;
             }
+        }
+
+        /// <summary>!editor add|remove &lt;login&gt; | list: who may log in to the web panel besides the broadcaster and root.</summary>
+        public async Task Editor(UserObject user, string[] input)
+        {
+            string sub = input.Length > 1 ? input[1].ToLowerInvariant() : "list";
+            try
+            {
+                if (sub == "list")
+                {
+                    var editors = await _admin.GetEditorsAsync();
+                    await _ircClient.SendMessage(editors.Count == 0 ? "Редакторы панели: никого, кроме стримера и root." : "Редакторы панели: " + string.Join(", ", editors.Select(e => e.Login)));
+                    return;
+                }
+                if (input.Length < 3) { await _ircClient.SendMessage("!editor add <login> | remove <login> | list"); return; }
+                string login = input[2].Trim().TrimStart('@').ToLowerInvariant();
+                var target = await _databaseService.GetUserAsync(login);
+                long id = target != null && target.dbID != -404 ? target.TwitchID : 0;
+                if (id == 0 && long.TryParse(await _twitchService.GetUsetIDByName(login), out long fromTwitch)) id = fromTwitch;
+                if (id == 0) { await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, login)); return; }
+                if (sub == "add")
+                {
+                    await _admin.AddEditorAsync(id, login, user.Name);
+                    _logger.LogInformation("[editor] {By} added {Login} ({Id})", user.Name, login, id);
+                    await _ircClient.SendMessage($"@{login} теперь редактор панели бота: вход через Twitch по ссылке панели.");
+                }
+                else if (sub == "remove")
+                {
+                    bool ok = await _admin.RemoveEditorAsync(id);
+                    _logger.LogInformation("[editor] {By} removed {Login} ({Id}): {Ok}", user.Name, login, id, ok);
+                    await _ircClient.SendMessage(ok ? $"@{login} больше не редактор панели." : $"@{login} не был редактором.");
+                }
+                else await _ircClient.SendMessage("!editor add <login> | remove <login> | list");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("!editor failed: {Error}", ex.Message);
+                await _ircClient.SendMessage("Не удалось изменить список редакторов (база данных).");
+            }
+        }
+
+        /// <summary>!predstats [days]: how chat engages with predictions and polls.</summary>
+        public async Task PredStats(UserObject user, string[] input)
+        {
+            int days = input.Length > 1 && int.TryParse(input[1], out int d) ? Math.Clamp(d, 1, 365) : 30;
+            EngagementSummary s;
+            try { s = await _engagement.GetEngagementSummaryAsync(days); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("PredStats failed: {Error}", ex.Message);
+                await _ircClient.SendMessage("Статистика недоступна (база данных).");
+                return;
+            }
+            if (s.Predictions == 0 && s.Polls == 0)
+            {
+                await _ircClient.SendMessage($"За {days} дн. нет завершенных ставок и опросов в истории.");
+                return;
+            }
+            static string K(double v) => v >= 1000 ? $"{v / 1000:0.#}k" : $"{v:0}";
+            string outcomes = string.Join(", ", s.WinLoseOutcomes.Select(o => $"{o.Title}: ср. {o.AvgUsers:0} чел / {K(o.AvgPoints)}, побед {o.Wins}"));
+            await _ircClient.SendMessage(
+                $"Ставки за {days} дн.: {s.Predictions} (вин/луз {s.WinLose}, другие {s.Other}, вручную {s.ManualPredictions}) | " +
+                $"участников: вин/луз ср. {s.WinLoseAvgUsers:0} (макс {s.WinLoseMaxUsers}), другие ср. {s.OtherAvgUsers:0} | " +
+                $"баллов: ср. {K(s.WinLoseAvgPoints)} за вин/луз, всего {K(s.TotalPoints)} | топ-игроков в истории: {s.KnownBettors}" +
+                (outcomes.Length > 0 ? $" | {outcomes}" : ""));
+            string kinds = string.Join(", ", s.ByKind.Where(k => k.Kind != "winlose").Take(5).Select(k => $"{k.Kind} x{k.Count} (ср. {k.AvgUsers:0} чел)"));
+            await _ircClient.SendMessage(
+                $"Опросы за {days} дн.: {s.Polls}, голосов ср. {s.PollAvgVotes:0} (макс {s.PollMaxVotes})" +
+                (kinds.Length > 0 ? $" | другие ставки: {kinds}" : ""));
         }
 
         public async Task GetServiceStatus(UserObject user)

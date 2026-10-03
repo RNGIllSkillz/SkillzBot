@@ -61,6 +61,37 @@ namespace SkillzBot.Services
             }
         }
 
+        private static readonly string Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+
+        /// <summary>The same facts as the Health line, as a JSON-friendly object for the web panel.</summary>
+        public Api.StatusDto BuildSnapshot()
+        {
+            using var process = Process.GetCurrentProcess();
+            var (pending, processed, buffered, stalled, lastStall) = _chat.GetStats();
+            var s = _botState.Current;
+            var now = DateTime.UtcNow;
+            double? Age(DateTime? t) => t.HasValue ? (now - t.Value).TotalSeconds : null;
+            return new Api.StatusDto
+            {
+                TimeUtc = now,
+                Version = Version,
+                UptimeSeconds = (DateTime.Now - process.StartTime).TotalSeconds,
+                RamMb = GC.GetTotalMemory(false) / 1024.0 / 1024.0,
+                Threads = process.Threads.Count,
+                IrcConnected = _irc.IsConnected,
+                IrcLastTrafficSeconds = (DateTimeOffset.UtcNow - _irc.LastActivity).TotalSeconds,
+                EventSubConnected = _health.EventSubConnected,
+                EventSubSinceSeconds = Age(_health.EventSubSinceUtc),
+                EventSubLastEventSeconds = Age(_health.EventSubLastEventUtc),
+                EventSubReconnects = _health.EventSubReconnects,
+                ChatPending = pending, ChatProcessed = processed, ChatBuffered = buffered, ChatStalled = stalled, ChatLastStall = lastStall,
+                DbOk = !_health.DbCircuitOpen, DbFailures = _health.DbFailures,
+                StreamElementsFailures = _health.StreamElementsFailures, StreamElementsLastOkSeconds = Age(_health.StreamElementsLastOkUtc),
+                Proxy = _proxy.Describe(),
+                Silent = s.IsSilent, SubActive = s.IsSubActive, FilterLevel = s.ChatFilterLvl, AutoPred = s.AutoPred, InMatch = s.InMatch, Online = s.BroadcasterIsOnline,
+            };
+        }
+
         public string BuildLine()
         {
             using var process = Process.GetCurrentProcess();
