@@ -160,4 +160,17 @@ dotnet build -c Release
 dotnet publish -c Release
 ```
 
-Проект собирается под `net6.0` и публикуется как самодостаточный single-file для `linux-x64`. Канал выбирается переменной окружения `ENV_CHANNEL_NAME`; конфиг ожидается в `Channels_Data/<канал>/DATA/<канал>.ini`. Логи пишутся в `Channels_Data/<канал>/DATA/logs/bot-YYYYMMDD.log` с ротацией по дням.
+Проект собирается под `net6.0` и публикуется как самодостаточный single-file для `linux-x64`. Канал выбирается переменной окружения `ENV_CHANNEL_NAME`; конфиг ожидается в `Channels_Data/<канал>/DATA/<канал>.ini`.
+
+## Логи
+
+Папка `Channels_Data/<канал>/DATA/logs/`, ротация по дням:
+
+| Файл | Содержимое |
+|------|------------|
+| `bot-YYYYMMDD.log` | Все события текущего уровня. Одна строка на событие, исключения свернуты в одну строку (`=> Тип: сообщение <- ВнутреннийТип: сообщение`). |
+| `errors-YYYYMMDD.log` | Только предупреждения и ошибки, с полными стек-трейсами. |
+
+Формат строки: `2026-10-02 22:56:34.021 [INF] [TTVEventSub] текст`. Второе поле в скобках - компонент (`TtvIRCClientService`, `TTVEventSub`, `IllChatMessageHandler`, `MySqlDatabaseService`, `StreamElementsService`, `RiotApiService`...).
+
+Каждые 5 минут пишется строка `Health | up=... | irc=... traffic=... | eventsub=... lastEvent=... | chat pending=... | db=... | ...` с состоянием всех подключений. Для разбора инцидента достаточно прислать `errors-*.log` за день и фрагмент `bot-*.log` вокруг нужного времени (строки `Health` до и после покажут, что именно отвалилось). Команда `!service` показывает то же состояние прямо в чате, `!debug` включает уровень Debug.

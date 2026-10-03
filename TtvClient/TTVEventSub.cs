@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
+using SkillzBot.Services;
 using SkillzBot.TtvClient.TTVRewards;
 using System;
 using System.Collections.Generic;
@@ -34,6 +35,7 @@ namespace SkillzBot.EventSub
         private readonly BotConfigModel _config;
         private readonly IBotStateService _botState;
         private readonly ITwitchService _twitchService;
+        private readonly HealthState _health;
 
         private readonly Dictionary<string, string> SubscriptionsTypes;
         private List<string> _lockedRewards = new List<string>();
@@ -58,9 +60,11 @@ namespace SkillzBot.EventSub
             ITwitchService twitchService,
             ILogger<TTVEventSub> logger,
             BotConfigModel config,
-            IBotStateService botState)
+            IBotStateService botState,
+            HealthState health)
         {
             _ircClient = ircClient;
+            _health = health;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
@@ -92,7 +96,9 @@ namespace SkillzBot.EventSub
                 { "channel.unban", "1"},
                 { "channel.ban", "1"},
                 { "channel.prediction.begin", "1"},
-                { "channel.chat_settings.update", "1"}
+                { "channel.chat_settings.update", "1"},
+                { "stream.online", "1"},
+                { "stream.offline", "1"}
             };
         }
 
@@ -144,6 +150,7 @@ namespace SkillzBot.EventSub
             if (_isConnected)
                 Interlocked.Exchange(ref _disconnectedSinceTicks, DateTime.UtcNow.Ticks);
             _isConnected = false;
+            _health.SetEventSubConnected(false, _eventSubWebsocketClient.SessionId);
         }
 
         private async Task TryConnectAsync()
@@ -206,6 +213,7 @@ namespace SkillzBot.EventSub
             _isConnected = true;
             _hasConnectedBefore = true;
             _consecutiveFailures = 0;
+            _health.SetEventSubConnected(true, _eventSubWebsocketClient.SessionId);
             _logger.LogInformation("Websocket connected. Session ID: {SessionId}, Reconnect: {IsRequestedReconnect}", _eventSubWebsocketClient.SessionId, e.IsRequestedReconnect);
 
             // Twitch carries subscriptions over on a requested reconnect, but after a manual
@@ -218,6 +226,7 @@ namespace SkillzBot.EventSub
         {
             _isConnected = true;
             _consecutiveFailures = 0;
+            _health.SetEventSubConnected(true, _eventSubWebsocketClient.SessionId);
             _logger.LogInformation("Websocket reconnected. Session ID: {SessionId}", _eventSubWebsocketClient.SessionId);
             return Task.CompletedTask;
         }
@@ -237,9 +246,11 @@ namespace SkillzBot.EventSub
                 return;
             }
 
+            int subscribed = 0;
             foreach (var type in SubscriptionsTypes)
             {
                 bool success = await SubscribeToChannelEventsWithRetry(type.Key, type.Value);
+                if (success) subscribed++;
 
                 if (!success)
                 {
@@ -252,6 +263,7 @@ namespace SkillzBot.EventSub
                     return;
                 }
             }
+            _logger.LogInformation("EventSub ready: {Count}/{Total} subscriptions active on session {SessionId}.", subscribed, SubscriptionsTypes.Count, _eventSubWebsocketClient.SessionId);
         }
 
         private async Task<bool> SubscribeToChannelEventsWithRetry(string _type, string _version)
@@ -356,7 +368,15 @@ namespace SkillzBot.EventSub
             }
         }
 
-        private Task OnChannelChatSettingsUpdate(object sender, ChannelChatSettingsUpdateArgs e) => Guard(async () =>
+        /// <summary>Guard for channel events; also records that EventSub is delivering.</summary>
+        private Task OnEvent(Func<Task> handler, string name)
+        {
+            _health.MarkEventSubEvent();
+            _logger.LogDebug("EventSub event: {Handler}", name);
+            return Guard(handler, name);
+        }
+
+        private Task OnChannelChatSettingsUpdate(object sender, ChannelChatSettingsUpdateArgs e) => OnEvent(async () =>
         {
             bool isEmoteMode = e.Payload.Event.EmoteMode;
             _logger.LogInformation("Chat Settings Update: EmoteOnly is now {Status}", isEmoteMode);
@@ -374,17 +394,17 @@ namespace SkillzBot.EventSub
             }
         }, nameof(OnChannelChatSettingsUpdate));
 
-        private Task OnStreamUp(object sender, StreamOnlineArgs e) => Guard(() => _ircClient.OnStreamUp(), nameof(OnStreamUp));
+        private Task OnStreamUp(object sender, StreamOnlineArgs e) => OnEvent(() => _ircClient.OnStreamUp(), nameof(OnStreamUp));
 
-        private Task OnStreamDown(object sender, StreamOfflineArgs e) => Guard(() => _ircClient.OnStreamDown(), nameof(OnStreamDown));
+        private Task OnStreamDown(object sender, StreamOfflineArgs e) => OnEvent(() => _ircClient.OnStreamDown(), nameof(OnStreamDown));
 
-        private Task OnChannelBan(object sender, ChannelBanArgs e) => Guard(async () =>
+        private Task OnChannelBan(object sender, ChannelBanArgs e) => OnEvent(async () =>
         {
             if (e.Payload.Event.IsPermanent)
                 await _ircClient.SendMessage("o7");
         }, nameof(OnChannelBan));
 
-        private Task OnPrediction(object sender, ChannelPredictionBeginArgs e) => Guard(async () =>
+        private Task OnPrediction(object sender, ChannelPredictionBeginArgs e) => OnEvent(async () =>
         {
             if (!_botState.Current.IsSubActive) return;
             string message = $"PopNemo {string.Format(STRINGS.PredictionStarted, e.Payload.Event.Title)} PopNemo";
@@ -395,7 +415,7 @@ namespace SkillzBot.EventSub
             }
         }, nameof(OnPrediction));
 
-        private Task OnUnban(object sender, ChannelUnbanArgs e) => Guard(async () =>
+        private Task OnUnban(object sender, ChannelUnbanArgs e) => OnEvent(async () =>
         {
             if (!_botState.Current.IsSubActive) return;
 
@@ -409,7 +429,7 @@ namespace SkillzBot.EventSub
             await _databaseService.UpdateUserAsync(user);
         }, nameof(OnUnban));
 
-        private Task OnChannelPointsCustomRewardRedemptionAdd(object sender, ChannelPointsCustomRewardRedemptionArgs e) => Guard(() =>
+        private Task OnChannelPointsCustomRewardRedemptionAdd(object sender, ChannelPointsCustomRewardRedemptionArgs e) => OnEvent(() =>
         {
             if (!_botState.Current.IsSubActive) return Task.CompletedTask;
             return RewardProcess(

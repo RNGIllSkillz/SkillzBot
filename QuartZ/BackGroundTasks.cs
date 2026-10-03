@@ -21,6 +21,7 @@ namespace SkillzBot.QuartZ
         private readonly MediaQueueService _mediaQueueService;
         private readonly SubscriptionService _subscriptionService;
         private readonly CooldownManager _cooldownManager;
+        private readonly ITwitchService _twitchService;
 
         public BackGroundTasks(
             ILogger<BackGroundTasks> logger,
@@ -32,8 +33,10 @@ namespace SkillzBot.QuartZ
             IGameStateService gameState,
             MediaQueueService mediaQueueService,
             SubscriptionService subscriptionService,
-            CooldownManager cooldownManager)
+            CooldownManager cooldownManager,
+            ITwitchService twitchService)
         {
+            _twitchService = twitchService;
             _logger = logger;
             _ircClient = ircClient;
             _chatMessageHandler = chatMessageHandler;
@@ -74,6 +77,22 @@ namespace SkillzBot.QuartZ
             await RunStep("PruneCooldowns", () => { _cooldownManager.PruneExpiredCooldowns(); return Task.CompletedTask; });
             await RunStep("SaveBuffer", () => _chatMessageHandler.SaveBuffer(true));
             await RunStep("CheckSubscription", () => _subscriptionService.CheckSubscriptionAsync());
+            await RunStep("SyncStreamStatus", SyncStreamStatusAsync);
+        }
+
+        /// <summary>
+        /// Safety net for a missed stream.online/offline event: quietly realigns the flag
+        /// that gates the periodic roulette top with what Helix reports.
+        /// </summary>
+        private async Task SyncStreamStatusAsync()
+        {
+            if (!_twitchService.IsReady()) return;
+            bool live = await _twitchService.GetStreamStatus();
+            if (live != _botState.Current.BroadcasterIsOnline)
+            {
+                _logger.LogInformation("Stream status drifted; correcting online={Live}", live);
+                await _botState.UpdateStateAsync(s => s.BroadcasterIsOnline = live);
+            }
         }
 
         private async Task RunStep(string name, Func<Task> step)

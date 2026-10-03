@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using SkillzBot.MySQL;
 using System.Data;
 using SkillzBot.Interfaces;
+using SkillzBot.Services;
 using SkillzBot.Services.Writers;
 using System.Threading;
 
@@ -20,6 +21,7 @@ namespace SkillzBot.MYSQL
         private readonly DatabaseConfiguration _config;
         private readonly ILogger<MySqlDatabaseService> _logger;
         private readonly ExtractMessageService _extractMessageService;
+        private readonly HealthState _health;
         private readonly string _connectionString;
         private bool _isInitialized = false;
         private bool _disposed = false;
@@ -28,13 +30,15 @@ namespace SkillzBot.MYSQL
         private long _sessionMessages = 0;
 
         public MySqlDatabaseService(IOptions<DatabaseConfiguration> config, 
-            ILogger<MySqlDatabaseService> logger, 
-            ExtractMessageService extractMessageService)
+            ILogger<MySqlDatabaseService> logger,
+            ExtractMessageService extractMessageService,
+            HealthState health)
         {
             _config = config.Value ?? throw new ArgumentNullException(nameof(config));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _connectionString = BuildConnectionString();
             _extractMessageService = extractMessageService;
+            _health = health;
         }
 
         private string BuildConnectionString()
@@ -95,7 +99,9 @@ namespace SkillzBot.MYSQL
             }
             catch (Exception ex)
             {
-                Interlocked.Exchange(ref _circuitOpenUntilTicks, DateTime.UtcNow.Add(CircuitOpenDuration).Ticks);
+                var openUntil = DateTime.UtcNow.Add(CircuitOpenDuration);
+                Interlocked.Exchange(ref _circuitOpenUntilTicks, openUntil.Ticks);
+                _health.MarkDbFailure(openUntil);
                 await connection.DisposeAsync();
                 _logger.LogError(ex, "MySQL connection failed; database calls are suspended for {Seconds}s.", CircuitOpenDuration.TotalSeconds);
                 throw new DatabaseUnavailableException("Could not open a MySQL connection.", ex);

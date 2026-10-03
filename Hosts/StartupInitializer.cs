@@ -7,7 +7,10 @@ using System.Threading.Tasks;
 using Serilog.Core;
 using Serilog.Events;
 using SkillzBot.Discord;
+using SkillzBot.IllConfiguration;
 using SkillzBot.Interfaces;
+using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace SkillzBot.Hosts
 {
@@ -21,6 +24,8 @@ namespace SkillzBot.Hosts
         private readonly IRiotApiService _riotApi;
         private readonly LoggingLevelSwitch _levelSwitch;
         private readonly DiscordClient _discord;
+        private readonly ITwitchService _twitchService;
+        private readonly BotConfigModel _config;
 
         public StartupInitializer(
             IBotStateService botState,
@@ -30,8 +35,12 @@ namespace SkillzBot.Hosts
             ILogger<StartupInitializer> logger,
             IRiotApiService riotApi,
             LoggingLevelSwitch levelSwitch,
-            DiscordClient discord)
+            DiscordClient discord,
+            ITwitchService twitchService,
+            BotConfigModel config)
         {
+            _twitchService = twitchService;
+            _config = config;
             _botState = botState;
             _gameState = gameState;
             _paths = paths;
@@ -44,6 +53,10 @@ namespace SkillzBot.Hosts
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+            _logger.LogInformation("SkillzBot {Version} starting for channel {Channel} on {Runtime}; data path {DataPath}",
+                version, _config.ChannelName, RuntimeInformation.FrameworkDescription, _paths.DataPath);
+
             _logger.LogInformation("Creating default files if missing...");
             await EnsureDefaultFilesExistAsync();
 
@@ -69,6 +82,21 @@ namespace SkillzBot.Hosts
             else
             {
                 _levelSwitch.MinimumLevel = LogEventLevel.Information;
+            }
+
+            // EventSub only reports transitions, so learn the current live state once at startup.
+            try
+            {
+                bool live = await _twitchService.GetStreamStatus();
+                if (live != _botState.Current.BroadcasterIsOnline)
+                {
+                    _logger.LogInformation("Stream status synced at startup: online={Live}", live);
+                    await _botState.UpdateStateAsync(s => s.BroadcasterIsOnline = live);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not determine stream status at startup.");
             }
 
             _logger.LogInformation("Initializing Riot API...");

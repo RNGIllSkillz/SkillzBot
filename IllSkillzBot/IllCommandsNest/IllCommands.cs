@@ -7,6 +7,7 @@ using Serilog.Events;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
+using SkillzBot.Services;
 using SkillzBot.Services.Infrastructure;
 using SkillzBot.Services.Writers;
 using SkillzBot.IllConfiguration;
@@ -45,6 +46,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly BlacklistService _blacklistService;
         private readonly SubscriptionService _subscriptionService;
         private readonly IMmrService _mmrService;
+        private readonly HealthState _health;
 
         private string _ludka = "";
 
@@ -70,8 +72,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             MediaQueueService mediaQueueService,
             BlacklistService blacklistService,
             SubscriptionService subscriptionService,
-            IMmrService mmrService)
+            IMmrService mmrService,
+            HealthState health)
         {
+            _health = health;
             _ircClient = ircClient;
             //_modInteractions = modInteractions;
             _chatFilters = chatFilters;
@@ -826,18 +830,17 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var dbStats = await _databaseService.GetStatsAsync();
 
             // 2. Connection Stats
-            string ircStatus = _ircClient.IsConnected ? "Connected" : "Disconnected";
-
-            // 4. Game Logic Stats
-            string matchStatus = _botState.Current.InMatch ? "In Match" : "Idle";
-            string predStatus = _botState.Current.AutoPred ? "On" : "Off";
-
-            //ToDo 5. Message queue status
+            string ircStatus = _ircClient.IsConnected ? "up" : "DOWN";
+            string eventSubStatus = _health.EventSubConnected
+                ? $"up (since {HealthState.FormatAge(_health.EventSubSinceUtc)}, last event {HealthState.FormatAge(_health.EventSubLastEventUtc)})"
+                : "DOWN";
+            string dbStatus = _health.DbCircuitOpen ? "CIRCUIT-OPEN" : "ok";
 
             string output =
                 $"[SYS] UpTime: {uptime:dd\\:hh\\:mm} |RAM: {ramUsage:F0}MB |Threads: {threadCount} || " +
-                $"[DB Sess] Msgs: {dbStats.SessionMessagesSaved} | New users: {dbStats.SessionNewUsers} | Qry: {dbStats.SessionQueries} || " +
-                $"[DB Tot] {dbStats.TotalMessages} msgs | {dbStats.TotalUsers} users";
+                $"[NET] IRC: {ircStatus} | EventSub: {eventSubStatus} || " +
+                $"[DB] {dbStatus} | Sess msgs: {dbStats.SessionMessagesSaved} | New users: {dbStats.SessionNewUsers} | Qry: {dbStats.SessionQueries} | " +
+                $"Total {dbStats.TotalMessages} msgs / {dbStats.TotalUsers} users";
 
             await _ircClient.SendMessage(output);
         }

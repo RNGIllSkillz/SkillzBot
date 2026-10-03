@@ -17,6 +17,7 @@ using SkillzBot.IllSkillzBot;
 using SkillzBot.IllSkillzBot.IllCommandsNest;
 using SkillzBot.Interfaces;
 using SkillzBot.IRC;
+using SkillzBot.Logging;
 using SkillzBot.MySQL;
 using SkillzBot.QuartZ;
 using SkillzBot.Services;
@@ -57,27 +58,43 @@ namespace SkillzBot.Hosts
             return Host.CreateDefaultBuilder(args)
                 .UseSerilog((context, services, configuration) =>
                 {
+                    // Compact, grep-friendly lines: one event per line, short component name,
+                    // one-line exception summary. Full stack traces go to the errors file only.
+                    const string compactTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{Component:l}] {Message:lj}{ExceptionShort:l}{NewLine}";
+                    const string consoleTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] [{Component:l}] {Message:lj}{ExceptionShort:l}{NewLine}";
+                    const string detailedTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{Component:l}] {Message:lj}{NewLine}{Exception}";
+
                     configuration
                         .MinimumLevel.ControlledBy(_levelSwitch)
-                        .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                        .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
                         .MinimumLevel.Override("System", LogEventLevel.Warning)
                         .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
                         .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
                         .Enrich.FromLogContext()
-                        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+                        .Enrich.With<CompactLogEnricher>()
+                        .WriteTo.Console(outputTemplate: consoleTemplate);
                     try
                     {
                         var paths = services.GetService<IPathProvider>();
                         if (paths != null)
                         {
-                            // Serilog appends the date itself: logs/bot-20261003.log, rolling at midnight.
-                            string logFile = System.IO.Path.Combine(paths.DataPath, "logs", "bot-.log");
+                            string logDir = System.IO.Path.Combine(paths.DataPath, "logs");
+                            // bot-yyyyMMdd.log: everything at the current level, compact.
                             configuration.WriteTo.Async(sink => sink.File(
-                                logFile,
+                                System.IO.Path.Combine(logDir, "bot-.log"),
+                                rollingInterval: RollingInterval.Day,
+                                retainedFileCountLimit: 30,
+                                shared: false,
+                                outputTemplate: compactTemplate));
+                            // errors-yyyyMMdd.log: warnings and errors only, with full stack traces.
+                            configuration.WriteTo.Async(sink => sink.File(
+                                System.IO.Path.Combine(logDir, "errors-.log"),
+                                restrictedToMinimumLevel: LogEventLevel.Warning,
                                 rollingInterval: RollingInterval.Day,
                                 retainedFileCountLimit: 60,
                                 shared: false,
-                                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"));
+                                outputTemplate: detailedTemplate));
                         }
                     }
                     catch { /* Fallback if paths not ready */ }
@@ -99,6 +116,8 @@ namespace SkillzBot.Hosts
 
                         return BotConfigurationFactory.Create(pathProvider.ConfigPath);
                     });
+
+                    services.AddSingleton<HealthState>();
 
                     // 3. State Management
                     services.AddSingleton<IBotStateService, BotStateService>();
@@ -160,6 +179,7 @@ namespace SkillzBot.Hosts
                     services.AddHostedService<TTVEventSub>();             // EventSub websocket + watchdog
                     services.AddHostedService<TwitchIrcHostedService>();  // IRC + chat loop
                     services.AddHostedService<MatchMonitoringService>();  // Riot polling
+                    services.AddHostedService<HealthReporter>();          // Periodic one-line health log
                 })
                 .Build();
         }
