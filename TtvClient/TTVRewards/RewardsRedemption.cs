@@ -322,7 +322,7 @@ namespace SkillzBot.TtvClient.TTVRewards
                     if (rewardID != null)
                         await _twitchService.CencelReward(rewardID, redemID);
                     await _ircClient.SendMessage(string.Format(STRINGS.Track_Esception, _config.RootUser));
-                    _logger.LogError("{Link} -> {yID}", Link, yID);
+                    _logger.LogWarning("YouTube lookup failed for {Link} (video {VideoId}); the request was rejected{Refund}.", Link, yID, rewardID != null ? " and the reward refunded" : "");
                     return false;
                 }
 

@@ -860,6 +860,9 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             await _ircClient.SendMessage("Chat filters have been reloaded.");
         }
 
+        /// <summary>Set by IllChatMessageHandler (it depends on this class, so it cannot be injected here).</summary>
+        public Func<(int Pending, long Processed, int Buffered, long Stalled, string LastStall)> _chatStats;
+
         public async Task GetServiceStatus(UserObject user)
         {
             // 1. System Stats
@@ -868,7 +871,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             double ramUsage = GC.GetTotalMemory(false) / 1024.0 / 1024.0;
             int threadCount = process.Threads.Count;
 
-            var dbStats = await _databaseService.GetStatsAsync();
+            DatabaseStats dbStats = null;
+            try { dbStats = await _databaseService.GetStatsAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception ex) { _logger.LogWarning("DB stats unavailable for !service: {Error}", ex.Message); }
+            var (chatPending, chatProcessed, _, chatStalled, _) = _chatStats?.Invoke() ?? (0, 0L, 0, 0L, "");
 
             // 2. Connection Stats
             string ircStatus = _ircClient.IsConnected ? "up" : "DOWN";
@@ -880,8 +886,10 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             string output =
                 $"[SYS] UpTime: {uptime:dd\\:hh\\:mm} |RAM: {ramUsage:F0}MB |Threads: {threadCount} || " +
                 $"[NET] IRC: {ircStatus} | EventSub: {eventSubStatus} | Proxy: {_proxy.Describe()} || " +
+                $"[CHAT] pending: {chatPending} | processed: {chatProcessed} | stalled: {chatStalled} || " +
+                (dbStats == null ? $"[DB] {dbStatus} | stats n/a" :
                 $"[DB] {dbStatus} | Sess msgs: {dbStats.SessionMessagesSaved} | New users: {dbStats.SessionNewUsers} | Qry: {dbStats.SessionQueries} | " +
-                $"Total {dbStats.TotalMessages} msgs / {dbStats.TotalUsers} users";
+                $"Total ~{dbStats.TotalMessages} msgs / ~{dbStats.TotalUsers} users");
 
             await _ircClient.SendMessage(output);
         }

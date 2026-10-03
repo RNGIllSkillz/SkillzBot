@@ -101,6 +101,11 @@ namespace SkillzBot.API.YouTube
                     youTubeVideo.Snippet.ChannelTitle
                 };
             }
+            catch (TaskCanceledException)
+            {
+                _logger.LogWarning("YouTube lookup timed out for video {VideoID}.", vidID);
+                return null;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error searching YouTube by ID: {VideoID}", vidID);
@@ -139,6 +144,10 @@ namespace SkillzBot.API.YouTube
                         }
                     }
                 }
+            }
+            catch (TaskCanceledException)
+            {
+                _logger.LogWarning("YouTube search timed out for keyword {Keyword}.", keyWord);
             }
             catch (Exception ex)
             {

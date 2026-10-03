@@ -49,6 +49,13 @@ namespace SkillzBot.IllSkillzBot
         private const int LagAlertThreshold = 5;
         private static readonly TimeSpan LagAlertInterval = TimeSpan.FromSeconds(30);
 
+        // One message may never hold the loop: after MessageTimeout the loop moves on and the
+        // message keeps running in the background. _stage names the step that was running.
+        private static readonly TimeSpan MessageTimeout = TimeSpan.FromSeconds(30);
+        private volatile string _stage = "idle";
+        private long _stalledMessages;
+        private volatile string _lastStall = "";
+
         private const string SPAM_MARKER = "___SPAM___";
 
         public IllChatMessageHandler
@@ -76,6 +83,7 @@ namespace SkillzBot.IllSkillzBot
             _modInteractions = modInteractions;
             _illAccess = illAccess;
             _streamElementsService = streamElementsService;
+            illCommands._chatStats = GetStats;
             _messageChannel = Channel.CreateUnbounded<OnMessageReceivedArgs>(new UnboundedChannelOptions
             {
                 SingleReader = true, // We have one processing loop
@@ -108,9 +116,24 @@ namespace SkillzBot.IllSkillzBot
                             _logger.LogWarning("[LAG ALERT] Chat Queue is backing up! Pending messages: {Count}", currentPending);
                         }
                     }
+                    var work = Task.Run(() => ProcessMessageInternal(e));
                     try
                     {
-                        await ProcessMessageInternal(e);
+                        await work.WaitAsync(MessageTimeout);
+                    }
+                    catch (TimeoutException)
+                    {
+                        string stage = _stage;
+                        Interlocked.Increment(ref _stalledMessages);
+                        _lastStall = $"{stage} at {DateTime.UtcNow:HH:mm:ss}Z";
+                        _logger.LogWarning("[STALL] Message from {User} still running after {Seconds}s at stage '{Stage}'; chat loop moves on, it continues in the background. Content: {Message}",
+                            e.ChatMessage.Username, (int)MessageTimeout.TotalSeconds, stage, e.ChatMessage.Message);
+                        var started = DateTime.UtcNow;
+                        _ = work.ContinueWith(t =>
+                        {
+                            if (t.IsFaulted) _logger.LogError(t.Exception?.GetBaseException(), "Stalled message from {User} failed", e.ChatMessage.Username);
+                            else _logger.LogWarning("Stalled message from {User} finished after {Seconds}s more.", e.ChatMessage.Username, (int)(DateTime.UtcNow - started).TotalSeconds);
+                        }, TaskScheduler.Default);
                     }
                     catch (Exception ex)
                     {
@@ -128,12 +151,14 @@ namespace SkillzBot.IllSkillzBot
             SaveToBuffer(e);
             var tracker = AddToTracker(e.ChatMessage.Username, e.ChatMessage.Message);
 
+            _stage = "load-user";
             UserObject user = await GetAddUser(e.ChatMessage);
             if (user == null) return;
 
             user.messageCon++;
             try
             {
+                _stage = "save-buffer";
                 await SaveBuffer(false);
             }
             catch (Exception ex)
@@ -143,6 +168,7 @@ namespace SkillzBot.IllSkillzBot
 
             if (_botState.Current.IsSubActive)
             {
+                _stage = "filters";
                 if (_chatFilters.CheckBooB(e.ChatMessage.Message))
                 {
                     await _twitchService.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic);
@@ -172,7 +198,9 @@ namespace SkillzBot.IllSkillzBot
                     return;
                 }
 
+                _stage = "links";
                 await _chatFilters.DeleteLinks(user, e);
+                _stage = "spam-phrase";
 
                 if (CheckSpam(tracker, e.ChatMessage.Message))
                 {
@@ -188,6 +216,7 @@ namespace SkillzBot.IllSkillzBot
                     return;
                 }
 
+                _stage = "quiz";
                 if (_botState.Current.QuizIsRunning)
                     user = await _illGames.UserGuessAnswer(user, e.ChatMessage.Message);
                 else
@@ -196,15 +225,25 @@ namespace SkillzBot.IllSkillzBot
 
             if (e.ChatMessage.Message.StartsWith("!"))
             {
+                int space = e.ChatMessage.Message.IndexOf(' ');
+                _stage = "command " + (space > 0 ? e.ChatMessage.Message.Substring(0, space) : e.ChatMessage.Message);
                 user = await _commandHandler.CommandHandler(user, e.ChatMessage.Message);
             }
+            _stage = "save-user";
             await SaveUserAsync(user);
+            _stage = "idle";
 
             sw.Stop();
             Interlocked.Increment(ref _totalMessagesProcessed);
-            if (sw.ElapsedMilliseconds > 500)
+            // Commands that call the Riot API take ~1s through the proxy; only longer stalls are worth a warning.
+            if (sw.ElapsedMilliseconds > 1500)
             {
                 _logger.LogWarning("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
+                    e.ChatMessage.Username, sw.ElapsedMilliseconds, e.ChatMessage.Message);
+            }
+            else if (sw.ElapsedMilliseconds > 500)
+            {
+                _logger.LogDebug("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
                     e.ChatMessage.Username, sw.ElapsedMilliseconds, e.ChatMessage.Message);
             }
 
@@ -429,9 +468,9 @@ namespace SkillzBot.IllSkillzBot
             return false;
         }
 
-        public (int Pending, long Processed, int Buffered) GetStats()
+        public (int Pending, long Processed, int Buffered, long Stalled, string LastStall) GetStats()
         {
-            return (_pendingMessageCount, _totalMessagesProcessed, _messagesBuffer.Count);
+            return (_pendingMessageCount, Interlocked.Read(ref _totalMessagesProcessed), _messagesBuffer.Count, Interlocked.Read(ref _stalledMessages), _lastStall);
         }
     }
 }

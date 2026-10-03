@@ -18,6 +18,9 @@ namespace SkillzBot.Services
         private long _dbCircuitOpenUntilTicks;
         private long _dbFailures;
 
+        private long _seFailures;      // consecutive StreamElements send failures
+        private long _seLastOkTicks;
+
         public bool EventSubConnected => Volatile.Read(ref _eventSubConnected) == 1;
         public string EventSubSessionId => _eventSubSessionId;
         public long EventSubReconnects => Interlocked.Read(ref _eventSubReconnects);
@@ -27,14 +30,28 @@ namespace SkillzBot.Services
         public bool DbCircuitOpen => DateTime.UtcNow.Ticks < Interlocked.Read(ref _dbCircuitOpenUntilTicks);
         public long DbFailures => Interlocked.Read(ref _dbFailures);
 
+        public long StreamElementsFailures => Interlocked.Read(ref _seFailures);
+        public DateTime? StreamElementsLastOkUtc => ToDate(Interlocked.Read(ref _seLastOkTicks));
+
+        public void MarkStreamElementsResult(bool ok)
+        {
+            if (ok)
+            {
+                Interlocked.Exchange(ref _seFailures, 0);
+                Interlocked.Exchange(ref _seLastOkTicks, DateTime.UtcNow.Ticks);
+            }
+            else Interlocked.Increment(ref _seFailures);
+        }
+
         public void SetEventSubConnected(bool connected, string sessionId)
         {
             bool wasConnected = Interlocked.Exchange(ref _eventSubConnected, connected ? 1 : 0) == 1;
             _eventSubSessionId = sessionId ?? "";
             if (connected)
             {
-                Interlocked.Exchange(ref _eventSubSinceTicks, DateTime.UtcNow.Ticks);
-                if (!wasConnected && Interlocked.Read(ref _eventSubSinceTicks) != 0)
+                // Only a connect that follows an earlier session counts as a reconnect.
+                long previousSince = Interlocked.Exchange(ref _eventSubSinceTicks, DateTime.UtcNow.Ticks);
+                if (!wasConnected && previousSince != 0)
                     Interlocked.Increment(ref _eventSubReconnects);
             }
         }

@@ -59,6 +59,19 @@ namespace SkillzBot.IRC
             _gameState = gameState;
             _botState = botState;
             _streamElementsService = streamElementsService;
+            _streamElementsService.FallbackSender = SendViaIrcAsync;
+        }
+
+        /// <summary>Direct IRC send from the bot account; used when StreamElements is down or has no token.</summary>
+        private async Task SendViaIrcAsync(string message, CancellationToken cancellationToken)
+        {
+            var client = _client;
+            if (client == null || !client.IsConnected)
+            {
+                _logger?.LogWarning("IRC is not connected either; chat message dropped: {Text}", message);
+                return;
+            }
+            await client.SendMessageAsync(_config.ChannelName, message, false);
         }
 
         public bool IsConnected => _client?.IsConnected ?? false;
