@@ -10,6 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Remove="deploy/**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Camille.RiotGames" Version="3.0.0-nightly-2024-04-20-4d8da4ce47" />
     <PackageReference Include="Discord.Net" Version="3.18.0" />
     <PackageReference Include="eladaus.urldetector" Version="1.3.0" />

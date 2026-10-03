@@ -33,6 +33,7 @@ namespace SkillzBot.IllSkillzBot
         private readonly IIllAccess _illAccess;
         private readonly IStreamElementsService _streamElementsService;
         private readonly Services.Vip.VipRegistryService _vips;
+        private readonly Api.ChatFeed _feed;
 
         private long _totalMessagesProcessed = 0;
         private int _pendingMessageCount = 0;
@@ -72,10 +73,12 @@ namespace SkillzBot.IllSkillzBot
             IllModeratorsInteractions modInteractions,
             IIllAccess illAccess,
             IStreamElementsService streamElementsService,
-            Services.Vip.VipRegistryService vips
+            Services.Vip.VipRegistryService vips,
+            Api.ChatFeed feed
             )
         {
             _vips = vips;
+            _feed = feed;
             _logger = logger;
             _chatFilters = chatFilters;
             _database = database;
@@ -96,6 +99,7 @@ namespace SkillzBot.IllSkillzBot
 
         public Task HandleMessage(OnMessageReceivedArgs e)
         {
+            _feed.PublishIncoming(e);
             Interlocked.Increment(ref _pendingMessageCount);
             _messageChannel.Writer.TryWrite(e);
             return Task.CompletedTask;

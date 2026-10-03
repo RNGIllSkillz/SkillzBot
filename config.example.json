@@ -41,6 +41,10 @@
   "ChatFilterLvl": 3,
   "VipLimit": 100,
 
+  "ApiPort": 8080,
+  "ApiPublicUrl": "https://bot.example.com (public URL of the web panel; OAuth redirect is {ApiPublicUrl}/api/auth/callback)",
+  "TApiClientSecret": "twitch application client secret (web panel login only)",
+
   "ProxyUrl": "",
   "ProxyCorePath": "",
   "ProxyApplyTo": "youtube"

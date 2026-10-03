@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -55,7 +56,7 @@ namespace SkillzBot.Hosts
 
         public IHost BuildMainApplicationHost(string[] args)
         {
-            return Host.CreateDefaultBuilder(args)
+            var builder = Host.CreateDefaultBuilder(args)
                 .UseSerilog((context, services, configuration) =>
                 {
                     // Compact, grep-friendly lines: one event per line, short component name,
@@ -196,9 +197,24 @@ namespace SkillzBot.Hosts
                     services.AddHostedService<TTVEventSub>();             // EventSub websocket + watchdog
                     services.AddHostedService<TwitchIrcHostedService>();  // IRC + chat loop
                     services.AddHostedService<MatchMonitoringService>();  // Riot polling
-                    services.AddHostedService<HealthReporter>();          // Periodic one-line health log
-                })
-                .Build();
+                    services.AddSingleton<HealthReporter>();              // Periodic one-line health log + API snapshot
+                    services.AddHostedService(sp => sp.GetRequiredService<HealthReporter>());
+                    services.AddSingleton<Api.ChatFeed>();
+                    services.AddSingleton<Api.BotSettingsService>();
+                });
+
+            // Web panel API (see Api/ApiHost.cs); ApiPort 0 in the channel config turns it off.
+            int apiPort = Api.ApiHost.ReadConfiguredPort();
+            if (apiPort > 0)
+            {
+                builder.ConfigureWebHostDefaults(web =>
+                {
+                    web.ConfigureKestrel(k => k.ListenAnyIP(apiPort));
+                    web.ConfigureServices(Api.ApiHost.ConfigureWebServices);
+                    web.Configure(Api.ApiHost.Configure);
+                });
+            }
+            return builder.Build();
         }
     }
 }

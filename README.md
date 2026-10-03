@@ -65,6 +65,10 @@
 
 ## Команды Стримера (Broadcaster)
 
+| Команда | Описание |
+|--------|----------|
+| `!editor add <login>` / `remove <login>` / `list` | Кто, кроме стримера и root, может войти в веб-панель бота (роль editor) |
+
 | Команда | Описание | Кулдаун |
 |--------|----------|----------|
 | `!ban` | Забанить пользователя за заказанный трек (Last Song). Банит и добавляет трек в черный список. | 60 с |
@@ -187,6 +191,18 @@ CS считается с лесными монстрами, KDA = (K+A)/D с д�
 Twitch ограничивает число VIP (у канала - `VipLimit` в конфиге, по умолчанию 100) и не сообщает, когда випка была выдана. Бот ведет свой реестр в таблице `dbVipTable` (создается при первом обращении; старый `DATA/Vips.json` импортируется один раз): дату выдачи он узнает из своих же `!addvip`, из событий EventSub `channel.vip.add/remove` (нужен scope `channel:manage:vips` или `channel:read:vips`), по появлению значка VIP в чате и из сверки со списком Twitch (в первые 5 минут после старта, далее каждые 30 минут и перед каждой выдачей). VIP, которые были до начала учета, получают статус «дата неизвестна» и считаются самыми давними; между собой они упорядочены по стажу в базе бота (кто раньше появился в чате).
 
 `!addvip <login>` при достигнутом лимите сам снимает випку с самого давнего незакрепленного VIP, пишет об этом в чат и выдает новую. `!vips` показывает заполненность и трех следующих на снятие, `!vips oldest N` - список, `!vips sync` - принудительная сверка. Только root: `!vips pin <login>` / `unpin` защищает от ротации, `!vips since <login> ГГГГ-ММ-ДД` задает дату вручную, `!vips auto off` выключает автоснятие (тогда `!addvip` при лимите только подскажет, кого снять).
+
+## Веб-панель и API
+
+Бот поднимает HTTP API (Kestrel внутри процесса бота) на порту `ApiPort` (по умолчанию 8080, `0` выключает). Интерфейс панели живет в отдельном контейнере (nginx на Alpine, см. `web/`), который отдает статику и проксирует `/api` на контейнер бота, так что UI и API работают на одном домене.
+
+**Вход** - через Twitch OAuth, без отдельных аккаунтов. В конфиг нужно добавить `ApiPublicUrl` (внешний https-адрес панели) и `TApiClientSecret` (client secret того же Twitch-приложения, что и `TApiClientId`), а в консоли разработчика Twitch - OAuth Redirect URL `{ApiPublicUrl}/api/auth/callback`. Роли: **admin** - стример (`BrodcasterId`) и `RootUser`; **editor** - логины, добавленные командой `!editor add <login>` (таблица `dbBotEditorTable`). Editor видит все и меняет настройки бота (флаги состояния, словари, вопросы викторины, VIP, `ChatFilterLvl`, `VipLimit`, `Summoner_Name`, `SummonerRegion`), может перезапустить бота; системные ключи конфига (MySQL, StreamElements, прокси, Discord, id наград) меняет только admin. Секреты (токены, пароли, `ProxyUrl`) API не отдает и не принимает никогда.
+
+**Безопасность.** Сессия - HttpOnly cookie на 30 дней (ключи шифрования в `DATA/keys/`); все изменяющие запросы обязаны нести заголовок `X-Requested-With: SkillzBot` (защита от CSRF); каждое изменение пишется в лог с логином автора (`[API] login ...`).
+
+**Эндпоинты** (все под `/api`, JSON): `auth/login`, `auth/callback`, `auth/me`, `auth/logout` | `status`, `state` (GET/PATCH), `gamestate`, `config` (GET/PATCH), `system/info`, `system/restart`, `logs?file=bot|errors&lines=` | `chat/recent`, `chat/stream` (SSE: события `chat` и `health`), `chat/send` | `users`, `users/{login}`, `messages?user=&q=&from=&to=`, `stats/activity`, `stats/engagement`, `stats/predictions`, `stats/polls`, `stats/db` | `predictions/status`, `actions/poll`, `actions/quiz`, `actions/prediction/cancel`, `actions/filters/reload` | `filters` (GET), `filters/{name}` (PUT) | `quiz` (CRUD) | `vips`, `vips/sync`, `vips/{login}` (PATCH) | `editors` (admin).
+
+**Перезапуск.** `POST /api/system/restart` корректно завершает процесс бота. На TrueNAS бот запускает лаунчер GigFilesChecker, который в исходном виде стартует процесс один раз; чтобы бот поднимался снова, лаунчер должен работать как супервизор - готовая версия `Main` лежит в `deploy/launcher/Program.cs`: перезапуск при любом выходе, повторная синхронизация файлов с хоста перед каждым стартом (перезапуск из панели подтягивает новую сборку) и передача SIGTERM боту при остановке контейнера.
 
 ## Статистика ставок и опросов (!predstats)
 

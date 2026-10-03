@@ -52,6 +52,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly IllPredictions _predictions;
         private readonly Services.Vip.VipRegistryService _vips;
         private readonly IEngagementRepository _engagement;
+        private readonly IAdminRepository _admin;
 
         private string _ludka = "";
 
@@ -82,10 +83,12 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             ProxyService proxy,
             IllPredictions predictions,
             Services.Vip.VipRegistryService vips,
-            IEngagementRepository engagement)
+            IEngagementRepository engagement,
+            IAdminRepository admin)
         {
             _vips = vips;
             _engagement = engagement;
+            _admin = admin;
             _health = health;
             _proxy = proxy;
             _predictions = predictions;
@@ -740,7 +743,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             if (_botState.Current.Debug)
                 _loggingSwitch.MinimumLevel = LogEventLevel.Debug;
             else
-                _loggingSwitch.MinimumLevel = LogEventLevel.Warning;
+                _loggingSwitch.MinimumLevel = LogEventLevel.Information;
 
             await _ircClient.SendMessage($"Debug mode is now {_botState.Current.Debug}");
         }
@@ -914,6 +917,45 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
                     }
                 default:
                     await _ircClient.SendMessage("!vips | oldest [N] | sync | pin <login> | unpin <login> | since <login> <ГГГГ-ММ-ДД> | auto on|off"); return;
+            }
+        }
+
+        /// <summary>!editor add|remove &lt;login&gt; | list: who may log in to the web panel besides the broadcaster and root.</summary>
+        public async Task Editor(UserObject user, string[] input)
+        {
+            string sub = input.Length > 1 ? input[1].ToLowerInvariant() : "list";
+            try
+            {
+                if (sub == "list")
+                {
+                    var editors = await _admin.GetEditorsAsync();
+                    await _ircClient.SendMessage(editors.Count == 0 ? "Редакторы панели: никого, кроме стримера и root." : "Редакторы панели: " + string.Join(", ", editors.Select(e => e.Login)));
+                    return;
+                }
+                if (input.Length < 3) { await _ircClient.SendMessage("!editor add <login> | remove <login> | list"); return; }
+                string login = input[2].Trim().TrimStart('@').ToLowerInvariant();
+                var target = await _databaseService.GetUserAsync(login);
+                long id = target != null && target.dbID != -404 ? target.TwitchID : 0;
+                if (id == 0 && long.TryParse(await _twitchService.GetUsetIDByName(login), out long fromTwitch)) id = fromTwitch;
+                if (id == 0) { await _ircClient.SendMessage(string.Format(STRINGS.FindUser_ERROR404, user.Name, login)); return; }
+                if (sub == "add")
+                {
+                    await _admin.AddEditorAsync(id, login, user.Name);
+                    _logger.LogInformation("[editor] {By} added {Login} ({Id})", user.Name, login, id);
+                    await _ircClient.SendMessage($"@{login} теперь редактор панели бота: вход через Twitch по ссылке панели.");
+                }
+                else if (sub == "remove")
+                {
+                    bool ok = await _admin.RemoveEditorAsync(id);
+                    _logger.LogInformation("[editor] {By} removed {Login} ({Id}): {Ok}", user.Name, login, id, ok);
+                    await _ircClient.SendMessage(ok ? $"@{login} больше не редактор панели." : $"@{login} не был редактором.");
+                }
+                else await _ircClient.SendMessage("!editor add <login> | remove <login> | list");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("!editor failed: {Error}", ex.Message);
+                await _ircClient.SendMessage("Не удалось изменить список редакторов (база данных).");
             }
         }
 
