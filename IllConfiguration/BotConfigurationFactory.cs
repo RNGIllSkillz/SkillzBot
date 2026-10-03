@@ -21,6 +21,7 @@ namespace SkillzBot.Configuration
             if (string.IsNullOrWhiteSpace(botConfigs.BotTwitchAuth)) missingFields.Add("BotTwitchAuth");
             if (string.IsNullOrWhiteSpace(botConfigs.ChannelName)) missingFields.Add("ChannelName");
             if (string.IsNullOrWhiteSpace(botConfigs.RiotApiToken)) missingFields.Add("RiotApiToken");
+            if (string.IsNullOrWhiteSpace(botConfigs.RootUser)) missingFields.Add("RootUser");
 
             if (missingFields.Count > 0)
             {
@@ -45,7 +46,8 @@ namespace SkillzBot.Configuration
                 DiscordBotToken = botConfigs.DiscordBotToken,
                 DiscordNoteID = botConfigs.DiscordNoteID,
                 DiscordSpamID = botConfigs.DiscordSpamID,
-                RootUser = "rng_backtrack",
+                // Twitch logins are lowercase; normalize so access checks and reward rules match.
+                RootUser = botConfigs.RootUser.Trim().TrimStart('@').ToLowerInvariant(),
 
                 ProxyUrl = botConfigs.ProxyUrl?.Trim(),
                 ProxyCorePath = botConfigs.ProxyCorePath?.Trim(),

@@ -93,6 +93,8 @@ namespace SkillzBot.JSON.Settings
         public ulong DiscordNoteID { get; set; }
         [JsonProperty("DiscordSpamID")]
         public ulong DiscordSpamID { get; set; }
+        [JsonProperty("RootUser")]
+        public string RootUser { get; set; }
         [JsonProperty("ProxyUrl")]
         public string ProxyUrl { get; set; }
         [JsonProperty("ProxyCorePath")]

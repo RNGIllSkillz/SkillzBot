@@ -1,4 +1,4 @@
-﻿using SkillzBot.Interfaces;
+using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
 using SkillzBot.IllConfiguration; 
 using static SkillzBot.IllSkillzBot.IllEnums;
@@ -14,7 +14,7 @@ namespace SkillzBot.IllSkillzBot
             _config = config;
         }
 
-        public bool Root(UserObject user) => user.Name == _config.RootUser;
+        public bool Root(UserObject user) => string.Equals(user?.Name, _config.RootUser, System.StringComparison.OrdinalIgnoreCase);
 
         public bool Broadcaster(UserObject user) => user.IsBroadcaster == 1 || Root(user);
 

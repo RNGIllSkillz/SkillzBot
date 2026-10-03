@@ -7,11 +7,14 @@ using SkillzBot.API.RiotGames;
 using SkillzBot.IllConfiguration;
 using SkillzBot.IllSkillzBot.Predictions;
 using SkillzBot.Interfaces;
+using SkillzBot.MODELS;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using TwitchLib.Api.Core.Enums;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -19,6 +22,7 @@ namespace SkillzBot.IllSkillzBot
     /// Auto-predictions for the streamer's League games. The default is win/lose; after a
     /// game, at most once per <see cref="PollInterval"/>, chat picks the type of the next
     /// prediction through a Twitch poll (win/lose plus three weighted random alternatives).
+    /// The prediction being tracked is persisted so a restart mid-game resumes and resolves it.
     /// </summary>
     public class IllPredictions
     {
@@ -28,6 +32,9 @@ namespace SkillzBot.IllSkillzBot
         private const int RemakeThresholdSec = 300;
         private const int PollDurationSec = 120;
         private static readonly TimeSpan PollInterval = TimeSpan.FromHours(4);
+        private static readonly TimeSpan RecoveryRetryDelay = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan StaleMatchGrace = TimeSpan.FromHours(1);
+        private static readonly TimeSpan StalePollAge = TimeSpan.FromDays(1);
 
         private readonly ILogger<IllPredictions> _logger;
         private readonly IRiotApiService _riotApi;
@@ -41,12 +48,43 @@ namespace SkillzBot.IllSkillzBot
         private string _currentMatchId;
         private string _platformId;
         private int _pollRunning;
+        private readonly DateTime _processStartedUtc = DateTime.UtcNow;
+        private DateTime _lastRecoveryAttemptUtc = DateTime.MinValue;
+        private bool _recoveryAnnounced;
+        private bool _pollRecoveryChecked;
 
+        /// <summary>In-memory view of the persisted <see cref="ActivePredictionState"/>.</summary>
         private sealed class ActivePrediction
         {
             public PredictionKind Kind;
+            public string MatchId;
+            public string PredictionId;
+            public DateTime StartedUtc;
+            public bool StatsRecorded;
             /// <summary>Outcome title used for each champion id, so resolution matches what Twitch shows.</summary>
             public Dictionary<int, string> OutcomeByChampion;
+
+            public ActivePredictionState ToState() => new ActivePredictionState
+            {
+                MatchId = MatchId,
+                PredictionId = PredictionId,
+                KindKey = Kind.Key,
+                StartedUtc = StartedUtc,
+                StatsRecorded = StatsRecorded,
+                Outcomes = OutcomeByChampion?.ToDictionary(kv => kv.Key.ToString(CultureInfo.InvariantCulture), kv => kv.Value),
+            };
+
+            public static ActivePrediction FromState(ActivePredictionState s) => new ActivePrediction
+            {
+                Kind = PredictionCatalog.Find(s.KindKey) ?? PredictionCatalog.WinLose,
+                MatchId = s.MatchId,
+                PredictionId = s.PredictionId,
+                StartedUtc = s.StartedUtc,
+                StatsRecorded = s.StatsRecorded,
+                OutcomeByChampion = s.Outcomes?
+                    .Where(kv => int.TryParse(kv.Key, out _))
+                    .ToDictionary(kv => int.Parse(kv.Key, CultureInfo.InvariantCulture), kv => kv.Value),
+            };
         }
 
         public IllPredictions(
@@ -73,10 +111,26 @@ namespace SkillzBot.IllSkillzBot
 
         #region Game detection
 
+        /// <summary>Called every few seconds by the monitoring service.</summary>
         public async Task GetCurrentMatchTask()
         {
             if (_botState.Current.Debug) _logger.LogDebug("Running GetCurrentMatchTask()");
-            if (!_botState.Current.IsSubActive || _botState.Current.InMatch || !_botState.Current.AutoPred) return;
+            if (!_botState.Current.IsSubActive) return;
+
+            if (!_pollRecoveryChecked)
+            {
+                _pollRecoveryChecked = true;
+                RecoverActivePoll();
+            }
+
+            // An owed resolution (after a restart or a failed attempt) comes before anything else.
+            if (_botState.Current.ActivePrediction != null)
+            {
+                await ResumeActivePredictionAsync();
+                return;
+            }
+
+            if (_botState.Current.InMatch || !_botState.Current.AutoPred) return;
 
             _platformId = _gameState.Current.SummonerRegion switch
             {
@@ -90,14 +144,20 @@ namespace SkillzBot.IllSkillzBot
             if (currentGame == null) return;
 
             string matchId = _platformId + currentGame.GameId;
-            if (_currentMatchId == matchId || currentGame.GameLength > NewGameMaxLengthSec) return;
+            if (_currentMatchId == matchId) return;
             _currentMatchId = matchId;
+
+            if (currentGame.GameLength > NewGameMaxLengthSec)
+            {
+                _logger.LogInformation("Game {MatchId} already in progress ({Length}s); the prediction window has passed, no prediction for this game.", matchId, currentGame.GameLength);
+                return;
+            }
             _logger.LogInformation("New game detected: {MatchId} ({Mode}, {Players} players).", matchId, currentGame.GameMode, currentGame.Participants?.Length ?? 0);
 
             var predictions = await _twitchService.GetCurrentPredPublic();
             if (predictions == null || predictions.Data.Length == 0) return;
             var lastStatus = predictions.Data.First().Status;
-            if (lastStatus != TwitchLib.Api.Core.Enums.PredictionStatus.RESOLVED && lastStatus != TwitchLib.Api.Core.Enums.PredictionStatus.CANCELED)
+            if (lastStatus != PredictionStatus.RESOLVED && lastStatus != PredictionStatus.CANCELED)
             {
                 _logger.LogWarning("Previous prediction is still {Status}; skipping auto-prediction for {MatchId}.", lastStatus, matchId);
                 return;
@@ -110,7 +170,9 @@ namespace SkillzBot.IllSkillzBot
             await SetInMatchAsync(true);
             try
             {
-                await RunPredictionAsync(kind, currentGame, matchId);
+                var active = await StartPredictionAsync(kind, currentGame, matchId);
+                await PersistActiveAsync(active);
+                await ContinueAsync(active);
             }
             catch (Exception ex)
             {
@@ -124,6 +186,11 @@ namespace SkillzBot.IllSkillzBot
 
         private Task SetInMatchAsync(bool value) => _botState.UpdateStateAsync(s => s.InMatch = value);
 
+        private Task PersistActiveAsync(ActivePrediction active) =>
+            _botState.UpdateStateAsync(s => s.ActivePrediction = active.ToState());
+
+        private Task ClearActiveAsync() => _botState.UpdateStateAsync(s => s.ActivePrediction = null);
+
         /// <summary>Takes the chat-chosen type for this game (one-shot) or falls back to win/lose.</summary>
         private async Task<PredictionKind> ConsumeNextKindAsync()
         {
@@ -136,51 +203,105 @@ namespace SkillzBot.IllSkillzBot
 
         #endregion
 
-        #region Prediction lifecycle
+        #region Restart recovery
 
-        private async Task RunPredictionAsync(PredictionKind kind, CurrentGameInfo game, string matchId)
+        /// <summary>
+        /// Picks up the persisted prediction after a restart (or a failed attempt): re-attaches
+        /// to the Twitch prediction, then waits for or fetches the match and resolves it.
+        /// </summary>
+        private async Task ResumeActivePredictionAsync()
         {
-            var active = await StartPredictionAsync(kind, game);
+            if (DateTime.UtcNow - _lastRecoveryAttemptUtc < RecoveryRetryDelay) return;
+            _lastRecoveryAttemptUtc = DateTime.UtcNow;
 
-            var match = await WaitForMatchEndAsync(matchId);
-            if (match == null) return;
+            var state = _botState.Current.ActivePrediction;
+            if (state == null) return;
+            var active = ActivePrediction.FromState(state);
 
-            var participant = _riotApi.GetParticipantByMatch(match);
-            if (participant == null)
+            // Only a record created before this process started means the bot actually restarted mid-game.
+            if (!_recoveryAnnounced && active.StartedUtc < _processStartedUtc)
             {
-                await _botState.UpdateStateAsync(s => s.AutoPred = false);
-                _logger.LogCritical("Participant could not be found in match {MatchId}. Auto-predictions disabled.", matchId);
-                await _ircClient.SendMessage("Критическая ошибка: не удалось найти призывателя в матче. Автоставки выключены.");
-                return;
+                _recoveryAnnounced = true;
+                _logger.LogInformation("Resuming tracked match {MatchId} ({Kind}, started {Age} ago, prediction {PredictionId}).",
+                    active.MatchId, active.Kind.Key, Services.HealthState.FormatAge(DateTime.UtcNow - active.StartedUtc), active.PredictionId ?? "none");
+                await _ircClient.SendMessage($"Бот перезапустился, продолжаю следить за матчем (ставка «{active.Kind.PollLabel}»).");
             }
 
-            if (match.Info.GameDuration <= RemakeThresholdSec)
+            if (active.PredictionId != null)
             {
-                await _ircClient.SendMessage("Матч отменен. Ставка будет отменена.");
-                await _twitchService.CencelePrediction();
-                return;
+                PredictionStatus? status;
+                try
+                {
+                    status = await _twitchService.GetPredictionStatusAsync(active.PredictionId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not read prediction {PredictionId} status; will retry.", active.PredictionId);
+                    return;
+                }
+                if (status == null)
+                {
+                    _logger.LogWarning("Prediction {PredictionId} was not found on Twitch; tracking match {MatchId} for stats only.", active.PredictionId, active.MatchId);
+                    active.PredictionId = null;
+                }
+                else if (status == PredictionStatus.RESOLVED || status == PredictionStatus.CANCELED)
+                {
+                    _logger.LogInformation("Prediction {PredictionId} is already {Status}; tracking match {MatchId} for stats only.", active.PredictionId, status, active.MatchId);
+                    active.PredictionId = null;
+                }
+                else if (!await _twitchService.AdoptPredictionAsync(active.PredictionId))
+                {
+                    _logger.LogWarning("Could not re-attach to prediction {PredictionId}; will retry.", active.PredictionId);
+                    return;
+                }
+                if (active.PredictionId == null) await PersistActiveAsync(active);
             }
 
-            bool won = participant.Win;
-            if (_botState.Current.Debug) _logger.LogDebug("Матч завершен {Win}", won);
-
-            await _gameState.UpdateStateAsync(s =>
+            _currentMatchId = active.MatchId;
+            await SetInMatchAsync(true);
+            try
             {
-                s.NumGames++;
-                if (won) s.NumWins++;
-                else s.NumLosses++;
-            });
-            await UpdateDailyStats(won);
-
-            await ResolveAsync(active, match, participant, won);
-            await MaybeStartPollAsync();
+                await ContinueAsync(active);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Resumed tracking of {MatchId} failed; will retry.", active.MatchId);
+            }
+            finally
+            {
+                await SetInMatchAsync(false);
+            }
         }
 
+        private void RecoverActivePoll()
+        {
+            var poll = _botState.Current.ActivePoll;
+            if (poll == null) return;
+
+            var age = DateTime.UtcNow - poll.StartedUtc;
+            if (age > StalePollAge || string.IsNullOrEmpty(poll.PollId))
+            {
+                _logger.LogWarning("Dropping stale poll record {PollId} ({Age} old).", poll.PollId, Services.HealthState.FormatAge(age));
+                _ = _botState.UpdateStateAsync(s => s.ActivePoll = null);
+                return;
+            }
+
+            var options = (poll.OptionKeys ?? new List<string>()).Select(PredictionCatalog.Find).Where(k => k != null).ToList();
+            double remaining = Math.Max(0, PollDurationSec + 5 - age.TotalSeconds);
+            _logger.LogInformation("Resuming poll {PollId} after restart ({Remaining:F0}s left).", poll.PollId, remaining);
+            Interlocked.Exchange(ref _pollRunning, 1);
+            _ = Task.Run(() => FinishPollAsync(poll.PollId, options, TimeSpan.FromSeconds(remaining)));
+        }
+
+        #endregion
+
+        #region Prediction lifecycle
+
         /// <summary>Creates the Twitch prediction for the requested type, or win/lose when the game does not fit it.</summary>
-        private async Task<ActivePrediction> StartPredictionAsync(PredictionKind kind, CurrentGameInfo game)
+        private async Task<ActivePrediction> StartPredictionAsync(PredictionKind kind, CurrentGameInfo game, string matchId)
         {
             if (kind.Scope == PredictionScope.WinLose)
-                return await StartWinLoseAsync();
+                return await StartWinLoseAsync(matchId);
 
             string fallbackReason = null;
             try
@@ -193,9 +314,11 @@ namespace SkillzBot.IllSkillzBot
                             fallbackReason = "в этом режиме нет лайнов";
                             break;
                         }
-                        await _twitchService.Start_2_Prediction(kind.Title, StreamerLabel, PredictionCatalog.OpponentLabel, PredictionWindowSec);
-                        _logger.LogInformation("Prediction started: {Key} ({Title}).", kind.Key, kind.Title);
-                        return new ActivePrediction { Kind = kind };
+                        {
+                            var predictionId = await CreateOnTwitchAsync(() => _twitchService.Start_2_Prediction(kind.Title, StreamerLabel, PredictionCatalog.OpponentLabel, PredictionWindowSec).AsTask());
+                            _logger.LogInformation("Prediction started: {Key} ({Title}) id {PredictionId}.", kind.Key, kind.Title, predictionId ?? "none");
+                            return NewActive(kind, matchId, predictionId, null);
+                        }
 
                     case PredictionScope.Team:
                     case PredictionScope.All:
@@ -220,12 +343,11 @@ namespace SkillzBot.IllSkillzBot
                             }
                             if (titles.Distinct(StringComparer.OrdinalIgnoreCase).Count() != titles.Count) { fallbackReason = "чемпионы повторяются"; break; }
 
-                            if (expected == 5)
-                                await _twitchService.Start_5_Prediction(titles, kind.Title, PredictionWindowSec);
-                            else
-                                await _twitchService.Start_10_Prediction(titles, kind.Title, PredictionWindowSec);
-                            _logger.LogInformation("Prediction started: {Key} ({Title}) with outcomes {Outcomes}.", kind.Key, kind.Title, string.Join(", ", titles));
-                            return new ActivePrediction { Kind = kind, OutcomeByChampion = outcomes };
+                            var predictionId = await CreateOnTwitchAsync(() => expected == 5
+                                ? _twitchService.Start_5_Prediction(titles, kind.Title, PredictionWindowSec).AsTask()
+                                : _twitchService.Start_10_Prediction(titles, kind.Title, PredictionWindowSec).AsTask());
+                            _logger.LogInformation("Prediction started: {Key} ({Title}) id {PredictionId} with outcomes {Outcomes}.", kind.Key, kind.Title, predictionId ?? "none", string.Join(", ", titles));
+                            return NewActive(kind, matchId, predictionId, outcomes);
                         }
                 }
             }
@@ -237,63 +359,139 @@ namespace SkillzBot.IllSkillzBot
 
             _logger.LogWarning("Prediction {Key} not applicable ({Reason}); falling back to win/lose.", kind.Key, fallbackReason);
             await _ircClient.SendMessage($"Ставка «{kind.PollLabel}» недоступна ({fallbackReason}), запускаю вин/луз.");
-            return await StartWinLoseAsync();
+            return await StartWinLoseAsync(matchId);
         }
 
-        private async Task<ActivePrediction> StartWinLoseAsync()
+        private async Task<ActivePrediction> StartWinLoseAsync(string matchId)
         {
-            await _twitchService.Start_2_Prediction(PredictionCatalog.WinLose.Title, "вин", "луз", PredictionWindowSec);
+            var predictionId = await CreateOnTwitchAsync(() => _twitchService.Start_2_Prediction(PredictionCatalog.WinLose.Title, "вин", "луз", PredictionWindowSec).AsTask());
             if (_botState.Current.Debug) _logger.LogDebug("Ставка запущена");
-            return new ActivePrediction { Kind = PredictionCatalog.WinLose };
+            return NewActive(PredictionCatalog.WinLose, matchId, predictionId, null);
         }
 
-        /// <summary>Polls the Match API until the game shows up as finished. Null when tracking gave up.</summary>
-        private async Task<Match> WaitForMatchEndAsync(string matchId)
+        /// <summary>
+        /// Runs a Start_* call and returns the id of the prediction it created, or null when
+        /// Twitch did not create one (so a stale earlier prediction is never resolved by mistake).
+        /// </summary>
+        private async Task<string> CreateOnTwitchAsync(Func<Task> start)
+        {
+            string before = _twitchService.CurrentPredictionId;
+            await start();
+            string after = _twitchService.CurrentPredictionId;
+            if (string.IsNullOrEmpty(after) || after == before)
+            {
+                _logger.LogError("Twitch did not create the prediction; the game will be tracked for stats only.");
+                return null;
+            }
+            return after;
+        }
+
+        private static ActivePrediction NewActive(PredictionKind kind, string matchId, string predictionId, Dictionary<int, string> outcomes) => new ActivePrediction
+        {
+            Kind = kind,
+            MatchId = matchId,
+            PredictionId = predictionId,
+            StartedUtc = DateTime.UtcNow,
+            OutcomeByChampion = outcomes,
+        };
+
+        /// <summary>Waits for the match to finish, records stats, resolves the prediction and clears the record.</summary>
+        private async Task ContinueAsync(ActivePrediction active)
+        {
+            long deadline = new DateTimeOffset(active.StartedUtc).ToUnixTimeSeconds() + MaxGameLengthSec;
+            var match = await WaitForMatchEndAsync(active.MatchId, deadline);
+
+            if (match == null)
+            {
+                var age = DateTime.UtcNow - active.StartedUtc;
+                if (age < TimeSpan.FromSeconds(MaxGameLengthSec) + StaleMatchGrace)
+                {
+                    // Deadline passed but the match may still be unavailable for a while; let the next tick retry.
+                    _logger.LogWarning("Match {MatchId} is not finished after {Age}; will keep checking.", active.MatchId, Services.HealthState.FormatAge(age));
+                    return;
+                }
+                _logger.LogWarning("Match {MatchId} never showed up as finished after {Age}; giving up.", active.MatchId, Services.HealthState.FormatAge(age));
+                await _ircClient.SendMessage($"Кажется я забаговал. Матч {active.MatchId} так и не завершился. Прекращаю отслеживать" + (active.PredictionId != null ? ", ставка отменена." : "."));
+                if (active.PredictionId != null) await _twitchService.CencelePrediction();
+                await ClearActiveAsync();
+                return;
+            }
+
+            var participant = _riotApi.GetParticipantByMatch(match);
+            if (participant == null)
+            {
+                await _botState.UpdateStateAsync(s => s.AutoPred = false);
+                _logger.LogCritical("Participant could not be found in match {MatchId}. Auto-predictions disabled.", active.MatchId);
+                await _ircClient.SendMessage("Критическая ошибка: не удалось найти призывателя в матче. Автоставки выключены.");
+                await ClearActiveAsync();
+                return;
+            }
+
+            if (match.Info.GameDuration <= RemakeThresholdSec)
+            {
+                await _ircClient.SendMessage("Матч отменен. Ставка будет отменена.");
+                if (active.PredictionId != null) await _twitchService.CencelePrediction();
+                await ClearActiveAsync();
+                return;
+            }
+
+            bool won = participant.Win;
+            if (_botState.Current.Debug) _logger.LogDebug("Матч завершен {Win}", won);
+
+            if (!active.StatsRecorded)
+            {
+                await _gameState.UpdateStateAsync(s =>
+                {
+                    s.NumGames++;
+                    if (won) s.NumWins++;
+                    else s.NumLosses++;
+                });
+                await UpdateDailyStats(won);
+                active.StatsRecorded = true;
+                await PersistActiveAsync(active);
+            }
+
+            if (active.PredictionId != null)
+                await ResolveAsync(active, match, participant, won);
+            else
+                _logger.LogInformation("Match {MatchId} finished ({Result}); no prediction was attached.", active.MatchId, won ? "win" : "loss");
+
+            await ClearActiveAsync();
+            await MaybeStartPollAsync();
+        }
+
+        /// <summary>
+        /// Fetches the match until it shows up as finished. Always tries at least once, so a
+        /// long-finished match resolves immediately after a restart; returns null past the deadline.
+        /// </summary>
+        private async Task<Match> WaitForMatchEndAsync(string matchId, long deadlineUnix)
         {
             int consecutiveErrors = 0;
-            long deadline = DateTimeOffset.Now.ToUnixTimeSeconds() + MaxGameLengthSec;
-
-            while (_botState.Current.InMatch)
+            while (true)
             {
-                if (DateTimeOffset.Now.ToUnixTimeSeconds() > deadline)
-                {
-                    await _ircClient.SendMessage($"Кажется я забаговал. Матч длится 1.5 часа. Прекращаю отслеживать матч с ID:{matchId}");
-                    _logger.LogWarning("Match tracking timed out after 1.5 hours for Match ID: {MatchId}", matchId);
-                    return null;
-                }
-
-                Match match;
+                Match match = null;
                 try
                 {
                     match = await _riotApi.GetMatchAsync(matchId);
+                    if (consecutiveErrors != 0)
+                    {
+                        _logger.LogInformation("Recovered from {ErrorCount} consecutive Riot API errors", consecutiveErrors);
+                        consecutiveErrors = 0;
+                    }
                 }
                 catch (Exception ex)
                 {
                     consecutiveErrors++;
                     _logger.LogError(ex, "GetMatchAsync failed ({Count} in a row) for {MatchId}", consecutiveErrors, matchId);
-                    if (consecutiveErrors > 5)
-                    {
-                        _logger.LogError("Giving up on match {MatchId} after repeated Riot API errors.", matchId);
-                        return null;
-                    }
-                    await Task.Delay(2000);
-                    continue;
                 }
 
-                if (consecutiveErrors != 0)
-                {
-                    _logger.LogInformation("Recovered from {ErrorCount} consecutive API errors", consecutiveErrors);
-                    consecutiveErrors = 0;
-                }
+                if (match != null) return match;
+                if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > deadlineUnix) return null;
 
-                if (match == null)
-                {
-                    await Task.Delay(4000);
-                    continue;
-                }
-                return match;
+                // 4s between normal polls; errors back off up to 30s.
+                int delayMs = consecutiveErrors == 0 ? 4000 : Math.Min(30000, 2000 * (1 << Math.Min(consecutiveErrors, 4)));
+                await Task.Delay(delayMs);
             }
-            return null;
         }
 
         private static ParticipantStats ToStats(Participant p) => new ParticipantStats(
@@ -402,11 +600,18 @@ namespace SkillzBot.IllSkillzBot
                     return "Не удалось создать опрос (см. лог).";
                 }
 
+                await _botState.UpdateStateAsync(st => st.ActivePoll = new ActivePollState
+                {
+                    PollId = pollId,
+                    StartedUtc = DateTime.UtcNow,
+                    OptionKeys = options.Select(o => o.Key).ToList(),
+                });
+
                 _logger.LogInformation("Prediction poll {PollId} started with options: {Options}", pollId, string.Join(" | ", choices));
                 await _ircClient.SendMessage($"Опрос: {PredictionCatalog.PollTitle} Варианты: {string.Join(" | ", choices)}. Голосуем {PollDurationSec / 60} мин PopNemo");
 
                 handedOff = true;
-                _ = Task.Run(() => FinishPollAsync(pollId, options));
+                _ = Task.Run(() => FinishPollAsync(pollId, options, TimeSpan.FromSeconds(PollDurationSec + 5)));
                 return "Опрос запущен.";
             }
             catch (Exception ex)
@@ -420,11 +625,11 @@ namespace SkillzBot.IllSkillzBot
             }
         }
 
-        private async Task FinishPollAsync(string pollId, List<PredictionKind> options)
+        private async Task FinishPollAsync(string pollId, List<PredictionKind> options, TimeSpan wait)
         {
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(PollDurationSec + 5));
+                if (wait > TimeSpan.Zero) await Task.Delay(wait);
 
                 PollResult result = null;
                 for (int attempt = 0; attempt < 6; attempt++)
@@ -469,6 +674,7 @@ namespace SkillzBot.IllSkillzBot
             }
             finally
             {
+                await _botState.UpdateStateAsync(s => s.ActivePoll = null);
                 Interlocked.Exchange(ref _pollRunning, 0);
             }
         }
@@ -478,7 +684,10 @@ namespace SkillzBot.IllSkillzBot
             var s = _botState.Current;
             string lastPoll = s.LastPredictionPollUtc == DateTime.MinValue ? "never" : Services.HealthState.FormatAge(DateTime.UtcNow - s.LastPredictionPollUtc) + " ago";
             var next = PredictionCatalog.Find(s.NextPredictionKey) ?? PredictionCatalog.WinLose;
-            return $"Опросы: {(s.PredictionPollEnabled ? "on" : "off")} | следующая ставка: {next.PollLabel} | последний опрос: {lastPoll} | идет сейчас: {(_pollRunning == 1 ? "да" : "нет")} | интервал: {PollInterval.TotalHours:0}ч";
+            string tracking = s.ActivePrediction == null
+                ? "нет"
+                : $"{s.ActivePrediction.MatchId} ({(PredictionCatalog.Find(s.ActivePrediction.KindKey) ?? PredictionCatalog.WinLose).PollLabel}, {Services.HealthState.FormatAge(DateTime.UtcNow - s.ActivePrediction.StartedUtc)})";
+            return $"Опросы: {(s.PredictionPollEnabled ? "on" : "off")} | следующая ставка: {next.PollLabel} | последний опрос: {lastPoll} | идет сейчас: {(_pollRunning == 1 ? "да" : "нет")} | интервал: {PollInterval.TotalHours:0}ч | трекинг матча: {tracking}";
         }
 
         public async Task<string> SetNextKindAsync(string key)
