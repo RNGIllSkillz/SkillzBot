@@ -31,6 +31,8 @@ namespace SkillzBot.IllSkillzBot
         private const int NewGameMaxLengthSec = 30;
         private const int RemakeThresholdSec = 300;
         private const int PollDurationSec = 120;
+        private const int PollReminderAfterSec = PollDurationSec / 2;
+        private bool _announceUnavailable; // set after the first failed /announcement (missing scope), then plain messages only
         // The next poll is due after a random amount of *live* time (offline time does not count).
         private static readonly TimeSpan MinLiveBetweenPolls = TimeSpan.FromHours(3);
         private static readonly TimeSpan MaxLiveBetweenPolls = TimeSpan.FromHours(5);
@@ -643,9 +645,10 @@ namespace SkillzBot.IllSkillzBot
                 });
 
                 _logger.LogInformation("Prediction poll {PollId} started with options: {Options}", pollId, string.Join(" | ", choices));
-                await _ircClient.SendMessage($"Опрос: {PredictionCatalog.PollTitle} Варианты: {string.Join(" | ", choices)}. Голосуем {PollDurationSec / 60} мин PopNemo");
+                await AnnouncePollStartAsync(choices);
 
                 handedOff = true;
+                _ = Task.Run(() => RemindPollAsync(pollId));
                 _ = Task.Run(() => FinishPollAsync(pollId, options, TimeSpan.FromSeconds(PollDurationSec + 5)));
                 return "Опрос запущен.";
             }
@@ -657,6 +660,44 @@ namespace SkillzBot.IllSkillzBot
             finally
             {
                 if (!handedOff) Interlocked.Exchange(ref _pollRunning, 0);
+            }
+        }
+
+        /// <summary>
+        /// Tells chat the poll is open: a highlighted /announcement when the token allows it
+        /// (moderator:manage:announcements), otherwise a regular message.
+        /// </summary>
+        private async Task AnnouncePollStartAsync(List<string> choices)
+        {
+            string text = $"ОПРОС над чатом: {PredictionCatalog.PollTitle} Варианты: {string.Join(" | ", choices)}. Голосуем {PollDurationSec / 60} мин PopNemo";
+            if (!_announceUnavailable)
+            {
+                try
+                {
+                    if (await _twitchService.Announce(text)) return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Poll announcement failed ({Error}); using plain chat messages from now on.", ex.Message);
+                }
+                _announceUnavailable = true;
+                _logger.LogWarning("Chat announcements are unavailable (token needs moderator:manage:announcements); poll notices go out as plain messages.");
+            }
+            await _ircClient.SendMessage(text);
+        }
+
+        /// <summary>Halfway through the poll, reminds chat that it is still open.</summary>
+        private async Task RemindPollAsync(string pollId)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(PollReminderAfterSec));
+                if (_pollRunning != 1 || _botState.Current.ActivePoll?.PollId != pollId) return;
+                await _ircClient.SendMessage($"Опрос еще идет, осталось {PollDurationSec - PollReminderAfterSec} с: {PredictionCatalog.PollTitle} Голосуй над чатом PopNemo");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Poll reminder failed: {Error}", ex.Message);
             }
         }
 
