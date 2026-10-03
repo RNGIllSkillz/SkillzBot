@@ -38,6 +38,7 @@ namespace SkillzBot.EventSub
         private readonly HealthState _health;
 
         private readonly Dictionary<string, string> SubscriptionsTypes;
+        private readonly Services.Vip.VipRegistryService _vips;
         private List<string> _lockedRewards = new List<string>();
 
         private volatile bool _isConnected = false;
@@ -61,10 +62,12 @@ namespace SkillzBot.EventSub
             ILogger<TTVEventSub> logger,
             BotConfigModel config,
             IBotStateService botState,
-            HealthState health)
+            HealthState health,
+            Services.Vip.VipRegistryService vips)
         {
             _ircClient = ircClient;
             _health = health;
+            _vips = vips;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
@@ -85,6 +88,8 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelUnban += OnUnban;
             _eventSubWebsocketClient.ChannelBan += OnChannelBan;
             _eventSubWebsocketClient.ChannelChatSettingsUpdate += OnChannelChatSettingsUpdate;
+            _eventSubWebsocketClient.ChannelVipAdd += OnVipAdd;
+            _eventSubWebsocketClient.ChannelVipRemove += OnVipRemove;
 
             _twitchApi.Settings.ClientId = _config.TApiClientId;
             _twitchApi.Settings.AccessToken = _config.TApiAccessToken;
@@ -98,7 +103,9 @@ namespace SkillzBot.EventSub
                 { "channel.prediction.begin", "1"},
                 { "channel.chat_settings.update", "1"},
                 { "stream.online", "1"},
-                { "stream.offline", "1"}
+                { "stream.offline", "1"},
+                { "channel.vip.add", "1"},
+                { "channel.vip.remove", "1"}
             };
         }
 
@@ -414,6 +421,18 @@ namespace SkillzBot.EventSub
                 await Task.Delay(100);
             }
         }, nameof(OnPrediction));
+
+        private Task OnVipAdd(object sender, ChannelVipArgs e) => OnEvent(async () =>
+        {
+            var ev = e.Payload.Event;
+            if (long.TryParse(ev.UserId, out long id)) await _vips.RecordGrantAsync(id, ev.UserLogin, ev.UserName, "twitch");
+        }, nameof(OnVipAdd));
+
+        private Task OnVipRemove(object sender, ChannelVipArgs e) => OnEvent(async () =>
+        {
+            var ev = e.Payload.Event;
+            if (long.TryParse(ev.UserId, out long id)) await _vips.RecordRevokeAsync(id, "twitch");
+        }, nameof(OnVipRemove));
 
         private Task OnUnban(object sender, ChannelUnbanArgs e) => OnEvent(async () =>
         {

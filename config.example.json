@@ -39,6 +39,7 @@
   "EmoteModeId": "reward id: emote-only mode",
 
   "ChatFilterLvl": 3,
+  "VipLimit": 100,
 
   "ProxyUrl": "",
   "ProxyCorePath": "",

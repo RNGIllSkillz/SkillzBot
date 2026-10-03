@@ -86,5 +86,9 @@ namespace SkillzBot.Interfaces
         Task<GetChannelVIPsResponse> GetVIPs();
         Task AddChannelVIP(string userID);
         Task DeleteChannelVIP(string userID);
+        /// <summary>Every VIP of the channel (all pages), or null when Helix could not be read.</summary>
+        Task<List<MODELS.VipInfo>> GetAllVipsAsync();
+        Task<bool> TryAddChannelVIPAsync(string userID);
+        Task<bool> TryRemoveChannelVIPAsync(string userID);
     }
 }

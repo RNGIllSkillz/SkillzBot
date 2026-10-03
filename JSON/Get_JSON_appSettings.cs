@@ -101,6 +101,8 @@ namespace SkillzBot.JSON.Settings
         public string ProxyCorePath { get; set; }
         [JsonProperty("ProxyApplyTo")]
         public string ProxyApplyTo { get; set; }
+        [JsonProperty("VipLimit")]
+        public int? VipLimit { get; set; }
     }
 
     public partial class SettingsJson

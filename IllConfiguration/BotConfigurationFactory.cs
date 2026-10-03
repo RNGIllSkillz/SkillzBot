@@ -49,6 +49,7 @@ namespace SkillzBot.Configuration
                 // Twitch logins are lowercase; normalize so access checks and reward rules match.
                 RootUser = botConfigs.RootUser.Trim().TrimStart('@').ToLowerInvariant(),
 
+                VipLimit = botConfigs.VipLimit ?? 100,
                 ProxyUrl = botConfigs.ProxyUrl?.Trim(),
                 ProxyCorePath = botConfigs.ProxyCorePath?.Trim(),
                 ProxyApplyTo = string.IsNullOrWhiteSpace(botConfigs.ProxyApplyTo)

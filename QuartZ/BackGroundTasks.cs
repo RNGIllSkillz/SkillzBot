@@ -22,6 +22,7 @@ namespace SkillzBot.QuartZ
         private readonly SubscriptionService _subscriptionService;
         private readonly CooldownManager _cooldownManager;
         private readonly ITwitchService _twitchService;
+        private readonly SkillzBot.Services.Vip.VipRegistryService _vips;
 
         public BackGroundTasks(
             ILogger<BackGroundTasks> logger,
@@ -34,9 +35,11 @@ namespace SkillzBot.QuartZ
             MediaQueueService mediaQueueService,
             SubscriptionService subscriptionService,
             CooldownManager cooldownManager,
-            ITwitchService twitchService)
+            ITwitchService twitchService,
+            SkillzBot.Services.Vip.VipRegistryService vips)
         {
             _twitchService = twitchService;
+            _vips = vips;
             _logger = logger;
             _ircClient = ircClient;
             _chatMessageHandler = chatMessageHandler;
@@ -78,6 +81,7 @@ namespace SkillzBot.QuartZ
             await RunStep("SaveBuffer", () => _chatMessageHandler.SaveBuffer(true));
             await RunStep("CheckSubscription", () => _subscriptionService.CheckSubscriptionAsync());
             await RunStep("SyncStreamStatus", SyncStreamStatusAsync);
+            await RunStep("SyncVips", () => _twitchService.IsReady() ? _vips.PeriodicSyncAsync() : Task.CompletedTask);
         }
 
         /// <summary>
