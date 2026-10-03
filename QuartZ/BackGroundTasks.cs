@@ -91,7 +91,7 @@ namespace SkillzBot.QuartZ
             if (live != _botState.Current.BroadcasterIsOnline)
             {
                 _logger.LogInformation("Stream status drifted; correcting online={Live}", live);
-                await _botState.UpdateStateAsync(s => s.BroadcasterIsOnline = live);
+                await _botState.SetBroadcasterOnlineAsync(live);
             }
         }
 

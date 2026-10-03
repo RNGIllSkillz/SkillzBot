@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
@@ -11,18 +12,25 @@ namespace SkillzBot.IllSkillzBot
 {
     public class IllGames
     {
+        private const int QuizDurationSec = 180;
+
         private readonly ITtvIRCClient _ircClient;
         private readonly IDatabaseService _database;
         private readonly ITwitchService _twitchService;
         private readonly IBotStateService _botState;
         private readonly IIllAccess _illAccess;
         private readonly IllModeratorsInteractions _modInteractions;
+        private readonly ILogger<IllGames> _logger;
 
-        private static QuizzObject _Quizz = new QuizzObject();
+        private readonly object _quizLock = new object();
+        private QuizzObject _quiz = new QuizzObject();
+        private DateTime _quizStartedUtc;
+        private int _quizGeneration; // bumps whenever a quiz starts or ends; the timeout task checks it
+
         private static readonly List<quizz_activeUser> Quizz_ActiveUsers_List = new List<quizz_activeUser>();
         private static readonly object _ActiveUsers_ListLock = new object();
 
-        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService, IBotStateService botState, IIllAccess illAccess, IllModeratorsInteractions modInteractions)
+        public IllGames(ITtvIRCClient ircClient, IDatabaseService database, ITwitchService twitchService, IBotStateService botState, IIllAccess illAccess, IllModeratorsInteractions modInteractions, ILogger<IllGames> logger)
         {
             _ircClient = ircClient ?? throw new ArgumentNullException(nameof(ircClient));
             _database = database ?? throw new ArgumentNullException(nameof(database));
@@ -30,7 +38,9 @@ namespace SkillzBot.IllSkillzBot
             _botState = botState;
             _illAccess = illAccess;
             _modInteractions = modInteractions ?? throw new ArgumentNullException(nameof(modInteractions));
+            _logger = logger;
         }
+
         public async Task<UserObject> Rulette(UserObject user)
         {
             const int CoolDownMin = 43200;
@@ -76,6 +86,7 @@ namespace SkillzBot.IllSkillzBot
             }
             return user;
         }
+
         public string GetMagic8BallAnswer()
         {
             string[] answers = {
@@ -117,12 +128,90 @@ namespace SkillzBot.IllSkillzBot
             int index = IntUtil.Random(0, answers.Length);
             return answers[index];
         }
+
         #region Quizz
+
+        /// <summary>
+        /// Starts a quiz from a random dbQuiz row, or reports the running one. Not forced
+        /// (automatic) starts are skipped while the stream is offline.
+        /// </summary>
         public async Task Quizz(bool isForced)
         {
-            await _ircClient.SendMessage("Need to upgrade SQLReader logic at Quizz()");
-            await Task.CompletedTask;
+            string runningQuestion = null;
+            int runningCost = 0, secondsLeft = 0;
+            lock (_quizLock)
+            {
+                if (_botState.Current.QuizIsRunning && !string.IsNullOrEmpty(_quiz.QuizzAnswer))
+                {
+                    runningQuestion = _quiz.QuizzQuestion;
+                    runningCost = _quiz.QuizzCost;
+                    secondsLeft = Math.Max(0, QuizDurationSec - (int)(DateTime.UtcNow - _quizStartedUtc).TotalSeconds);
+                }
+            }
+            if (runningQuestion != null)
+            {
+                await _ircClient.SendMessage($"Викторина уже идет: {runningQuestion} (приз {runningCost}). Осталось {secondsLeft} с.");
+                return;
+            }
+
+            if (!isForced && !_botState.Current.BroadcasterIsOnline) return;
+
+            QuizzObject quiz;
+            try
+            {
+                quiz = await _database.GetRandomQuizAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not load a quiz question");
+                await _ircClient.SendMessage("Не удалось загрузить вопрос викторины.");
+                return;
+            }
+            if (quiz == null || string.IsNullOrWhiteSpace(quiz.QuizzQuestion) || string.IsNullOrWhiteSpace(quiz.QuizzAnswer))
+            {
+                await _ircClient.SendMessage("В базе нет вопросов для викторины (таблица dbQuiz).");
+                return;
+            }
+
+            int generation;
+            lock (_quizLock)
+            {
+                _quiz = quiz;
+                _quizStartedUtc = DateTime.UtcNow;
+                generation = ++_quizGeneration;
+            }
+            await _botState.UpdateStateAsync(s => s.QuizIsRunning = true);
+            _logger.LogInformation("Quiz started: {Question} (prize {Prize})", quiz.QuizzQuestion, quiz.QuizzCost);
+            await _ircClient.SendMessage($"{string.Format(STRINGS.QuizStart, quiz.QuizzQuestion)} Приз {quiz.QuizzCost} балл(ов), {QuizDurationSec / 60} мин на ответ.");
+
+            _ = Task.Run(() => QuizTimeoutAsync(generation));
         }
+
+        private async Task QuizTimeoutAsync(int generation)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(QuizDurationSec));
+
+                string answer;
+                lock (_quizLock)
+                {
+                    if (_quizGeneration != generation) return; // answered already, or a new quiz started
+                    answer = _quiz.QuizzAnswer;
+                    _quiz = new QuizzObject();
+                    _quizGeneration++;
+                }
+                await _botState.UpdateStateAsync(s => s.QuizIsRunning = false);
+                if (_botState.Current.AntiBotProtectionLvl == 2) ClearQuizzActiveUsers();
+                _logger.LogInformation("Quiz timed out; answer was {Answer}", answer);
+                await _ircClient.SendMessage($"{STRINGS.QuizTimeOut} Правильный ответ: {answer}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Quiz timeout task failed");
+            }
+        }
+
         public void QuizzActiveUser(string ttvID)
         {
             lock (_ActiveUsers_ListLock)
@@ -142,6 +231,7 @@ namespace SkillzBot.IllSkillzBot
                 }
             }
         }
+
         private bool CheckQuizzActiveUser(string ttvID)
         {
             lock (_ActiveUsers_ListLock)
@@ -155,32 +245,50 @@ namespace SkillzBot.IllSkillzBot
                 return false;
             }
         }
+
+        /// <summary>Called for every chat message while a quiz is running; the first correct answer wins.</summary>
         public async Task<UserObject> UserGuessAnswer(UserObject user, string message)
         {
-            if (string.IsNullOrEmpty(_Quizz.QuizzAnswer)) return user;
-            if (!_botState.Current.FirstQuizOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
-            if (!message.Contains(_Quizz.QuizzAnswer, StringComparison.OrdinalIgnoreCase)) return user;
-
-            await _botState.UpdateStateAsync(s => s.QuizIsRunning = false);
-
-            if (_botState.Current.AntiBotProtectionLvl == 2)
-                lock (_ActiveUsers_ListLock)
-                    Quizz_ActiveUsers_List.Clear();
-
+            string answer;
+            int cost;
+            lock (_quizLock)
+            {
+                answer = _quiz.QuizzAnswer;
+                cost = _quiz.QuizzCost;
+            }
+            if (string.IsNullOrEmpty(answer)) return user;
+            if (!message.Contains(answer, StringComparison.OrdinalIgnoreCase)) return user;
+            // Shouted answers are ignored and the quiz keeps running.
             if (StringUtil.CountUpperCaseLetters(message) > 3) return user;
+            if (!_botState.Current.FirstQuizOfTheDay && !CheckQuizzActiveUser(user.TwitchID.ToString())) return user;
 
-            await _botState.UpdateStateAsync(s => s.FirstQuizOfTheDay = false);
+            lock (_quizLock)
+            {
+                if (!string.Equals(_quiz.QuizzAnswer, answer)) return user; // lost the race to the timeout
+                _quiz = new QuizzObject();
+                _quizGeneration++;
+            }
 
-            user.QuizPoints += _Quizz.QuizzCost;
-            user.QuizTotal += _Quizz.QuizzCost;
-            await _ircClient.SendMessage(string.Format(STRINGS.QuizWin, _Quizz.QuizzAnswer, user.Name, _Quizz.QuizzCost, user.QuizPoints, user.QuizTotal)).ConfigureAwait(false);
+            await _botState.UpdateStateAsync(s =>
+            {
+                s.QuizIsRunning = false;
+                s.FirstQuizOfTheDay = false;
+            });
+            if (_botState.Current.AntiBotProtectionLvl == 2) ClearQuizzActiveUsers();
+
+            user.QuizPoints += cost;
+            user.QuizTotal += cost;
+            _logger.LogInformation("Quiz won by {User} (+{Prize})", user.Name, cost);
+            await _ircClient.SendMessage(string.Format(STRINGS.QuizWin, answer, user.Name, cost, user.QuizPoints, user.QuizTotal)).ConfigureAwait(false);
             return user;
         }
+
         public void ClearQuizzActiveUsers()
         {
             lock (_ActiveUsers_ListLock)
                 Quizz_ActiveUsers_List.Clear();
         }
+
         #endregion
     }
 }

@@ -91,7 +91,7 @@ namespace SkillzBot.Hosts
                 if (live != _botState.Current.BroadcasterIsOnline)
                 {
                     _logger.LogInformation("Stream status synced at startup: online={Live}", live);
-                    await _botState.UpdateStateAsync(s => s.BroadcasterIsOnline = live);
+                    await _botState.SetBroadcasterOnlineAsync(live);
                 }
             }
             catch (Exception ex)
