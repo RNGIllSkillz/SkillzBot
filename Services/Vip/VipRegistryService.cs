@@ -25,7 +25,7 @@ namespace SkillzBot.Services.Vip
     {
         private const string FileName = "Vips.json";
         private static readonly TimeSpan SyncInterval = TimeSpan.FromMinutes(30);
-        private const int DbIdLookupsPerSync = 20;
+        private const int DbIdLookupsPerSync = 200; // enough to rank every pre-tracking VIP on the first sync
 
         private readonly ITwitchService _twitch;
         private readonly IDatabaseService _database;
