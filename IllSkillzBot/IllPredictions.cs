@@ -31,7 +31,6 @@ namespace SkillzBot.IllSkillzBot
         private const int NewGameMaxLengthSec = 30;
         private const int RemakeThresholdSec = 300;
         private const int PollDurationSec = 120;
-        private const int PollReminderAfterSec = PollDurationSec / 2;
         // The next poll is due after a random amount of *live* time (offline time does not count).
         private static readonly TimeSpan MinLiveBetweenPolls = TimeSpan.FromHours(3);
         private static readonly TimeSpan MaxLiveBetweenPolls = TimeSpan.FromHours(5);
@@ -644,10 +643,9 @@ namespace SkillzBot.IllSkillzBot
                 });
 
                 _logger.LogInformation("Prediction poll {PollId} started with options: {Options}", pollId, string.Join(" | ", choices));
-                await AnnouncePollStartAsync(choices);
+                await AnnouncePollStartAsync();
 
                 handedOff = true;
-                _ = Task.Run(() => RemindPollAsync(pollId));
                 _ = Task.Run(() => FinishPollAsync(pollId, options, TimeSpan.FromSeconds(PollDurationSec + 5)));
                 return "Опрос запущен.";
             }
@@ -662,29 +660,13 @@ namespace SkillzBot.IllSkillzBot
             }
         }
 
-        /// <summary>Same style as the prediction-start notice: three identical lines back to back, then the options.</summary>
-        private async Task AnnouncePollStartAsync(List<string> choices)
+        /// <summary>Same style as the prediction-start notice: three identical lines back to back.</summary>
+        private async Task AnnouncePollStartAsync()
         {
             for (int i = 0; i < 3; i++)
             {
                 await _ircClient.SendMessage("Опрос на некст ставку запущен PopNemo PopNemo PopNemo");
                 await Task.Delay(100);
-            }
-            await _ircClient.SendMessage($"{PredictionCatalog.PollTitle} Варианты: {string.Join(" | ", choices)}. Голосуем {PollDurationSec / 60} мин, опрос над чатом.");
-        }
-
-        /// <summary>Halfway through the poll, reminds chat that it is still open.</summary>
-        private async Task RemindPollAsync(string pollId)
-        {
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(PollReminderAfterSec));
-                if (_pollRunning != 1 || _botState.Current.ActivePoll?.PollId != pollId) return;
-                await _ircClient.SendMessage($"Опрос еще идет, осталось {PollDurationSec - PollReminderAfterSec} с: {PredictionCatalog.PollTitle} Голосуй над чатом PopNemo");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("Poll reminder failed: {Error}", ex.Message);
             }
         }
 
