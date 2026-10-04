@@ -1,0 +1,3 @@
+# Scripts and configs that run on the Alpine host must keep LF endings on every checkout.
+deploy/alpine/** text eol=lf
+*.sh text eol=lf
