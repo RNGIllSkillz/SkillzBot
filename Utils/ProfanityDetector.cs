@@ -108,7 +108,7 @@ namespace SkillzBot.Utils
                 if (!mode.Banned.FindFirst(squashed, from, out int index, out int length, out string word))
                     break;
 
-                if (IsAcceptedMatch(mode.Whitelist, squashed, index, length, tokens))
+                if (IsAcceptedMatch(mode.Whitelist, squashed, index, length, tokens, mode.Mode == NormalizationMode.Lookalike))
                     return word;
 
                 from = index + 1;
@@ -142,11 +142,14 @@ namespace SkillzBot.Utils
 
         /// <summary>
         /// A match inside one token is accepted unless a whitelisted word in that token fully
-        /// contains it ("книга" contains "нига"; "spider" contains "пидер"). A match that spans
-        /// several tokens is accepted only when every touched token is mostly consumed by it,
-        /// which catches "п и д о р" and "пи дор" but not "не грусти" or "выспи дорого".
+        /// contains it ("книга" contains "нига"; "spider" contains "пидер"). In the lookalike pass,
+        /// where Latin is read by shape and ordinary words turn into Cyrillic ("herp" -> "негр"), a
+        /// single-token match must also sit at the token's edge and make up at least half of it:
+        /// "nugopac", "HErPbl" and "@nugop" still count, "anotherPlate" and "sherpa" do not.
+        /// A match that spans several tokens is accepted only when every touched token is mostly
+        /// consumed by it, which catches "п и д о р" and "пи дор" but not "не грусти" or "выспи дорого".
         /// </summary>
-        private static bool IsAcceptedMatch(WordTrie whitelist, string text, int index, int length, List<Token> tokens)
+        private static bool IsAcceptedMatch(WordTrie whitelist, string text, int index, int length, List<Token> tokens, bool lookalike)
         {
             int matchEnd = index + length;
             int touched = 0;
@@ -170,7 +173,14 @@ namespace SkillzBot.Utils
             }
 
             if (touched == 1)
+            {
+                if (lookalike)
+                {
+                    bool atEdge = index == single.Start || matchEnd == single.End;
+                    if (!atEdge || length * 2 < single.Length) return false;
+                }
                 return !IsCoveredByWhitelist(whitelist, text, index, matchEnd, single);
+            }
 
             return touched > 1 && allConsumed;
         }

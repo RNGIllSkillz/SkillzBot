@@ -99,6 +99,13 @@ namespace SkillzBot.Utils
                 {
                     continue;
                 }
+                // A leading '@' is a mention marker, not a letter: "@anotherPlate" must not glue into one word.
+                // Inside a word it still reads as 'а' ("пид@р").
+                if (c == '@' && (sb.Length == 0 || !char.IsLetterOrDigit(sb[sb.Length - 1])))
+                {
+                    sb.Append(' ');
+                    continue;
+                }
                 sb.Append(table[char.ToLowerInvariant(c)]);
             }
             return sb.ToString();
