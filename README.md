@@ -165,22 +165,21 @@
 
 Бот и панель живут на одной машине с Alpine Linux: бот - самодостаточный исполняемый файл `SkillzBot` (`linux-musl-x64`, никаких зависимостей от .NET на хосте) под OpenRC-службой `skillzbot`, панель - статика под системным nginx, который проксирует `/api` на бот. OpenRC (`supervise-daemon`) перезапускает процесс при любом выходе, поэтому «перезапуск» из панели - это просто завершение процесса.
 
-**Первая настройка хоста** (один раз, от root):
+**Первое заполнение пустого хоста** - одной командой с ПК из корня репозитория (нужны .NET SDK, node/npm, Python 3 и `pip install paramiko`; вход по паролю - он спрашивается скрыто один раз за запуск, можно передать через переменную `SKILLZBOT_SSH_PASSWORD`; скрипт ничего не сохраняет):
 
-```sh
-scp -r deploy/alpine root@192.168.254.154:/root/
-ssh root@192.168.254.154 'APP_DIR=/opt/skillzbot CHANNEL=general_hs_ TZ=Europe/Moscow sh /root/alpine/install.sh'
+```
+python deploy\deploy.py --host 192.168.254.154 --init --data "\\192.168.255.10\skillzbot_data\skillzbotdata\Channels_Data" --channel general_hs_ --tz Europe/Moscow [--proxy-bin C:\tools\xray]
 ```
 
-Скрипт ставит зависимости .NET (`icu-libs icu-data-full krb5-libs libgcc libintl libssl3 libstdc++ zlib`), nginx и tzdata, создает `/opt/skillzbot/{web,Channels_Data,proxy}`, службу `/etc/init.d/skillzbot` с настройками в `/etc/conf.d/skillzbot` (`SKILLZBOT_DIR`, `ENV_CHANNEL_NAME`, `TZ`) и сайт `/etc/nginx/http.d/skillzbot.conf`. Затем переносится папка данных: `Channels_Data/` (конфиг `<канал>.json`, словари, состояния) целиком в `/opt/skillzbot/Channels_Data/` - через смонтированную SMB-шару (`apk add cifs-utils; mount -t cifs //192.168.255.10/skillzbot_data /mnt/old -o username=...`) или `scp -r` с ПК. Если используется прокси, бинарник xray/hysteria кладется в `/opt/skillzbot/proxy/`, а `ProxyCorePath` в конфиге указывает на него.
+`--init` загружает `deploy/alpine/` и выполняет `install.sh`: ставит зависимости .NET (`icu-libs icu-data-full krb5-libs libgcc libintl libssl3 libstdc++ zlib`), nginx и tzdata, создает `/opt/skillzbot/{web,Channels_Data,proxy}`, службу `/etc/init.d/skillzbot` с настройками в `/etc/conf.d/skillzbot` (`SKILLZBOT_DIR`, `ENV_CHANNEL_NAME`, `TZ`) и сайт `/etc/nginx/http.d/skillzbot.conf`. `--data` копирует существующую папку `Channels_Data` (конфиг `<канал>.json`, словари в `_shared`, состояния; старые логи - только с `--include-logs`) в `/opt/skillzbot/Channels_Data`; если там уже есть файлы, нужен `--data-overwrite`. `--proxy-bin` кладет бинарник xray/hysteria в `/opt/skillzbot/proxy/` (после этого `ProxyCorePath` в конфиге должен указывать на него). Затем собираются и заливаются бот и панель, служба запускается, в конце печатается ее статус и хвост лога.
 
-**Деплой и обновления** - с ПК, из корня репозитория (нужны .NET SDK, node/npm и OpenSSH-клиент; аутентификация ключом или паролем в приглашении ssh, скрипт ничего не хранит):
+**Обновления** - та же команда без `--init`/`--data`:
 
 ```
 python deploy\deploy.py --host 192.168.254.154
 ```
 
-Скрипт делает `dotnet publish` для `linux-musl-x64`, собирает панель (`npm run build`), пакует все в tar.gz, заливает по scp, останавливает службу, распаковывает поверх старых файлов (`Channels_Data` не трогается) и запускает службу. Флаги: `--skip-web` / `--skip-bot` (только одна часть), `--no-build` (переиспользовать `deploy/out`), `--no-restart` (только положить файлы - новая сборка поднимется при следующем перезапуске из панели). Ключ для входа без пароля: `ssh-keygen -t ed25519`, затем `type %USERPROFILE%\.ssh\id_ed25519.pub | ssh root@192.168.254.154 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`.
+Скрипт делает `dotnet publish` для `linux-musl-x64`, собирает панель (`npm run build`), пакует все в tar.gz, заливает по SFTP, останавливает службу, распаковывает поверх старых файлов (`Channels_Data` не трогается) и запускает службу. Флаги: `--skip-web` / `--skip-bot` (только одна часть), `--no-build` (переиспользовать `deploy/out`), `--no-restart` (только положить файлы - новая сборка поднимется при следующем перезапуске из панели), `--dry-run` (собрать и упаковать без подключения).
 
 **Эксплуатация.** `rc-service skillzbot status|start|stop|restart`; логи бота - `/opt/skillzbot/Channels_Data/<канал>/DATA/logs/bot-*.log` и `errors-*.log` (их же показывает панель), stdout/stderr процесса - `/var/log/skillzbot.out` и `.err` (ежедневно обрезаются, если выросли больше 50 МБ). Панель доступна на порту 80 этого хоста; снаружи перед ней ставится обратный прокси с TLS. Локальная сборка без деплоя: `dotnet build -c Release`, `cd web && npm run build`.
 
