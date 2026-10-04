@@ -116,11 +116,15 @@ def package_data(data_dir: Path, include_logs: bool):
 
     def flt(info):
         nonlocal count
-        if not include_logs and "logs" in Path(info.name).parts and info.isfile():
+        parts = Path(info.name).parts
+        if not include_logs and "logs" in parts and info.isfile():
             return None
         info.uid = info.gid = 0
         if info.isfile():
             count += 1
+            # proxy cores and anything under a proxy/ folder must stay executable on the host
+            if Path(info.name).name in ("xray", "hysteria") or "proxy" in parts:
+                info.mode = 0o755
         return info
 
     with tarfile.open(tmp, "w:gz") as tar:
