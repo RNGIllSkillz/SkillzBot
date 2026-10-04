@@ -19,7 +19,8 @@ Options: --skip-bot / --skip-web (ship only one part), --no-build (reuse the pre
 The password is asked interactively (hidden); it can also come from the SKILLZBOT_SSH_PASSWORD
 environment variable or --password. Nothing is written to disk by this script.
 
-Needs on this machine: the .NET SDK (6 or newer), Python 3 and the paramiko package (pip install paramiko).
+Needs on this machine: the .NET 10 SDK (https://dotnet.microsoft.com/download/dotnet/10.0), Python 3 and the
+paramiko package (pip install paramiko).
 The host needs internet access for npm while the panel builds.
 """
 import argparse
@@ -48,7 +49,25 @@ def run(cmd, cwd=None):
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
+REQUIRED_SDK_MAJOR = 10
+
+
+def check_sdk():
+    """Fail early with a clear message when no .NET SDK of the project's major version is installed."""
+    try:
+        out = subprocess.run(["dotnet", "--list-sdks"], capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        sys.exit("dotnet was not found; install the .NET %d SDK from https://dotnet.microsoft.com/download/dotnet/%d.0"
+                 % (REQUIRED_SDK_MAJOR, REQUIRED_SDK_MAJOR))
+    majors = {int(line.split(".", 1)[0]) for line in out.splitlines() if line[:1].isdigit()}
+    if REQUIRED_SDK_MAJOR not in majors:
+        found = ", ".join(line.split(" ", 1)[0] for line in out.splitlines() if line.strip()) or "none"
+        sys.exit("SkillzBot targets net%d.0 but no .NET %d SDK is installed (found: %s); install it from "
+                 "https://dotnet.microsoft.com/download/dotnet/%d.0" % (REQUIRED_SDK_MAJOR, REQUIRED_SDK_MAJOR, found, REQUIRED_SDK_MAJOR))
+
+
 def build_bot():
+    check_sdk()
     bot_out = OUT / "bot"
     run(["dotnet", "publish", str(ROOT / "SkillzBot.csproj"), "-c", "Release", "-r", "linux-musl-x64",
          "--self-contained", "true", "-p:PublishSingleFile=true", "-o", str(bot_out)])

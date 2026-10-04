@@ -75,8 +75,8 @@ namespace SkillzBot.Api
         {
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
-                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-                KnownNetworks = { }, KnownProxies = { }
+                // Defaults trust loopback only, which is where nginx runs.
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             });
             app.UseRouting();
             app.UseAuthentication();
