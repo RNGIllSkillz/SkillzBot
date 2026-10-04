@@ -9,6 +9,7 @@ export interface Status {
   dbOk: boolean; dbFailures: number
   streamElementsFailures: number; streamElementsLastOkSeconds?: number
   proxy: string
+  tokens: string
   silent: boolean; subActive: boolean; filterLevel: number; autoPred: boolean; inMatch: boolean; online: boolean
 }
 
@@ -58,3 +59,11 @@ export interface Subscription { active: boolean; unlimited: boolean; due: string
 export interface SystemInfo { version: string; runtime: string; startedUtc: string; dataPath: string; channel: string; apiPort: number; publicUrl: string | null }
 export interface EditorRow { twitchId: number; login: string; addedBy: string | null; addedAt: string }
 export interface PredictionsStatus { summary: string; active: BotState['activePrediction']; poll: BotState['activePoll']; nextKind: string | null; kinds: string }
+
+export interface TwitchTokenStatus {
+  identity: 'broadcaster' | 'bot'; source: 'oauth' | 'config' | 'none'
+  login: string | null; userId: string | null; expectedLogin: string | null; expectedUserId: string | null
+  scopes: string[]; requiredScopes: string[]; missingScopes: string[]
+  expiresUtc: string | null; expiresInSeconds: number | null; lastRefreshUtc: string | null
+  lastError: string | null; refreshable: boolean; valid: boolean
+}

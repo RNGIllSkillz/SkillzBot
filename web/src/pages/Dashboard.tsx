@@ -40,6 +40,7 @@ export default function Dashboard({ me }: { me: Me }) {
         <Card title="Состояние">
           <div className="kv">
             <dt>Прокси</dt><dd className="mono">{status.proxy}</dd>
+            <dt>Токены</dt><dd className="mono">{status.tokens}</dd>
             <dt>Режим</dt><dd>{status.silent && <Badge tone="warn">silent</Badge>} <OnOff on={status.subActive} yes="бот активен" no="бот выключен (подписка)" /> <Badge>фильтр {status.filterLevel}</Badge> <OnOff on={status.autoPred} yes="автоставки" no="автоставки off" /></dd>
             {game.data && <><dt>Ранг</dt><dd>{game.data.summonerName} · {game.data.elo} {game.data.tier} · сегодня {game.data.numGames} игр ({game.data.numWins}/{game.data.numLosses}), LP {game.data.earnedLP >= 0 ? '+' : ''}{game.data.earnedLP}</dd></>}
             {pred.data && <><dt>Ставки</dt><dd>{pred.data.summary}</dd></>}

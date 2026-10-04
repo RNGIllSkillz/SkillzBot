@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
 using SkillzBot.Interfaces;
 using SkillzBot.MODELS;
+using SkillzBot.Services.Twitch;
 using SkillzBot.Utils;
 using System;
 using System.Collections.Generic;
@@ -30,40 +31,37 @@ namespace SkillzBot.API.Twitch
         private string _winID;
         private string _looseID;
         private readonly string _broadcasterID;
-        private readonly bool _isValidToken;
+        private readonly TwitchTokenService _tokens;
+        private readonly TwitchAPI _botApi = new TwitchAPI();
 
         // Fail fast setting: 5 seconds
         private readonly TimeSpan _apiTimeout = TimeSpan.FromSeconds(5);
 
-        public TwitchApiService(BotConfigModel config, ILogger<TwitchApiService> logger)
+        public TwitchApiService(BotConfigModel config, TwitchTokenService tokens, ILogger<TwitchApiService> logger)
         {
             _config = config;
+            _tokens = tokens;
             _logger = logger;
             _broadcasterID = _config.BroadcasterId;
 
             _logger.LogInformation("Initializing Twitch API Service...");
 
+            // TwitchLib reads Settings on every call, so pushing a refreshed token here covers every Helix call below.
             _api = new TwitchAPI();
-            _api.Settings.ClientId = _config.TApiClientId;
-            _api.Settings.AccessToken = _config.TApiAccessToken;
+            _tokens.Attach(TwitchIdentity.Broadcaster, c => { _api.Settings.ClientId = c.ClientId; _api.Settings.AccessToken = c.AccessToken; });
+            _tokens.Attach(TwitchIdentity.Bot, c => { _botApi.Settings.ClientId = c.ClientId; _botApi.Settings.AccessToken = c.AccessToken; });
 
-            if (!StringUtil.IsValidApiToken(_api.Settings.ClientId) || !StringUtil.IsValidApiToken(_api.Settings.AccessToken))
-            {
-                _logger.LogError("ERROR: Invalid Tokens. Twitch API functionality is offline.");
-                _isValidToken = false;
-            }
+            if (_tokens.Current(TwitchIdentity.Broadcaster) == null)
+                _logger.LogError("No broadcaster token (neither a panel grant nor TApiAccessToken). Twitch API functionality is offline until the streamer authorizes the bot on the panel.");
             else
-            {
-                _isValidToken = true;
                 _logger.LogInformation("Twitch API Service Initialized. OK.");
-            }
         }
 
         public bool IsReady()
         {
-            if (!_isValidToken || _api == null)
+            if (_api == null || _tokens.Current(TwitchIdentity.Broadcaster) == null)
             {
-                _logger.LogWarning("Twitch API call attempted but service is not ready.");
+                _logger.LogWarning("Twitch API call attempted but no broadcaster token is available.");
                 return false;
             }
             return true;
@@ -133,10 +131,27 @@ namespace SkillzBot.API.Twitch
                     _logger.LogWarning("Bad Resource (404) in {Operation}: {Msg}", operationName, ex.Message);
                     break;
                 }
-                // 6a. MISSING SCOPE
+                // 6a. 401: an expired token or a missing scope. Refresh once and retry; a second 401 is a scope problem.
                 catch (BadScopeException ex)
                 {
-                    _logger.LogError("Twitch token lacks the scope required for {Operation}: {Msg}", operationName, ex.Message);
+                    if (retries == 0 && await _tokens.HandleUnauthorizedAsync(TwitchIdentity.Broadcaster))
+                    {
+                        retries++;
+                        _logger.LogWarning("401 in {Operation}; broadcaster token refreshed, retrying.", operationName);
+                        continue;
+                    }
+                    _logger.LogError("Twitch token lacks the scope required for {Operation} (or is invalid): {Msg}", operationName, ex.Message);
+                    break;
+                }
+                catch (TokenExpiredException ex)
+                {
+                    if (retries == 0 && await _tokens.HandleUnauthorizedAsync(TwitchIdentity.Broadcaster))
+                    {
+                        retries++;
+                        _logger.LogWarning("Expired token in {Operation}; refreshed, retrying.", operationName);
+                        continue;
+                    }
+                    _logger.LogError("Twitch token expired in {Operation}: {Msg}", operationName, ex.Message);
                     break;
                 }
                 // 6. FORBIDDEN (Ownership issues / Bad Token)
@@ -797,9 +812,12 @@ namespace SkillzBot.API.Twitch
         public async Task SendWhisper(string toUserID, string message, bool newRec = true)
         {
             if (!IsReady()) return;
+            // Whispers come from the bot account when it has the scope, from the broadcaster otherwise (as before).
+            var bot = _tokens.Current(TwitchIdentity.Bot);
+            bool viaBot = !string.IsNullOrEmpty(bot?.UserId) && _tokens.HasScope(TwitchIdentity.Bot, "user:manage:whispers");
             await ExecuteWithRetryAsync(async () =>
             {
-                await _api.Helix.Whispers.SendWhisperAsync(_broadcasterID, toUserID, message, newRec).WaitAsync(_apiTimeout);
+                await (viaBot ? _botApi : _api).Helix.Whispers.SendWhisperAsync(viaBot ? bot.UserId : _broadcasterID, toUserID, message, newRec).WaitAsync(_apiTimeout);
             }, "SendWhisper");
         }
 

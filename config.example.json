@@ -6,9 +6,9 @@
   "RootUser": "your_twitch_login (required; owner of the !root commands)",
 
   "BotTwitchName": "bot_login",
-  "BotTwitchAuth": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (required; IRC token of the bot account)",
-  "TApiClientId": "twitch application client id",
-  "TApiAccessToken": "broadcaster user token: channel:manage:predictions channel:manage:polls channel:manage:redemptions moderator:manage:banned_users moderator:manage:chat_messages moderator:read:chatters channel:manage:moderators channel:manage:vips user:manage:whispers clips:edit",
+  "BotTwitchAuth": "legacy fallback: oauth:xxxx IRC token of the bot account; not needed once the bot account is authorized on the panel's Twitch page",
+  "TApiClientId": "client id the legacy TApiAccessToken was issued for (token generator); unused once the streamer is authorized on the panel",
+  "TApiAccessToken": "legacy fallback: broadcaster user token; not needed once the streamer is authorized on the panel's Twitch page",
 
   "RiotApiToken": "RGAPI-xxxxxxxx (required)",
   "Summoner_Name": "GameName#TAG",
@@ -43,8 +43,8 @@
 
   "ApiPort": 8080,
   "ApiPublicUrl": "https://bot.example.com (public URL of the web panel; OAuth redirect is {ApiPublicUrl}/api/auth/callback)",
-  "TApiClientSecret": "twitch application client secret (web panel login only)",
-  "ApiClientId": "optional: client id of your own Twitch application for the panel login, when TApiClientId belongs to a token-generator app",
+  "TApiClientSecret": "client secret of your own Twitch application (required): panel login, scope grants and token refresh",
+  "ApiClientId": "client id of your own Twitch application (required): panel login, scope grants and token refresh; defaults to TApiClientId",
 
   "ProxyUrl": "",
   "ProxyCorePath": "",

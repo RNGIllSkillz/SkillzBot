@@ -1,3 +1,4 @@
+using SkillzBot.Services.Twitch;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -26,6 +27,7 @@ namespace SkillzBot.Hosts
         private readonly DiscordClient _discord;
         private readonly ITwitchService _twitchService;
         private readonly BotConfigModel _config;
+        private readonly TwitchTokenService _tokens;
 
         public StartupInitializer(
             IBotStateService botState,
@@ -37,9 +39,11 @@ namespace SkillzBot.Hosts
             LoggingLevelSwitch levelSwitch,
             DiscordClient discord,
             ITwitchService twitchService,
-            BotConfigModel config)
+            BotConfigModel config,
+            TwitchTokenService tokens)
         {
             _twitchService = twitchService;
+            _tokens = tokens;
             _config = config;
             _botState = botState;
             _gameState = gameState;
@@ -63,6 +67,10 @@ namespace SkillzBot.Hosts
             _logger.LogInformation("Loading Bot and Game State...");
             await _botState.LoadAsync();
             await _gameState.LoadAsync();
+
+            _logger.LogInformation("Checking Twitch tokens...");
+            try { await _tokens.InitializeAsync(); }
+            catch (Exception ex) { _logger.LogError(ex, "Twitch token initialization failed; continuing with the configured tokens."); }
 
             if (_botState.Current.InMatch || _botState.Current.QuizIsRunning)
             {

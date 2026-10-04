@@ -4,6 +4,7 @@ using SkillzBot.IllConfiguration;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using SkillzBot.Services;
+using SkillzBot.Services.Twitch;
 using SkillzBot.TtvClient.TTVRewards;
 using System;
 using System.Collections.Generic;
@@ -33,6 +34,7 @@ namespace SkillzBot.EventSub
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly RewardsRedemption _rewardsRedemption;
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
+        private readonly TwitchTokenService _tokens;
         private readonly BotConfigModel _config;
         private readonly IBotStateService _botState;
         private readonly ITwitchService _twitchService;
@@ -66,12 +68,14 @@ namespace SkillzBot.EventSub
             IBotStateService botState,
             HealthState health,
             Services.Vip.VipRegistryService vips,
-            IEngagementRepository engagement)
+            IEngagementRepository engagement,
+            TwitchTokenService tokens)
         {
             _ircClient = ircClient;
             _health = health;
             _vips = vips;
             _engagement = engagement;
+            _tokens = tokens;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
@@ -97,8 +101,8 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelVipAdd += OnVipAdd;
             _eventSubWebsocketClient.ChannelVipRemove += OnVipRemove;
 
-            _twitchApi.Settings.ClientId = _config.TApiClientId;
-            _twitchApi.Settings.AccessToken = _config.TApiAccessToken;
+            // Subscriptions are created under the broadcaster token; a refreshed token lands here without a restart.
+            _tokens.Attach(TwitchIdentity.Broadcaster, c => { _twitchApi.Settings.ClientId = c.ClientId; _twitchApi.Settings.AccessToken = c.AccessToken; });
 
             SubscriptionsTypes = new Dictionary<string, string>
             {
@@ -290,6 +294,13 @@ namespace SkillzBot.EventSub
                 {
                     await SubscribeToChannelEvents(_type, _version);
                     return true;
+                }
+                catch (Exception ex) when (ex is BadScopeException || ex is TokenExpiredException)
+                {
+                    attempts++;
+                    bool refreshed = await _tokens.HandleUnauthorizedAsync(TwitchIdentity.Broadcaster);
+                    _logger.LogWarning("Subscription to {Type} got 401 ({Attempt}/3); token {Result}. {Message}", _type, attempts, refreshed ? "refreshed" : "not refreshed", ex.Message);
+                    if (!refreshed) await Task.Delay(1000 * attempts);
                 }
                 catch (HttpRequestException ex)
                 {

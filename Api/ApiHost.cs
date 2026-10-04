@@ -12,6 +12,7 @@ using SkillzBot.IllSkillzBot;
 using SkillzBot.Interfaces;
 using SkillzBot.Services;
 using SkillzBot.Services.Infrastructure;
+using SkillzBot.Services.Twitch;
 using SkillzBot.Services.Vip;
 using System;
 using System.Collections.Generic;
@@ -243,6 +244,26 @@ namespace SkillzBot.Api
                     await Results.Json(new { error = "body needs due or addMonths" }, statusCode: 400).ExecuteAsync(ctx); return;
                 }
                 await Results.Json(await subs.GetStatusAsync()).ExecuteAsync(ctx);
+            }).RequireAuthorization("root");
+
+            // ---- twitch tokens: visible to root and the broadcaster; the bot grant and removals are root-only ----
+            e.MapGet("/api/twitch/tokens", ctx => Results.Json(S<TwitchTokenService>(ctx).Describe()).ExecuteAsync(ctx)).RequireAuthorization("admin");
+            e.MapGet("/api/twitch/authorize", ctx =>
+            {
+                string identity = ctx.Request.Query["identity"].ToString();
+                if (identity == "broadcaster") return S<TwitchAuth>(ctx).Authorize(ctx, TwitchIdentity.Broadcaster);
+                if (identity == "bot" && IsRoot(ctx)) return S<TwitchAuth>(ctx).Authorize(ctx, TwitchIdentity.Bot);
+                return Results.Json(new { error = identity == "bot" ? "only root may authorize the bot account" : "identity must be broadcaster or bot" },
+                    statusCode: identity == "bot" ? 403 : 400).ExecuteAsync(ctx);
+            }).RequireAuthorization("admin");
+            e.MapDelete("/api/twitch/tokens/{identity}", async ctx =>
+            {
+                if (!Enum.TryParse<TwitchIdentity>(ctx.Request.RouteValues["identity"]?.ToString(), true, out var identity))
+                {
+                    await Results.Json(new { error = "identity must be broadcaster or bot" }, statusCode: 400).ExecuteAsync(ctx); return;
+                }
+                await S<TwitchTokenService>(ctx).RemoveAsync(identity, Who(ctx));
+                await Results.Json(S<TwitchTokenService>(ctx).Describe()).ExecuteAsync(ctx);
             }).RequireAuthorization("root");
 
             // ---- filters ----
