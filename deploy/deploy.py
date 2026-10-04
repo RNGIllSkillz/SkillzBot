@@ -209,7 +209,8 @@ def step_init(host, args):
 def step_data(host, args):
     target = f"{args.dir}/Channels_Data"
     if host.has_files(target) and not args.data_overwrite:
-        sys.exit(f"{target} on the host already has files; add --data-overwrite to replace them with the local copy")
+        print(f"!! {target} on the host already has files; skipping the data copy (add --data-overwrite to replace them). Continuing.")
+        return
     pkg = package_data(Path(args.data), args.include_logs)
     host.put(pkg, "/tmp/skillzbot-data.tgz")
     host.sh(f"set -e; mkdir -p '{target}'; tar xzf /tmp/skillzbot-data.tgz -C '{target}'; rm -f /tmp/skillzbot-data.tgz; "
