@@ -31,6 +31,9 @@ namespace SkillzBot.Services.Proxy
         private SidecarProcess _sidecar;
         private volatile Uri _proxyUri;
         private volatile bool _ready;
+        private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
+        private long _lastBypassLogTicks;
+        private static readonly TimeSpan SidecarRetryInterval = TimeSpan.FromSeconds(30);
 
         public ProxyMode Mode { get; private set; } = ProxyMode.Disabled;
         public ProxyEndpoint Endpoint => _endpoint;
@@ -178,18 +181,64 @@ namespace SkillzBot.Services.Proxy
                         if (_ready)
                             _logger.LogInformation("Outbound proxy: {Core} sidecar via {Endpoint}, SOCKS5 {Proxy}, for [{Targets}].", _sidecar.DisplayName, _endpoint, _proxyUri, string.Join(",", _applyTo));
                         else
-                            _logger.LogError("Proxy sidecar {Core} did not open its SOCKS port in time; requests will fail until it does.", _sidecar.DisplayName);
+                        {
+                            _logger.LogError("Proxy sidecar {Core} ({Path}) is not running; [{Targets}] connect directly until it comes up (retry every {Seconds}s).",
+                                _sidecar.DisplayName, _sidecar.ExePath, string.Join(",", _applyTo), SidecarRetryInterval.TotalSeconds);
+                            _ = Task.Run(() => RetrySidecarAsync(_lifetime.Token));
+                        }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Failed to start proxy sidecar.");
+                        _ = Task.Run(() => RetrySidecarAsync(_lifetime.Token));
                     }
                     return;
             }
         }
 
+        /// <summary>Keeps trying to bring the sidecar up (missing binary, wrong permissions, early crash) without a bot restart.</summary>
+        private async Task RetrySidecarAsync(CancellationToken ct)
+        {
+            int attempt = 0;
+            while (!ct.IsCancellationRequested && !_ready)
+            {
+                try { await Task.Delay(SidecarRetryInterval, ct); } catch (OperationCanceledException) { return; }
+                attempt++;
+                try
+                {
+                    if (await _sidecar.StartAsync(ct))
+                    {
+                        _ready = true;
+                        _logger.LogInformation("Proxy sidecar {Core} is up after {Attempts} retries; [{Targets}] go through the proxy again.", _sidecar.DisplayName, attempt, string.Join(",", _applyTo));
+                        return;
+                    }
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested)
+                {
+                    _logger.LogDebug("Proxy sidecar retry {Attempt} failed: {Error}", attempt, ex.Message);
+                }
+            }
+        }
+
+        /// <summary>True while requests should use the proxy; a down sidecar means direct connections instead of a dead port.</summary>
+        private bool ProxyUsable => Mode switch
+        {
+            ProxyMode.Sidecar => _sidecar != null && _sidecar.IsRunning,
+            ProxyMode.Disabled => false,
+            _ => _proxyUri != null,
+        };
+
+        private void NoteBypass(Uri host)
+        {
+            long now = DateTime.UtcNow.Ticks;
+            if (now - Interlocked.Read(ref _lastBypassLogTicks) < TimeSpan.FromMinutes(5).Ticks) return;
+            Interlocked.Exchange(ref _lastBypassLogTicks, now);
+            _logger.LogWarning("Proxy sidecar is down; connecting to {Host} directly until it is back.", host.Host);
+        }
+
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            _lifetime.Cancel();
             _sidecar?.Stop();
             return Task.CompletedTask;
         }
@@ -203,7 +252,7 @@ namespace SkillzBot.Services.Proxy
                 ProxyMode.Disabled => "disabled",
                 ProxyMode.Direct => $"{_proxyUri} {targets}",
                 ProxyMode.NativeVless => $"vless-native {_endpoint.BareHost}:{_endpoint.Port} {targets}",
-                ProxyMode.Sidecar => $"{_sidecar.DisplayName} {(_sidecar.IsRunning ? "up" : "DOWN")} socks5:{_sidecar.SocksPort} restarts={_sidecar.Restarts} {targets}",
+                ProxyMode.Sidecar => $"{_sidecar.DisplayName} {(_sidecar.IsRunning ? "up" : "DOWN(direct)")} socks5:{_sidecar.SocksPort} restarts={_sidecar.Restarts} {targets}",
                 _ => "?",
             };
         }
@@ -220,7 +269,13 @@ namespace SkillzBot.Services.Proxy
             public DynamicWebProxy(ProxyService owner) { _owner = owner; }
             public ICredentials Credentials { get; set; }
             public Uri GetProxy(Uri destination) => _owner._proxyUri ?? destination;
-            public bool IsBypassed(Uri host) => _owner._proxyUri == null;
+            public bool IsBypassed(Uri host)
+            {
+                if (_owner._proxyUri == null) return true;
+                if (_owner.ProxyUsable) return false;
+                _owner.NoteBypass(host);
+                return true;
+            }
         }
     }
 }

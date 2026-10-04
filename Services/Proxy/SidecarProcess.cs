@@ -33,6 +33,7 @@ namespace SkillzBot.Services.Proxy
         public int Restarts => _restarts;
         public bool IsRunning => _process != null && !_process.HasExited;
         public string DisplayName => _displayName;
+        public string ExePath => _exePath;
 
         public SidecarProcess(ILogger logger, ProxyEndpoint endpoint, string exePath, string workDir)
         {
@@ -57,7 +58,7 @@ namespace SkillzBot.Services.Proxy
             }
         }
 
-        /// <summary>Starts the core and waits until its SOCKS port accepts connections.</summary>
+        /// <summary>Starts the core and waits until its SOCKS port accepts connections. Returns false (and logs) when it cannot be launched.</summary>
         public async Task<bool> StartAsync(CancellationToken ct)
         {
             await _startLock.WaitAsync(ct);
@@ -66,6 +67,11 @@ namespace SkillzBot.Services.Proxy
                 if (IsRunning) return true;
                 LaunchProcess();
             }
+            catch (Exception ex)
+            {
+                _logger.LogError("Proxy sidecar {Core} could not be started from {Path}: {Error}", _displayName, _exePath, ex.Message);
+                return false;
+            }
             finally
             {
                 _startLock.Release();
@@ -73,8 +79,22 @@ namespace SkillzBot.Services.Proxy
             return await WaitForPortAsync(ct);
         }
 
+        /// <summary>A core copied from a Windows share arrives without the executable bit; set it before launching.</summary>
+        private void EnsureExecutable()
+        {
+            if (OperatingSystem.IsWindows() || !File.Exists(_exePath)) return;
+            try
+            {
+                using var chmod = Process.Start(new ProcessStartInfo("chmod", $"+x \"{_exePath}\"") { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true });
+                chmod?.WaitForExit(3000);
+            }
+            catch { /* best effort */ }
+        }
+
         private void LaunchProcess()
         {
+            if (!File.Exists(_exePath)) throw new FileNotFoundException($"{_displayName} binary not found", _exePath);
+            EnsureExecutable();
             var psi = new ProcessStartInfo
             {
                 FileName = _exePath,
