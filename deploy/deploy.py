@@ -24,6 +24,7 @@ The host needs internet access for npm while the panel builds.
 """
 import argparse
 import getpass
+import io
 import os
 import subprocess
 import sys
@@ -56,12 +57,27 @@ def build_bot():
     return bot_out
 
 
+# Shell scripts and configs must reach the host with LF endings; a Windows checkout may have CRLF,
+# and busybox sh then fails on the very first line ("set: illegal option -").
+TEXT_SUFFIXES = {".sh", ".initd", ".confd", ".conf", ".template", ".py", ".json", ".ts", ".tsx", ".css", ".html", ".md"}
+
+
+def _content(path: Path) -> bytes:
+    data = path.read_bytes()
+    if path.suffix.lower() in TEXT_SUFFIXES or path.suffix == "":
+        if b"\x00" not in data[:4096]:
+            data = data.replace(b"\r\n", b"\n")
+    return data
+
+
 def _add(tar, path: Path, arcname: str, mode: int):
-    info = tar.gettarinfo(str(path), arcname=arcname)
+    data = _content(path)
+    info = tarfile.TarInfo(arcname)
+    info.size = len(data)
+    info.mtime = int(path.stat().st_mtime)
     info.uid = info.gid = 0
     info.mode = mode
-    with open(path, "rb") as fh:
-        tar.addfile(info, fh)
+    tar.addfile(info, io.BytesIO(data))
 
 
 def package_upload(bot_dir, with_web):
@@ -161,10 +177,13 @@ class Host:
             self.sftp.chmod(remote, mode)
 
     def put_dir(self, local: Path, remote: str):
+        """Uploads text files with LF endings (see _content)."""
         self.sh(f"mkdir -p '{remote}'")
         for f in sorted(local.iterdir()):
             if f.is_file():
-                self.put(f, f"{remote}/{f.name}", 0o755 if f.suffix in ("", ".sh") else 0o644)
+                self.sftp.putfo(io.BytesIO(_content(f)), f"{remote}/{f.name}")
+                self.sftp.chmod(f"{remote}/{f.name}", 0o755 if f.suffix in ("", ".sh") else 0o644)
+                print(f"    uploaded {f.name}")
 
     def dir_nonempty(self, path):
         return self.sh(f"[ -d '{path}' ] && [ \"$(ls -A '{path}' 2>/dev/null)\" ]", check=False) == 0
@@ -177,7 +196,7 @@ def _quote(s):
 # ----------------------------------------------------------------------------- steps
 
 def step_init(host, args):
-    print("== host setup (packages incl. .NET SDK and Node, service, nginx)")
+    print("== host setup (runtime libraries, Node, service, nginx)")
     host.put_dir(ALPINE, "/root/skillzbot-setup")
     host.sh(f"APP_DIR='{args.dir}' CHANNEL='{args.channel}' TZ='{args.tz}' API_PORT='{args.api_port}' sh /root/skillzbot-setup/install.sh")
 
