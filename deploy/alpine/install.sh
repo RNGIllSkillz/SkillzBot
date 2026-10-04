@@ -9,14 +9,9 @@ TZ="${TZ:-Europe/Moscow}"
 API_PORT="${API_PORT:-8080}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-echo "== packages (.NET runtime deps, .NET SDK and Node for building here, nginx, timezone data)"
-apk add --no-cache icu-libs icu-data-full krb5-libs libgcc libintl libssl3 libstdc++ zlib tzdata nginx curl
-apk add --no-cache dotnet8-sdk nodejs npm || {
-    echo "dotnet8-sdk / nodejs / npm are not available from apk on this Alpine release (need 3.19+)."
-    echo "Enable the community repository in /etc/apk/repositories or upgrade Alpine, then rerun."
-    exit 1
-}
-dotnet --version && node --version && npm --version
+echo "== packages (.NET runtime deps for the self-contained bot, Node for building the panel, nginx, tzdata)"
+apk add --no-cache icu-libs icu-data-full krb5-libs libgcc libintl libssl3 libstdc++ zlib tzdata nginx curl nodejs npm
+node --version && npm --version
 
 echo "== timezone $TZ"
 if [ -f "/usr/share/zoneinfo/$TZ" ]; then
@@ -53,6 +48,6 @@ cat <<MSG
 Done. Next steps:
   1. Copy the bot data:   Channels_Data/  ->  $APP_DIR/Channels_Data/   (deploy.py --data does this)
   2. If the proxy is used, put the xray/hysteria binary under $APP_DIR/proxy/ and point ProxyCorePath at it.
-  3. On your PC:  python deploy/deploy.py --host <this host>   (uploads sources, builds here, starts the service)
+  3. On your PC:  python deploy/deploy.py --host <this host>   (publishes the bot there, uploads it with the panel sources, builds the panel here, starts the service)
   4. Check:       rc-service skillzbot status;  tail -f $APP_DIR/Channels_Data/$CHANNEL/DATA/logs/bot-*.log
 MSG

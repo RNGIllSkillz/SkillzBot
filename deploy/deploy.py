@@ -1,29 +1,31 @@
 #!/usr/bin/env python3
-"""Ship the SkillzBot sources to the Alpine host over SSH (password login) and build them there.
+"""Publish the bot on this workstation, ship it with the web panel sources to the Alpine host over SSH
+(password login); the host builds the panel with npm and installs both. No .NET SDK on the host.
 
-First-time population of an empty host (installs packages incl. the .NET SDK and Node, the service
-and nginx, copies the bot data and the proxy binary, uploads the sources, builds, starts the service):
+First-time population of an empty host (installs packages incl. Node, the service and nginx, copies the
+bot data and the proxy binary, uploads bot + panel sources, builds the panel, starts the service):
 
     python deploy/deploy.py --host 192.168.254.154 --init ^
         --data "\\\\192.168.255.10\\skillzbot_data\\skillzbotdata\\Channels_Data" ^
         --channel general_hs_ --tz Europe/Moscow [--proxy-bin C:\\tools\\xray]
 
-Every later update (upload changed sources, rebuild on the host, restart):
+Every later update (publish the bot here, upload, build the panel on the host, restart):
 
     python deploy/deploy.py --host 192.168.254.154
 
-Options: --skip-bot / --skip-web (build only one part), --no-restart (build and install, let the
-next restart from the panel pick it up), --dry-run (package the sources only, no connection).
+Options: --skip-bot / --skip-web (ship only one part), --no-build (reuse the previous publish output),
+--no-restart (install, let the next restart from the panel pick it up), --dry-run (build and package only).
 
 The password is asked interactively (hidden); it can also come from the SKILLZBOT_SSH_PASSWORD
 environment variable or --password. Nothing is written to disk by this script.
 
-Needs on this machine only Python 3 and the paramiko package:  pip install paramiko
-The host needs internet access for NuGet and npm during the build.
+Needs on this machine: the .NET SDK (6 or newer), Python 3 and the paramiko package (pip install paramiko).
+The host needs internet access for npm while the panel builds.
 """
 import argparse
 import getpass
 import os
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -33,32 +35,59 @@ from pathlib import Path
 # absolute(), not resolve(): on Windows resolve() turns a mapped drive (Z:\...) into a UNC path.
 ROOT = Path(__file__).absolute().parents[1]
 ALPINE = ROOT / "deploy" / "alpine"
+OUT = ROOT / "deploy" / "out"
+WEB_FILES = ["package.json", "package-lock.json", "index.html", "vite.config.ts", "tsconfig.json"]
+WEB_DIRS = ["src"]
 
-# What is not shipped: VCS data, build outputs and caches (they live on the host between builds), bot data.
-SKIP_DIRS = {".git", ".vs", ".idea", "bin", "obj", "node_modules", "dist", "out", "Channels_Data", ".build"}
-SKIP_SUFFIXES = {".user", ".suo", ".log", ".tgz", ".tar.gz"}
+
+# ----------------------------------------------------------------------------- build + packaging
+
+def run(cmd, cwd=None):
+    print("$", " ".join(str(c) for c in cmd), flush=True)
+    subprocess.run(cmd, cwd=cwd, check=True)
 
 
-# ----------------------------------------------------------------------------- packaging
+def build_bot():
+    bot_out = OUT / "bot"
+    run(["dotnet", "publish", str(ROOT / "SkillzBot.csproj"), "-c", "Release", "-r", "linux-musl-x64",
+         "--self-contained", "true", "-p:PublishSingleFile=true", "-o", str(bot_out)])
+    if not (bot_out / "SkillzBot").exists():
+        sys.exit("publish produced no SkillzBot executable")
+    return bot_out
 
-def package_sources():
-    tmp = Path(tempfile.gettempdir()) / f"skillzbot-src-{time.strftime('%Y%m%d-%H%M%S')}.tar.gz"
+
+def _add(tar, path: Path, arcname: str, mode: int):
+    info = tar.gettarinfo(str(path), arcname=arcname)
+    info.uid = info.gid = 0
+    info.mode = mode
+    with open(path, "rb") as fh:
+        tar.addfile(info, fh)
+
+
+def package_upload(bot_dir, with_web):
+    """One archive, laid out as it lands in <dir>: .build/bot/SkillzBot, src/web/..., src/deploy/alpine/..."""
+    tmp = Path(tempfile.gettempdir()) / f"skillzbot-upload-{time.strftime('%Y%m%d-%H%M%S')}.tar.gz"
     count = 0
     with tarfile.open(tmp, "w:gz") as tar:
-        for path in sorted(ROOT.rglob("*")):
-            rel = path.relative_to(ROOT)
-            if any(part in SKIP_DIRS for part in rel.parts):
-                continue
-            if path.is_file():
-                if path.suffix.lower() in SKIP_SUFFIXES or path.name.startswith("skillzbot-src-"):
-                    continue
-                info = tar.gettarinfo(str(path), arcname=rel.as_posix())
-                info.uid = info.gid = 0
-                info.mode = 0o755 if path.suffix == ".sh" else 0o644
-                with open(path, "rb") as fh:
-                    tar.addfile(info, fh)
+        if bot_dir:
+            _add(tar, bot_dir / "SkillzBot", ".build/bot/SkillzBot", 0o755)
+            count += 1
+        if with_web:
+            web = ROOT / "web"
+            for name in WEB_FILES:
+                if (web / name).is_file():
+                    _add(tar, web / name, f"src/web/{name}", 0o644)
+                    count += 1
+            for d in WEB_DIRS:
+                for f in sorted((web / d).rglob("*")):
+                    if f.is_file():
+                        _add(tar, f, f"src/web/{f.relative_to(web).as_posix()}", 0o644)
+                        count += 1
+        for f in sorted(ALPINE.iterdir()):
+            if f.is_file():
+                _add(tar, f, f"src/deploy/alpine/{f.name}", 0o755 if f.suffix == ".sh" else 0o644)
                 count += 1
-    print(f"sources: {count} files -> {tmp} ({tmp.stat().st_size // 1024} KB)")
+    print(f"package: {count} files -> {tmp} ({tmp.stat().st_size // 1024 // 1024} MB)")
     return tmp
 
 
@@ -174,21 +203,21 @@ def step_proxy_bin(host, args):
     print(f"    set ProxyCorePath to {remote} in the channel config")
 
 
-def step_sources(host, args, pkg):
+def step_upload(host, args, pkg, with_web):
     src = f"{args.dir}/src"
-    host.put(pkg, "/tmp/skillzbot-src.tgz")
-    # Replace the sources but keep build caches (obj, bin, web/node_modules) so rebuilds are incremental.
-    host.sh("set -e; "
-            f"mkdir -p '{src}/web'; "
-            f"find '{src}' -mindepth 1 -maxdepth 1 ! -name obj ! -name bin ! -name web -exec rm -rf {{}} +; "
-            f"find '{src}/web' -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {{}} +; "
-            f"tar xzf /tmp/skillzbot-src.tgz -C '{src}'; rm -f /tmp/skillzbot-src.tgz; "
-            f"chmod +x '{src}'/deploy/alpine/*.sh; echo 'sources updated in {src}'")
+    host.put(pkg, "/tmp/skillzbot-upload.tgz")
+    steps = ["set -e", f"mkdir -p '{args.dir}/.build/bot' '{src}/web'"]
+    if with_web:
+        # Replace the panel sources but keep node_modules so npm ci is fast on repeat runs.
+        steps.append(f"find '{src}/web' -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {{}} +")
+    steps += [f"tar xzf /tmp/skillzbot-upload.tgz -C '{args.dir}'", "rm -f /tmp/skillzbot-upload.tgz",
+              f"chmod +x '{src}'/deploy/alpine/*.sh", f"echo 'uploaded into {args.dir}'"]
+    host.sh("; ".join(steps))
 
 
-def step_build(host, args):
+def step_install(host, args):
     env = (f"APP_DIR='{args.dir}' RESTART={0 if args.no_restart else 1} "
-           f"BUILD_BOT={0 if args.skip_bot else 1} BUILD_WEB={0 if args.skip_web else 1}")
+           f"INSTALL_BOT={0 if args.skip_bot else 1} BUILD_WEB={0 if args.skip_web else 1}")
     host.sh(f"{env} sh '{args.dir}/src/deploy/alpine/build.sh'")
 
 
@@ -207,17 +236,24 @@ def main():
     ap.add_argument("--data-overwrite", action="store_true", help="copy --data even if the host already has files")
     ap.add_argument("--include-logs", action="store_true", help="copy old log files along with --data")
     ap.add_argument("--proxy-bin", default=None, help="local xray/hysteria binary to place under <dir>/proxy/")
-    ap.add_argument("--skip-bot", action="store_true", help="do not build the bot")
-    ap.add_argument("--skip-web", action="store_true", help="do not build the web panel")
-    ap.add_argument("--no-restart", action="store_true", help="build and install, but do not restart the service")
-    ap.add_argument("--dry-run", action="store_true", help="package the sources only, do not connect")
+    ap.add_argument("--skip-bot", action="store_true", help="do not publish/ship the bot")
+    ap.add_argument("--skip-web", action="store_true", help="do not ship/build the web panel")
+    ap.add_argument("--no-build", action="store_true", help="reuse deploy/out/bot from the previous publish")
+    ap.add_argument("--no-restart", action="store_true", help="install, but do not restart the service")
+    ap.add_argument("--dry-run", action="store_true", help="publish and package only, do not connect")
     args = ap.parse_args()
 
-    pkg = package_sources()
+    bot_dir = None
+    if not args.skip_bot:
+        bot_dir = OUT / "bot" if args.no_build else build_bot()
+        if not (bot_dir / "SkillzBot").exists():
+            sys.exit(f"{bot_dir / 'SkillzBot'} not found; run without --no-build")
+    pkg = package_upload(bot_dir, not args.skip_web)
     if args.data and args.dry_run:
         package_data(Path(args.data), args.include_logs)
     if args.dry_run:
         print("dry run: nothing uploaded")
+        pkg.unlink(missing_ok=True)
         return
 
     password = args.password or os.environ.get("SKILLZBOT_SSH_PASSWORD") or getpass.getpass(f"password for {args.user}@{args.host}: ")
@@ -229,9 +265,8 @@ def main():
             step_data(host, args)
         if args.proxy_bin:
             step_proxy_bin(host, args)
-        step_sources(host, args, pkg)
-        if not (args.skip_bot and args.skip_web):
-            step_build(host, args)
+        step_upload(host, args, pkg, not args.skip_web)
+        step_install(host, args)
         print("deploy finished")
     finally:
         host.close()
@@ -241,5 +276,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"command failed with exit code {e.returncode}")
     except KeyboardInterrupt:
         sys.exit("\ninterrupted")
