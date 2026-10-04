@@ -29,6 +29,9 @@ namespace SkillzBot.IllConfiguration
         public int VipLimit { get; init; }
         /// <summary>Twitch application client secret; needed only for the web panel login.</summary>
         public string TApiClientSecret { get; init; }
+        /// <summary>Client id of the application used for the panel login; defaults to TApiClientId. Set it when the API token
+        /// was issued by a third-party app whose secret you cannot obtain, and the login uses an application of your own.</summary>
+        public string ApiClientId { get; init; }
         /// <summary>Port of the web panel API inside the container; 0 disables it.</summary>
         public int ApiPort { get; init; }
         /// <summary>Public https URL of the web panel (the OAuth redirect is {ApiPublicUrl}/api/auth/callback).</summary>

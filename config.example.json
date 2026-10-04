@@ -44,6 +44,7 @@
   "ApiPort": 8080,
   "ApiPublicUrl": "https://bot.example.com (public URL of the web panel; OAuth redirect is {ApiPublicUrl}/api/auth/callback)",
   "TApiClientSecret": "twitch application client secret (web panel login only)",
+  "ApiClientId": "optional: client id of your own Twitch application for the panel login, when TApiClientId belongs to a token-generator app",
 
   "ProxyUrl": "",
   "ProxyCorePath": "",
