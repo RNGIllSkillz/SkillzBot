@@ -9,8 +9,9 @@ TZ="${TZ:-Europe/Moscow}"
 API_PORT="${API_PORT:-8080}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-echo "== packages (.NET runtime deps, nginx, timezone data)"
-apk add --no-cache icu-libs icu-data-full krb5-libs libgcc libintl libssl3 libstdc++ zlib tzdata nginx curl
+echo "== packages (.NET runtime deps for the self-contained bot, Node for building the panel, nginx, tzdata)"
+apk add --no-cache icu-libs icu-data-full krb5-libs libgcc libintl libssl3 libstdc++ zlib tzdata nginx curl nodejs npm
+node --version && npm --version
 
 echo "== timezone $TZ"
 if [ -f "/usr/share/zoneinfo/$TZ" ]; then
@@ -19,7 +20,7 @@ if [ -f "/usr/share/zoneinfo/$TZ" ]; then
 fi
 
 echo "== layout under $APP_DIR"
-mkdir -p "$APP_DIR/web" "$APP_DIR/Channels_Data/$CHANNEL/DATA/logs" "$APP_DIR/Channels_Data/_shared" "$APP_DIR/proxy"
+mkdir -p "$APP_DIR/web" "$APP_DIR/src" "$APP_DIR/Channels_Data/$CHANNEL/DATA/logs" "$APP_DIR/Channels_Data/_shared" "$APP_DIR/proxy"
 
 echo "== OpenRC service"
 install -m 0755 "$HERE/skillzbot.initd" /etc/init.d/skillzbot
@@ -45,9 +46,8 @@ chmod +x /etc/periodic/daily/skillzbot-logs
 cat <<MSG
 
 Done. Next steps:
-  1. Copy the bot data:   Channels_Data/  ->  $APP_DIR/Channels_Data/   (config $CHANNEL.json, dic files, states)
-     e.g. from a mounted share:  cp -a /mnt/share/skillzbotdata/Channels_Data/. $APP_DIR/Channels_Data/
+  1. Copy the bot data:   Channels_Data/  ->  $APP_DIR/Channels_Data/   (deploy.py --data does this)
   2. If the proxy is used, put the xray/hysteria binary under $APP_DIR/proxy/ and point ProxyCorePath at it.
-  3. On your PC:  python deploy/deploy.py --host <this host>     (builds, uploads, starts the service)
+  3. On your PC:  python deploy/deploy.py --host <this host>   (publishes the bot there, uploads it with the panel sources, builds the panel here, starts the service)
   4. Check:       rc-service skillzbot status;  tail -f $APP_DIR/Channels_Data/$CHANNEL/DATA/logs/bot-*.log
 MSG
