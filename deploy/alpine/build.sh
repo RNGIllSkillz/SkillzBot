@@ -16,14 +16,23 @@ if [ "$INSTALL_BOT" = 1 ] && [ ! -f "$STAGED" ]; then
     INSTALL_BOT=0
 fi
 
+WEB_OK=0
 if [ "$BUILD_WEB" = 1 ]; then
-    [ -f "$SRC/web/package.json" ] || { echo "no web sources in $SRC/web (run deploy.py first)"; exit 1; }
     echo "== web panel build"
-    cd "$SRC/web"
-    if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
-    rm -rf dist
-    npm run build
-    [ -f dist/index.html ] || { echo "web build produced no dist/index.html"; exit 1; }
+    # A panel build failure must not keep the bot from being installed and started.
+    if (
+        set -e
+        [ -f "$SRC/web/package.json" ] || { echo "no web sources in $SRC/web"; exit 1; }
+        cd "$SRC/web"
+        if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+        rm -rf dist
+        npm run build
+        [ -f dist/index.html ]
+    ); then
+        WEB_OK=1
+    else
+        echo "!! web panel build FAILED; the bot is installed anyway, the old panel (if any) stays"
+    fi
 fi
 
 echo "== install into $APP_DIR"
@@ -36,7 +45,7 @@ if [ "$INSTALL_BOT" = 1 ]; then
     rm -f "$STAGED"
     echo "bot executable installed"
 fi
-if [ "$BUILD_WEB" = 1 ]; then
+if [ "$WEB_OK" = 1 ]; then
     rm -rf "$APP_DIR/web.new"
     cp -r "$SRC/web/dist" "$APP_DIR/web.new"
     rm -rf "$APP_DIR/web"
@@ -52,4 +61,8 @@ if [ "$RESTART" = 1 ]; then
     done
 else
     echo "installed; restart from the panel or: rc-service skillzbot restart"
+fi
+if [ "$BUILD_WEB" = 1 ] && [ "$WEB_OK" != 1 ]; then
+    echo "finished with a web panel build failure (see above)"
+    exit 1
 fi

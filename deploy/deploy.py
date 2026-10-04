@@ -185,8 +185,9 @@ class Host:
                 self.sftp.chmod(f"{remote}/{f.name}", 0o755 if f.suffix in ("", ".sh") else 0o644)
                 print(f"    uploaded {f.name}")
 
-    def dir_nonempty(self, path):
-        return self.sh(f"[ -d '{path}' ] && [ \"$(ls -A '{path}' 2>/dev/null)\" ]", check=False) == 0
+    def has_files(self, path):
+        """True when the directory holds at least one regular file (empty folders left by install.sh do not count)."""
+        return self.sh(f"[ -n \"$(find '{path}' -type f 2>/dev/null | head -n 1)\" ]", check=False) == 0
 
 
 def _quote(s):
@@ -203,8 +204,8 @@ def step_init(host, args):
 
 def step_data(host, args):
     target = f"{args.dir}/Channels_Data"
-    if host.dir_nonempty(target) and not args.data_overwrite:
-        sys.exit(f"{target} on the host is not empty; add --data-overwrite to replace files with the local copy")
+    if host.has_files(target) and not args.data_overwrite:
+        sys.exit(f"{target} on the host already has files; add --data-overwrite to replace them with the local copy")
     pkg = package_data(Path(args.data), args.include_logs)
     host.put(pkg, "/tmp/skillzbot-data.tgz")
     host.sh(f"set -e; mkdir -p '{target}'; tar xzf /tmp/skillzbot-data.tgz -C '{target}'; rm -f /tmp/skillzbot-data.tgz; "
