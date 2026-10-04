@@ -38,7 +38,7 @@ namespace SkillzBot.Api
             _logger = logger;
         }
 
-        public bool Configured => !string.IsNullOrWhiteSpace(_config.TApiClientId) && !string.IsNullOrWhiteSpace(_config.TApiClientSecret) && !string.IsNullOrWhiteSpace(_config.ApiPublicUrl);
+        public bool Configured => !string.IsNullOrWhiteSpace(_config.ApiClientId) && !string.IsNullOrWhiteSpace(_config.TApiClientSecret) && !string.IsNullOrWhiteSpace(_config.ApiPublicUrl);
 
         private string RedirectUri => _config.ApiPublicUrl.TrimEnd('/') + "/api/auth/callback";
 
@@ -56,7 +56,7 @@ namespace SkillzBot.Api
             {
                 HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromMinutes(10), Path = "/api/auth"
             });
-            string url = "https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=" + Uri.EscapeDataString(_config.TApiClientId) +
+            string url = "https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=" + Uri.EscapeDataString(_config.ApiClientId) +
                          "&redirect_uri=" + Uri.EscapeDataString(RedirectUri) + "&scope=&state=" + Uri.EscapeDataString(state);
             ctx.Response.Redirect(url);
             return Task.CompletedTask;
@@ -84,7 +84,7 @@ namespace SkillzBot.Api
                 var client = _http.CreateClient(HttpClientName);
                 using var tokenResponse = await client.PostAsync("https://id.twitch.tv/oauth2/token", new FormUrlEncodedContent(new Dictionary<string, string>
                 {
-                    ["client_id"] = _config.TApiClientId,
+                    ["client_id"] = _config.ApiClientId,
                     ["client_secret"] = _config.TApiClientSecret,
                     ["code"] = code,
                     ["grant_type"] = "authorization_code",
@@ -107,7 +107,7 @@ namespace SkillzBot.Api
                 string userId = who.RootElement.GetProperty("user_id").GetString();
 
                 // The user token is only needed to learn who logged in; drop it right away.
-                try { await client.PostAsync("https://id.twitch.tv/oauth2/revoke", new FormUrlEncodedContent(new Dictionary<string, string> { ["client_id"] = _config.TApiClientId, ["token"] = accessToken })); } catch { }
+                try { await client.PostAsync("https://id.twitch.tv/oauth2/revoke", new FormUrlEncodedContent(new Dictionary<string, string> { ["client_id"] = _config.ApiClientId, ["token"] = accessToken })); } catch { }
 
                 string role = await RoleForAsync(userId, login);
                 if (role == null)
