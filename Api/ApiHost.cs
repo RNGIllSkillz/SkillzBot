@@ -11,6 +11,7 @@ using SkillzBot.IllConfiguration;
 using SkillzBot.IllSkillzBot;
 using SkillzBot.Interfaces;
 using SkillzBot.Services;
+using SkillzBot.Services.Infrastructure;
 using SkillzBot.Services.Vip;
 using System;
 using System.Collections.Generic;
@@ -211,6 +212,38 @@ namespace SkillzBot.Api
                 await Results.Json(new { canceled = true }).ExecuteAsync(ctx);
             }).RequireAuthorization("editor");
             e.MapPost("/api/actions/filters/reload", ctx => { S<BotSettingsService>(ctx).ReloadFilters(); return Results.Json(new { reloaded = true }).ExecuteAsync(ctx); }).RequireAuthorization("editor");
+
+            // ---- subscription: root and the broadcaster see it, only root changes it ----
+            e.MapGet("/api/subscription", async ctx => await Results.Json(await S<SubscriptionService>(ctx).GetStatusAsync()).ExecuteAsync(ctx)).RequireAuthorization("admin");
+            e.MapPut("/api/subscription", async ctx =>
+            {
+                var body = await Body(ctx);
+                var subs = S<SubscriptionService>(ctx);
+                if (body.TryGetValue("addMonths", out var m))
+                {
+                    if (m.ValueKind != JsonValueKind.Number || !m.TryGetInt32(out int months) || months < 1 || months > 24)
+                    {
+                        await Results.Json(new { error = "addMonths must be a whole number from 1 to 24" }, statusCode: 400).ExecuteAsync(ctx); return;
+                    }
+                    await subs.ExtendAsync(months, Who(ctx));
+                }
+                else if (body.TryGetValue("due", out var d))
+                {
+                    if (d.ValueKind == JsonValueKind.Null || (d.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(d.GetString())))
+                        await subs.SetDueAsync(null, Who(ctx));
+                    else if (d.ValueKind == JsonValueKind.String && SubscriptionService.TryParseDue(d.GetString(), out var due))
+                        await subs.SetDueAsync(due, Who(ctx));
+                    else
+                    {
+                        await Results.Json(new { error = "due must be YYYY-MM-DD, an ISO 8601 date-time, or null" }, statusCode: 400).ExecuteAsync(ctx); return;
+                    }
+                }
+                else
+                {
+                    await Results.Json(new { error = "body needs due or addMonths" }, statusCode: 400).ExecuteAsync(ctx); return;
+                }
+                await Results.Json(await subs.GetStatusAsync()).ExecuteAsync(ctx);
+            }).RequireAuthorization("root");
 
             // ---- filters ----
             // The word lists (dic, whitelist) exist only for root; other roles neither see nor save them.

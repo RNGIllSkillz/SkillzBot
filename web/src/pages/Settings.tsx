@@ -4,7 +4,7 @@ import type { BotState, ConfigView, Me, PredictionsStatus } from '../types'
 import { Card, Notice, Toggle, useAsync } from '../components/ui'
 
 const FLAGS: [keyof BotState, string, string][] = [
-  ['isSubActive', 'Бот активен', 'выключенный бот только слушает чат (!sub)'],
+  ['isSubActive', 'Бот активен', 'следует за подпиской (дашборд): при заданной дате окончания ручное значение перезапишется в течение 5 минут'],
   ['isSilent', 'Тихий режим', 'бот ничего не пишет в чат'],
   ['autoPred', 'Автоставки', 'ставка на каждую игру стримера'],
   ['predictionPollEnabled', 'Опрос о типе ставки', 'раз в 3-5 часов эфира после игры'],

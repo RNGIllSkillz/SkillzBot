@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { fmtAge, fmtNum, get, post } from '../api'
-import type { ActivityBucket, GameState, PredictionsStatus, Status } from '../types'
+import type { ActivityBucket, GameState, Me, PredictionsStatus, Status } from '../types'
 import { Badge, Card, Confirm, Notice, OnOff, Stat, useAsync } from '../components/ui'
+import SubscriptionCard from '../components/SubscriptionCard'
 
-export default function Dashboard() {
+export default function Dashboard({ me }: { me: Me }) {
   const live = useOutletContext<Status | null>()
   const first = useAsync(() => get<Status>('/api/status'), [])
   const status = live ?? first.data
@@ -34,11 +35,12 @@ export default function Dashboard() {
         <Stat title="StreamElements" value={status.streamElementsFailures === 0 ? 'ок' : `сбоит x${status.streamElementsFailures}`} sub={`успех ${fmtAge(status.streamElementsLastOkSeconds)} назад`} tone={status.streamElementsFailures === 0 ? 'good' : 'warn'} />
         <Stat title="Очередь чата" value={status.chatPending} sub={`обработано ${fmtNum(status.chatProcessed)}${status.chatStalled ? ` · зависаний ${status.chatStalled}` : ''}`} tone={status.chatPending > 20 ? 'warn' : undefined} />
       </div>
+      {(me.role === 'root' || me.role === 'admin') && <div style={{ marginTop: 12 }}><SubscriptionCard canEdit={me.role === 'root'} /></div>}
       <div className="grid two" style={{ marginTop: 12 }}>
         <Card title="Состояние">
           <div className="kv">
             <dt>Прокси</dt><dd className="mono">{status.proxy}</dd>
-            <dt>Режим</dt><dd>{status.silent && <Badge tone="warn">silent</Badge>} <OnOff on={status.subActive} yes="бот активен" no="бот выключен (!sub)" /> <Badge>фильтр {status.filterLevel}</Badge> <OnOff on={status.autoPred} yes="автоставки" no="автоставки off" /></dd>
+            <dt>Режим</dt><dd>{status.silent && <Badge tone="warn">silent</Badge>} <OnOff on={status.subActive} yes="бот активен" no="бот выключен (подписка)" /> <Badge>фильтр {status.filterLevel}</Badge> <OnOff on={status.autoPred} yes="автоставки" no="автоставки off" /></dd>
             {game.data && <><dt>Ранг</dt><dd>{game.data.summonerName} · {game.data.elo} {game.data.tier} · сегодня {game.data.numGames} игр ({game.data.numWins}/{game.data.numLosses}), LP {game.data.earnedLP >= 0 ? '+' : ''}{game.data.earnedLP}</dd></>}
             {pred.data && <><dt>Ставки</dt><dd>{pred.data.summary}</dd></>}
             {pred.data?.active && <><dt>Активная</dt><dd><Badge tone="accent">{pred.data.active.kindKey}</Badge> матч {pred.data.active.matchId}</dd></>}

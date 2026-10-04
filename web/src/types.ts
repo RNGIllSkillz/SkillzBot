@@ -54,6 +54,7 @@ export interface VipsResponse { limit: number; autoRotate: boolean; lastSyncUtc:
 export interface FilterList { name: string; title: string; shared: boolean; lines: string[] }
 export interface QuizRow { id: number; question: string; answer: string; prize: number }
 export interface ConfigView { values: Record<string, string | number | boolean | null>; secretKeys: string[]; secretKeysSet: string[]; editorKeys: string[] }
+export interface Subscription { active: boolean; unlimited: boolean; due: string | null; daysLeft: number | null; checkedUtc: string }
 export interface SystemInfo { version: string; runtime: string; startedUtc: string; dataPath: string; channel: string; apiPort: number; publicUrl: string | null }
 export interface EditorRow { twitchId: number; login: string; addedBy: string | null; addedAt: string }
 export interface PredictionsStatus { summary: string; active: BotState['activePrediction']; poll: BotState['activePoll']; nextKind: string | null; kinds: string }
