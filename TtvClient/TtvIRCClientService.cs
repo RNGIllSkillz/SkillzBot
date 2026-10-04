@@ -1,3 +1,4 @@
+using SkillzBot.Services.Twitch;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
 using SkillzBot.IllSTRINGS;
@@ -23,6 +24,7 @@ namespace SkillzBot.IRC
         private readonly ILogger<TtvIRCClientService> _logger;
         private readonly IDatabaseService _databaseService;
         private readonly BotConfigModel _config;
+        private readonly TwitchTokenService _tokens;
         private readonly IGameStateService _gameState;
         private readonly IBotStateService _botState;
         private readonly IStreamElementsService _streamElementsService;
@@ -53,9 +55,11 @@ namespace SkillzBot.IRC
             IGameStateService gameState,
             IBotStateService botState,
             IStreamElementsService streamElementsService,
-            Api.ChatFeed feed)
+            Api.ChatFeed feed,
+            TwitchTokenService tokens)
         {
             _feed = feed;
+            _tokens = tokens;
             _logger = logger;
             _databaseService = database;
             _config = config;
@@ -111,11 +115,12 @@ namespace SkillzBot.IRC
             }
             try
             {
-                if (string.IsNullOrWhiteSpace(_config?.BotTwitchName) ||
-                    string.IsNullOrWhiteSpace(_config?.BotTwitchAuth) ||
-                    string.IsNullOrWhiteSpace(_config?.ChannelName))
+                // The bot token comes from the token service: a panel grant (renewed before it expires) or BotTwitchAuth.
+                var botCredential = await _tokens.GetCredentialAsync(TwitchIdentity.Bot);
+                string botName = botCredential?.Login ?? _config?.BotTwitchName;
+                if (botCredential == null || string.IsNullOrWhiteSpace(botName) || string.IsNullOrWhiteSpace(_config?.ChannelName))
                 {
-                    _logger?.LogError("Missing required Twitch configuration.");
+                    _logger?.LogError("Missing bot credentials: authorize the bot account on the panel's Twitch page or set BotTwitchName/BotTwitchAuth.");
                     return false;
                 }
 
@@ -125,7 +130,7 @@ namespace SkillzBot.IRC
                     {
                         await DisposeClientInstanceAsync();
 
-                        var credentials = new ConnectionCredentials(_config.BotTwitchName, _config.BotTwitchAuth);
+                        var credentials = new ConnectionCredentials(botName, "oauth:" + botCredential.AccessToken);
                         _client = new TwitchClient();
                         RegisterEventHandlers();
                         _client.Initialize(credentials, _config.ChannelName);

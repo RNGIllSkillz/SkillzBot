@@ -30,6 +30,7 @@ namespace SkillzBot.Api
         public long StreamElementsFailures { get; set; }
         public double? StreamElementsLastOkSeconds { get; set; }
         public string Proxy { get; set; }
+        public string Tokens { get; set; }
         public bool Silent { get; set; }
         public bool SubActive { get; set; }
         public int FilterLevel { get; set; }

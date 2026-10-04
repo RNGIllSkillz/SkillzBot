@@ -11,6 +11,7 @@ import Filters from './pages/Filters'
 import Quiz from './pages/Quiz'
 import Settings from './pages/Settings'
 import System from './pages/System'
+import Twitch from './pages/Twitch'
 
 const AUTH_ERRORS: Record<string, string> = {
   forbidden: 'Этот Twitch-аккаунт не входит в список редакторов. Стример или root может добавить его командой !editor add <login>.',
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/quiz" element={<Quiz />} />
         <Route path="/settings" element={<Settings me={me} />} />
         <Route path="/system" element={<System me={me} />} />
+        <Route path="/twitch" element={<Twitch me={me} />} />
         <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
       </Route>
     </Routes>
@@ -87,6 +89,7 @@ function Layout({ me }: { me: Me }) {
   }, [])
   const logout = () => post('/api/auth/logout').then(() => window.location.assign('/'))
   const items: [string, string][] = [['/', 'Дашборд'], ['/chat', 'Чат'], ['/users', 'Пользователи'], ['/stats', 'Статистика'], ['/vips', 'VIP'], ['/filters', 'Фильтры'], ['/quiz', 'Викторина'], ['/settings', 'Настройки'], ['/system', 'Система']]
+  if (me.role === 'root' || me.role === 'admin') items.push(['/twitch', 'Twitch'])
   const healthy = !!status && status.ircConnected && status.eventSubConnected && status.dbOk
   return (
     <div className="layout">

@@ -1,3 +1,4 @@
+using SkillzBot.Services.Twitch;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllSkillzBot;
@@ -24,6 +25,7 @@ namespace SkillzBot.Services
         private readonly HealthState _health;
         private readonly IBotStateService _botState;
         private readonly ProxyService _proxy;
+        private readonly TwitchTokenService _tokens;
         private readonly ILogger<HealthReporter> _logger;
 
         public HealthReporter(
@@ -32,9 +34,11 @@ namespace SkillzBot.Services
             HealthState health,
             IBotStateService botState,
             ProxyService proxy,
-            ILogger<HealthReporter> logger)
+            ILogger<HealthReporter> logger,
+            TwitchTokenService tokens)
         {
             _proxy = proxy;
+            _tokens = tokens;
             _irc = irc;
             _chat = chat;
             _health = health;
@@ -87,7 +91,7 @@ namespace SkillzBot.Services
                 ChatPending = pending, ChatProcessed = processed, ChatBuffered = buffered, ChatStalled = stalled, ChatLastStall = lastStall,
                 DbOk = !_health.DbCircuitOpen, DbFailures = _health.DbFailures,
                 StreamElementsFailures = _health.StreamElementsFailures, StreamElementsLastOkSeconds = Age(_health.StreamElementsLastOkUtc),
-                Proxy = _proxy.Describe(),
+                Proxy = _proxy.Describe(), Tokens = _tokens.DescribeShort(),
                 Silent = s.IsSilent, SubActive = s.IsSubActive, FilterLevel = s.ChatFilterLvl, AutoPred = s.AutoPred, InMatch = s.InMatch, Online = s.BroadcasterIsOnline,
             };
         }
@@ -113,6 +117,7 @@ namespace SkillzBot.Services
                    $" | db={db} failures={_health.DbFailures}" +
                    $" | se={se} lastOk={HealthState.FormatAge(_health.StreamElementsLastOkUtc)}" +
                    $" | proxy={_proxy.Describe()}" +
+                   $" | tokens={_tokens.DescribeShort()}" +
                    $" | silent={s.IsSilent} sub={s.IsSubActive} filter={s.ChatFilterLvl} autopred={s.AutoPred} inMatch={s.InMatch} online={s.BroadcasterIsOnline}";
         }
     }

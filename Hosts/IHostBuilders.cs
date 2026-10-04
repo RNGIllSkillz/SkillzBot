@@ -25,6 +25,7 @@ using SkillzBot.Services;
 using SkillzBot.Services.Infrastructure;
 using SkillzBot.Services.Proxy;
 using SkillzBot.Services.State;
+using SkillzBot.Services.Twitch;
 using SkillzBot.Services.Writers;
 using SkillzBot.TtvClient.TTVRewards;
 using SkillzBot.Utils;
@@ -140,10 +141,12 @@ namespace SkillzBot.Hosts
                     // 5. External APIs
                     services.AddTwitchLibEventSubWebsockets();
                     services.AddSingleton<ITtvIRCClient, TtvIRCClientService>();
+                    services.AddSingleton<TwitchTokenService>();          // Twitch tokens: panel grants with refresh, config tokens as fallback
                     services.AddSingleton<ITwitchService, TwitchApiService>();
                     services.AddSingleton<IRiotApiService, RiotApiService>();
 
                     // HTTP Clients
+                    services.AddHttpClient(TwitchTokenService.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(15));
                     services.AddHttpClient("StreamElementsClient", client => client.Timeout = StreamElementsTimeout)
                         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
                         .ConfigurePrimaryHttpMessageHandler(PrimaryHandler("streamelements"));
@@ -194,6 +197,7 @@ namespace SkillzBot.Hosts
                     // 8. Hosted Services (Running in background)
                     services.AddHostedService(sp => sp.GetRequiredService<ProxyService>()); // Starts the proxy sidecar if configured
                     services.AddHostedService<StartupInitializer>();      // Runs once
+                    services.AddHostedService<TwitchTokenRefresher>();    // Renews Twitch tokens before they expire
                     services.AddHostedService<TTVEventSub>();             // EventSub websocket + watchdog
                     services.AddHostedService<TwitchIrcHostedService>();  // IRC + chat loop
                     services.AddHostedService<MatchMonitoringService>();  // Riot polling
