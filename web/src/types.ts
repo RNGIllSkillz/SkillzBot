@@ -1,4 +1,5 @@
-export interface Me { twitchId: number; login: string; role: 'admin' | 'editor' }
+export type Role = 'root' | 'admin' | 'editor'
+export interface Me { twitchId: number; login: string; role: Role }
 
 export interface Status {
   timeUtc: string; version: string; uptimeSeconds: number; ramMb: number; threads: number

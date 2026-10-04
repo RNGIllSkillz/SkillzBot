@@ -5,15 +5,17 @@ import { Card, Notice, useAsync } from '../components/ui'
 
 export default function Filters() {
   const lists = useAsync(() => get<FilterList[]>('/api/filters'), [])
-  const [name, setName] = useState<string>('dic')
+  // The API returns only the lists the current role may see (word lists are root-only), so start on the first one.
+  const [name, setName] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [dirty, setDirty] = useState(false)
   const [note, setNote] = useState<string | null>(null)
-  const current = lists.data?.find(l => l.name === name)
+  const current = lists.data?.find(l => l.name === name) ?? lists.data?.[0]
   useEffect(() => { if (current) { setText(current.lines.join('\n')); setDirty(false) } }, [current?.name, lists.data])
   const save = async () => {
+    if (!current) return
     try {
-      await put(`/api/filters/${name}`, { lines: text.split('\n') })
+      await put(`/api/filters/${current.name}`, { lines: text.split('\n') })
       setNote(`Список «${current?.title}» сохранен и перечитан ботом.`); setDirty(false); lists.reload()
     } catch (e: any) { setNote(`Ошибка: ${e.message}`) }
   }
@@ -31,7 +33,7 @@ export default function Filters() {
         <Card title="Списки">
           {(lists.data ?? []).map(l => (
             <div key={l.name} className="toggle" style={{ cursor: 'pointer' }} onClick={() => { if (!dirty || window.confirm('Есть несохраненные изменения, переключить?')) setName(l.name) }}>
-              <div className="lbl"><span style={name === l.name ? { color: 'var(--accent)', fontWeight: 600 } : undefined}>{l.title}</span><small>{l.lines.length} строк · {l.shared ? 'общий для каналов' : 'этот канал'}</small></div>
+              <div className="lbl"><span style={current?.name === l.name ? { color: 'var(--accent)', fontWeight: 600 } : undefined}>{l.title}</span><small>{l.lines.length} строк · {l.shared ? 'общий для каналов' : 'этот канал'}</small></div>
             </div>))}
         </Card>
         <Card title={current?.title ?? ''}>

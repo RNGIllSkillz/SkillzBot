@@ -60,22 +60,20 @@ export default function Settings({ me }: { me: Me }) {
           )}
           {state.error && <Notice kind="bad">{state.error}</Notice>}
         </Card>
-        <Card title="Конфиг канала">
-          <p className="muted">Секреты (токены, пароли, ProxyUrl) не показываются и не меняются через панель. {me.role === 'admin' ? 'Admin может менять любой несекретный ключ; большинство требует перезапуска.' : 'Редактору доступны только настройки бота: ' + (config.data?.editorKeys.join(', ') ?? '')}</p>
+        <Card title={me.role === 'root' ? 'Конфиг канала' : 'Настройки бота в конфиге'}>
+          <p className="muted">{me.role === 'root'
+            ? 'Полный конфиг виден только root. Секреты (токены, пароли, ProxyUrl) не показываются и не меняются через панель; большинство ключей требует перезапуска.'
+            : 'Системный конфиг канала доступен только root. Здесь только настройки бота: ' + (config.data?.editorKeys.join(', ') ?? '')}</p>
           {config.data && (
             <table><tbody>
-              {Object.entries(config.data.values).map(([k, v]) => {
-                const editable = me.role === 'admin' || config.data!.editorKeys.includes(k)
-                return (
-                  <tr key={k}><td className="mono" style={{ whiteSpace: 'nowrap' }}>{k}</td>
-                    <td>{editable
-                      ? <span className="toolbar" style={{ margin: 0 }}><input style={{ flex: 1, minWidth: 120 }} value={edits[k] ?? String(v ?? '')} onChange={e => setEdits({ ...edits, [k]: e.target.value })} />
-                          {edits[k] !== undefined && edits[k] !== String(v ?? '') && <button className="primary" onClick={() => saveConfig(k)}>Сохранить</button>}</span>
-                      : <span className="mono">{String(v ?? '')}</span>}</td></tr>)
-              })}
+              {Object.entries(config.data.values).map(([k, v]) => (
+                <tr key={k}><td className="mono" style={{ whiteSpace: 'nowrap' }}>{k}</td>
+                  <td><span className="toolbar" style={{ margin: 0 }}><input style={{ flex: 1, minWidth: 120 }} value={edits[k] ?? String(v ?? '')} onChange={e => setEdits({ ...edits, [k]: e.target.value })} />
+                    {edits[k] !== undefined && edits[k] !== String(v ?? '') && <button className="primary" onClick={() => saveConfig(k)}>Сохранить</button>}</span></td></tr>))}
               {config.data.secretKeys.map(k => <tr key={k}><td className="mono muted">{k}</td><td className="muted">{config.data!.secretKeysSet.includes(k) ? '●●●●● задан' : 'не задан'}</td></tr>)}
             </tbody></table>
           )}
+          {config.error && <Notice kind="bad">{config.error}</Notice>}
         </Card>
       </div>
     </>

@@ -66,7 +66,8 @@ namespace SkillzBot.Api
             services.AddAuthorization(o =>
             {
                 o.AddPolicy("editor", p => p.RequireAuthenticatedUser());
-                o.AddPolicy("admin", p => p.RequireRole(TwitchAuth.RoleAdmin));
+                o.AddPolicy("admin", p => p.RequireRole(TwitchAuth.RoleAdmin, TwitchAuth.RoleRoot));
+                o.AddPolicy("root", p => p.RequireRole(TwitchAuth.RoleRoot));
             });
         }
 
@@ -98,7 +99,7 @@ namespace SkillzBot.Api
 
         private static T S<T>(HttpContext ctx) => ctx.RequestServices.GetRequiredService<T>();
         private static string Who(HttpContext ctx) => ctx.User?.Identity?.Name ?? "anonymous";
-        private static bool IsAdmin(HttpContext ctx) => ctx.User?.IsInRole(TwitchAuth.RoleAdmin) == true;
+        private static bool IsRoot(HttpContext ctx) => ctx.User?.IsInRole(TwitchAuth.RoleRoot) == true;
         private static int Q(HttpContext ctx, string name, int fallback, int min, int max) =>
             int.TryParse(ctx.Request.Query[name], out int v) ? Math.Clamp(v, min, max) : fallback;
         private static DateTime? QDate(HttpContext ctx, string name) =>
@@ -131,15 +132,16 @@ namespace SkillzBot.Api
                 catch (ArgumentException ex) { await Results.Json(new { error = ex.Message }, statusCode: 400).ExecuteAsync(ctx); }
             }).RequireAuthorization("editor");
             e.MapGet("/api/gamestate", ctx => Results.Json(S<IGameStateService>(ctx).Current).ExecuteAsync(ctx)).RequireAuthorization("editor");
-            e.MapGet("/api/config", async ctx => await Results.Json(await S<BotSettingsService>(ctx).GetConfigAsync()).ExecuteAsync(ctx)).RequireAuthorization("editor");
+            // The full channel config is root-only; everyone else gets just the bot-setting keys (EditorConfigKeys).
+            e.MapGet("/api/config", async ctx => await Results.Json(await S<BotSettingsService>(ctx).GetConfigAsync(IsRoot(ctx))).ExecuteAsync(ctx)).RequireAuthorization("editor");
             e.MapMethods("/api/config", new[] { "PATCH" }, async ctx =>
             {
                 try
                 {
-                    bool restart = await S<BotSettingsService>(ctx).PatchConfigAsync(await Body(ctx), IsAdmin(ctx), Who(ctx));
+                    bool restart = await S<BotSettingsService>(ctx).PatchConfigAsync(await Body(ctx), IsRoot(ctx), Who(ctx));
                     await Results.Json(new { restartRequired = restart }).ExecuteAsync(ctx);
                 }
-                catch (ArgumentException ex) { await Results.Json(new { error = ex.Message }, statusCode: IsAdmin(ctx) ? 400 : 403).ExecuteAsync(ctx); }
+                catch (ArgumentException ex) { await Results.Json(new { error = ex.Message }, statusCode: IsRoot(ctx) ? 400 : 403).ExecuteAsync(ctx); }
             }).RequireAuthorization("editor");
             e.MapGet("/api/system/info", ctx =>
             {
@@ -211,11 +213,17 @@ namespace SkillzBot.Api
             e.MapPost("/api/actions/filters/reload", ctx => { S<BotSettingsService>(ctx).ReloadFilters(); return Results.Json(new { reloaded = true }).ExecuteAsync(ctx); }).RequireAuthorization("editor");
 
             // ---- filters ----
-            e.MapGet("/api/filters", ctx => Results.Json(S<BotSettingsService>(ctx).GetFilters()).ExecuteAsync(ctx)).RequireAuthorization("editor");
+            // The word lists (dic, whitelist) exist only for root; other roles neither see nor save them.
+            e.MapGet("/api/filters", ctx => Results.Json(S<BotSettingsService>(ctx).GetFilters(IsRoot(ctx))).ExecuteAsync(ctx)).RequireAuthorization("editor");
             e.MapPut("/api/filters/{name}", async ctx =>
             {
+                string name = ctx.Request.RouteValues["name"]?.ToString();
+                if (!IsRoot(ctx) && BotSettingsService.IsRootOnlyFilter(name))
+                {
+                    await Results.Json(new { error = "this list is root-only" }, statusCode: 403).ExecuteAsync(ctx); return;
+                }
                 var body = await ctx.Request.ReadFromJsonAsync<FilterSaveRequest>();
-                bool ok = body?.Lines != null && await S<BotSettingsService>(ctx).SaveFilterAsync(ctx.Request.RouteValues["name"]?.ToString(), body.Lines, Who(ctx));
+                bool ok = body?.Lines != null && await S<BotSettingsService>(ctx).SaveFilterAsync(name, body.Lines, Who(ctx));
                 await (ok ? Results.Json(new { saved = true }) : Results.Json(new { error = "unknown list or missing lines" }, statusCode: 400)).ExecuteAsync(ctx);
             }).RequireAuthorization("editor");
 

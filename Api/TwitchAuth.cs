@@ -16,10 +16,11 @@ namespace SkillzBot.Api
 {
     /// <summary>
     /// Twitch OAuth (authorization code) login for the web panel. Who may log in is decided here:
-    /// the broadcaster and the root user are admins, logins in dbBotEditorTable are editors.
+    /// RootUser is root, the broadcaster is admin, logins in dbBotEditorTable are editors.
     /// </summary>
     public sealed class TwitchAuth
     {
+        public const string RoleRoot = "root";
         public const string RoleAdmin = "admin";
         public const string RoleEditor = "editor";
         private const string StateCookie = "skillzbot.oauth";
@@ -138,11 +139,11 @@ namespace SkillzBot.Api
             ctx.Response.StatusCode = 204;
         }
 
-        /// <summary>admin for the broadcaster and the root user, editor for promoted logins, null otherwise.</summary>
+        /// <summary>root for RootUser, admin for the broadcaster, editor for promoted logins, null otherwise.</summary>
         public async Task<string> RoleForAsync(string userId, string login)
         {
+            if (!string.IsNullOrEmpty(login) && login.Equals(_config.RootUser, StringComparison.OrdinalIgnoreCase)) return RoleRoot;
             if (!string.IsNullOrEmpty(userId) && userId == _config.BroadcasterId) return RoleAdmin;
-            if (!string.IsNullOrEmpty(login) && login.Equals(_config.RootUser, StringComparison.OrdinalIgnoreCase)) return RoleAdmin;
             if (long.TryParse(userId, out long id) && await _admin.IsEditorAsync(id)) return RoleEditor;
             return null;
         }
