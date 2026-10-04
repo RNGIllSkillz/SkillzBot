@@ -1,123 +1,87 @@
 #!/usr/bin/env python3
-"""Build SkillzBot and the web panel and push them to the Alpine host over SSH (password login).
+"""Ship the SkillzBot sources to the Alpine host over SSH (password login) and build them there.
 
-First-time population of an empty host (installs packages, service and nginx, copies the bot data,
-the proxy binary, then the bot and the panel, and starts the service):
+First-time population of an empty host (installs packages incl. the .NET SDK and Node, the service
+and nginx, copies the bot data and the proxy binary, uploads the sources, builds, starts the service):
 
     python deploy/deploy.py --host 192.168.254.154 --init ^
         --data "\\\\192.168.255.10\\skillzbot_data\\skillzbotdata\\Channels_Data" ^
         --channel general_hs_ --tz Europe/Moscow [--proxy-bin C:\\tools\\xray]
 
-Every later update:
+Every later update (upload changed sources, rebuild on the host, restart):
 
     python deploy/deploy.py --host 192.168.254.154
 
-Options: --skip-bot / --skip-web (deploy only one part), --no-build (reuse deploy/out), --no-restart
-(stage files; the next restart from the panel picks them up), --dry-run (build and package only).
+Options: --skip-bot / --skip-web (build only one part), --no-restart (build and install, let the
+next restart from the panel pick it up), --dry-run (package the sources only, no connection).
 
-The password is asked interactively (hidden). It can also come from the SKILLZBOT_SSH_PASSWORD
-environment variable or --password; nothing is ever written to disk by this script.
+The password is asked interactively (hidden); it can also come from the SKILLZBOT_SSH_PASSWORD
+environment variable or --password. Nothing is written to disk by this script.
 
-Needs on this machine: dotnet SDK, node + npm (for the panel) and the paramiko package:
-    pip install paramiko
+Needs on this machine only Python 3 and the paramiko package:  pip install paramiko
+The host needs internet access for NuGet and npm during the build.
 """
 import argparse
 import getpass
 import os
-import shutil
-import stat
-import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 from pathlib import Path
 
-# absolute(), not resolve(): on Windows resolve() turns a mapped drive (Z:\...) into its UNC path,
-# and cmd.exe (which runs npm.cmd) cannot use a UNC path as the working directory.
+# absolute(), not resolve(): on Windows resolve() turns a mapped drive (Z:\...) into a UNC path.
 ROOT = Path(__file__).absolute().parents[1]
-OUT = ROOT / "deploy" / "out"
 ALPINE = ROOT / "deploy" / "alpine"
 
-
-# ----------------------------------------------------------------------------- local build
-
-def run(cmd, cwd=None):
-    print("$", " ".join(str(c) for c in cmd), flush=True)
-    if os.name == "nt" and cwd is not None and str(cwd).startswith("\\\\"):
-        # Still a UNC path (script started from \\server\share\...): pushd maps a temporary drive letter for cmd.exe.
-        line = subprocess.list2cmdline([str(c) for c in cmd])
-        subprocess.run(f'pushd "{cwd}" && {line}', shell=True, check=True)
-        return
-    subprocess.run(cmd, cwd=cwd, check=True)
+# What is not shipped: VCS data, build outputs and caches (they live on the host between builds), bot data.
+SKIP_DIRS = {".git", ".vs", ".idea", "bin", "obj", "node_modules", "dist", "out", "Channels_Data", ".build"}
+SKIP_SUFFIXES = {".user", ".suo", ".log", ".tgz", ".tar.gz"}
 
 
-def build_bot():
-    bot_out = OUT / "bot"
-    run(["dotnet", "publish", str(ROOT / "SkillzBot.csproj"), "-c", "Release", "-r", "linux-musl-x64",
-         "--self-contained", "true", "-p:PublishSingleFile=true", "-o", str(bot_out)])
-    if not (bot_out / "SkillzBot").exists():
-        sys.exit("publish produced no SkillzBot executable")
-    return bot_out
+# ----------------------------------------------------------------------------- packaging
 
-
-def build_web(install):
-    web = ROOT / "web"
-    npm = "npm.cmd" if os.name == "nt" else "npm"
-    if install or not (web / "node_modules").exists():
-        run([npm, "install", "--no-audit", "--no-fund"], cwd=web)
-    run([npm, "run", "build"], cwd=web)
-    dist = web / "dist"
-    if not (dist / "index.html").exists():
-        sys.exit("web build produced no dist/index.html")
-    return dist
-
-
-def package(bot_dir, web_dir):
-    OUT.mkdir(parents=True, exist_ok=True)
-    pkg = OUT / f"skillzbot-{time.strftime('%Y%m%d-%H%M%S')}.tar.gz"
-    with tarfile.open(pkg, "w:gz") as tar:
-        if bot_dir:
-            for f in bot_dir.iterdir():
-                if f.suffix == ".pdb":
+def package_sources():
+    tmp = Path(tempfile.gettempdir()) / f"skillzbot-src-{time.strftime('%Y%m%d-%H%M%S')}.tar.gz"
+    count = 0
+    with tarfile.open(tmp, "w:gz") as tar:
+        for path in sorted(ROOT.rglob("*")):
+            rel = path.relative_to(ROOT)
+            if any(part in SKIP_DIRS for part in rel.parts):
+                continue
+            if path.is_file():
+                if path.suffix.lower() in SKIP_SUFFIXES or path.name.startswith("skillzbot-src-"):
                     continue
-                info = tar.gettarinfo(str(f), arcname=f.name)
-                info.mode = 0o755 if f.name == "SkillzBot" else 0o644
+                info = tar.gettarinfo(str(path), arcname=rel.as_posix())
                 info.uid = info.gid = 0
-                with open(f, "rb") as fh:
+                info.mode = 0o755 if path.suffix == ".sh" else 0o644
+                with open(path, "rb") as fh:
                     tar.addfile(info, fh)
-        if web_dir:
-            tar.add(str(web_dir), arcname="web", filter=_root_owned)
-    print(f"package {pkg} ({pkg.stat().st_size // 1024 // 1024} MB)")
-    return pkg
-
-
-def _root_owned(info):
-    info.uid = info.gid = 0
-    return info
+                count += 1
+    print(f"sources: {count} files -> {tmp} ({tmp.stat().st_size // 1024} KB)")
+    return tmp
 
 
 def package_data(data_dir: Path, include_logs: bool):
     """Tarball of an existing Channels_Data folder (logs skipped unless asked)."""
-    if not (data_dir.is_dir()):
+    if not data_dir.is_dir():
         sys.exit(f"--data: {data_dir} is not a directory")
-    pkg = OUT / "channels-data.tar.gz"
-    OUT.mkdir(parents=True, exist_ok=True)
+    tmp = Path(tempfile.gettempdir()) / "skillzbot-channels-data.tar.gz"
     count = 0
 
     def flt(info):
         nonlocal count
-        parts = Path(info.name).parts
-        if not include_logs and "logs" in parts and info.isfile():
+        if not include_logs and "logs" in Path(info.name).parts and info.isfile():
             return None
         info.uid = info.gid = 0
         if info.isfile():
             count += 1
         return info
 
-    with tarfile.open(pkg, "w:gz") as tar:
+    with tarfile.open(tmp, "w:gz") as tar:
         tar.add(str(data_dir), arcname=".", filter=flt)
-    print(f"data package {pkg}: {count} files from {data_dir}")
-    return pkg
+    print(f"data: {count} files from {data_dir} -> {tmp}")
+    return tmp
 
 
 # ----------------------------------------------------------------------------- remote side
@@ -128,7 +92,6 @@ class Host:
             import paramiko
         except ImportError:
             sys.exit("paramiko is required:  pip install paramiko")
-        self.paramiko = paramiko
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         print(f"connecting to {args.user}@{args.host}:{args.port} ...")
@@ -142,10 +105,11 @@ class Host:
 
     def sh(self, script, check=True):
         """Runs a shell script fragment on the host, streaming its output."""
-        print(f"[remote] {script if len(script) < 160 else script[:157] + '...'}", flush=True)
+        shown = script if len(script) < 160 else script[:157] + "..."
+        print(f"[remote] {shown}", flush=True)
         _, stdout, stderr = self.client.exec_command("sh -c " + _quote(script), get_pty=False)
         for line in iter(stdout.readline, ""):
-            print("   ", line.rstrip())
+            print("   ", line.rstrip(), flush=True)
         err = stderr.read().decode(errors="replace").strip()
         rc = stdout.channel.recv_exit_status()
         if err:
@@ -155,19 +119,17 @@ class Host:
         return rc
 
     def put(self, local: Path, remote: str, mode=None):
-        size = local.stat().st_size
         last = [0]
 
         def progress(done, total):
             pct = int(done * 100 / total) if total else 100
-            if pct >= last[0] + 10 or done == total:
+            if pct >= last[0] + 20 or done == total:
                 last[0] = pct
                 print(f"    upload {local.name}: {pct}%", flush=True)
 
         self.sftp.put(str(local), remote, callback=progress)
         if mode is not None:
             self.sftp.chmod(remote, mode)
-        print(f"    uploaded {local.name} ({size // 1024} KB) -> {remote}")
 
     def put_dir(self, local: Path, remote: str):
         self.sh(f"mkdir -p '{remote}'")
@@ -175,7 +137,7 @@ class Host:
             if f.is_file():
                 self.put(f, f"{remote}/{f.name}", 0o755 if f.suffix in ("", ".sh") else 0o644)
 
-    def remote_dir_nonempty(self, path):
+    def dir_nonempty(self, path):
         return self.sh(f"[ -d '{path}' ] && [ \"$(ls -A '{path}' 2>/dev/null)\" ]", check=False) == 0
 
 
@@ -185,23 +147,24 @@ def _quote(s):
 
 # ----------------------------------------------------------------------------- steps
 
-def step_init(host: Host, args):
-    print("== host setup (packages, service, nginx)")
+def step_init(host, args):
+    print("== host setup (packages incl. .NET SDK and Node, service, nginx)")
     host.put_dir(ALPINE, "/root/skillzbot-setup")
     host.sh(f"APP_DIR='{args.dir}' CHANNEL='{args.channel}' TZ='{args.tz}' API_PORT='{args.api_port}' sh /root/skillzbot-setup/install.sh")
 
 
-def step_data(host: Host, args):
+def step_data(host, args):
     target = f"{args.dir}/Channels_Data"
-    if host.remote_dir_nonempty(target) and not args.data_overwrite:
+    if host.dir_nonempty(target) and not args.data_overwrite:
         sys.exit(f"{target} on the host is not empty; add --data-overwrite to replace files with the local copy")
     pkg = package_data(Path(args.data), args.include_logs)
     host.put(pkg, "/tmp/skillzbot-data.tgz")
     host.sh(f"set -e; mkdir -p '{target}'; tar xzf /tmp/skillzbot-data.tgz -C '{target}'; rm -f /tmp/skillzbot-data.tgz; "
             f"echo 'channels on host:'; ls '{target}'")
+    pkg.unlink(missing_ok=True)
 
 
-def step_proxy_bin(host: Host, args):
+def step_proxy_bin(host, args):
     local = Path(args.proxy_bin)
     if not local.is_file():
         sys.exit(f"--proxy-bin: {local} is not a file")
@@ -211,23 +174,22 @@ def step_proxy_bin(host: Host, args):
     print(f"    set ProxyCorePath to {remote} in the channel config")
 
 
-def step_deploy(host: Host, args, pkg, bot, web):
-    host.put(pkg, "/tmp/skillzbot-upload.tgz")
-    d = args.dir
-    steps = ["set -e", f"mkdir -p '{d}'"]
-    if not args.no_restart:
-        steps.append("rc-service skillzbot status >/dev/null 2>&1 && rc-service skillzbot stop || true")
-    if web:
-        steps.append(f"rm -rf '{d}/web'")
-    steps += [f"tar xzf /tmp/skillzbot-upload.tgz -C '{d}'", "rm -f /tmp/skillzbot-upload.tgz"]
-    if bot:
-        steps.append(f"chmod +x '{d}/SkillzBot'")
-    if not args.no_restart:
-        steps += ["rc-service skillzbot start", "sleep 4", "rc-service skillzbot status",
-                  f"tail -n 15 '{d}/Channels_Data/{args.channel}/DATA/logs/bot-'$(date +%Y%m%d)'.log' 2>/dev/null || true"]
-    else:
-        steps.append("echo 'files staged; restart the bot from the panel or: rc-service skillzbot restart'")
-    host.sh("; ".join(steps))
+def step_sources(host, args, pkg):
+    src = f"{args.dir}/src"
+    host.put(pkg, "/tmp/skillzbot-src.tgz")
+    # Replace the sources but keep build caches (obj, bin, web/node_modules) so rebuilds are incremental.
+    host.sh("set -e; "
+            f"mkdir -p '{src}/web'; "
+            f"find '{src}' -mindepth 1 -maxdepth 1 ! -name obj ! -name bin ! -name web -exec rm -rf {{}} +; "
+            f"find '{src}/web' -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {{}} +; "
+            f"tar xzf /tmp/skillzbot-src.tgz -C '{src}'; rm -f /tmp/skillzbot-src.tgz; "
+            f"chmod +x '{src}'/deploy/alpine/*.sh; echo 'sources updated in {src}'")
+
+
+def step_build(host, args):
+    env = (f"APP_DIR='{args.dir}' RESTART={0 if args.no_restart else 1} "
+           f"BUILD_BOT={0 if args.skip_bot else 1} BUILD_WEB={0 if args.skip_web else 1}")
+    host.sh(f"{env} sh '{args.dir}/src/deploy/alpine/build.sh'")
 
 
 def main():
@@ -245,19 +207,13 @@ def main():
     ap.add_argument("--data-overwrite", action="store_true", help="copy --data even if the host already has files")
     ap.add_argument("--include-logs", action="store_true", help="copy old log files along with --data")
     ap.add_argument("--proxy-bin", default=None, help="local xray/hysteria binary to place under <dir>/proxy/")
-    ap.add_argument("--skip-bot", action="store_true", help="do not build/upload the bot")
-    ap.add_argument("--skip-web", action="store_true", help="do not build/upload the web panel")
-    ap.add_argument("--no-build", action="store_true", help="reuse deploy/out from the previous run")
-    ap.add_argument("--no-restart", action="store_true", help="stage files only; the next restart picks them up")
-    ap.add_argument("--npm-install", action="store_true", help="run npm install before building the panel")
-    ap.add_argument("--dry-run", action="store_true", help="build and package, do not connect")
+    ap.add_argument("--skip-bot", action="store_true", help="do not build the bot")
+    ap.add_argument("--skip-web", action="store_true", help="do not build the web panel")
+    ap.add_argument("--no-restart", action="store_true", help="build and install, but do not restart the service")
+    ap.add_argument("--dry-run", action="store_true", help="package the sources only, do not connect")
     args = ap.parse_args()
 
-    if not args.no_build and OUT.exists():
-        shutil.rmtree(OUT)
-    bot_dir = None if args.skip_bot else (OUT / "bot" if args.no_build else build_bot())
-    web_dir = None if args.skip_web else (ROOT / "web" / "dist" if args.no_build else build_web(args.npm_install))
-    pkg = package(bot_dir, web_dir) if (bot_dir or web_dir) else None
+    pkg = package_sources()
     if args.data and args.dry_run:
         package_data(Path(args.data), args.include_logs)
     if args.dry_run:
@@ -273,17 +229,17 @@ def main():
             step_data(host, args)
         if args.proxy_bin:
             step_proxy_bin(host, args)
-        if pkg:
-            step_deploy(host, args, pkg, bot_dir, web_dir)
+        step_sources(host, args, pkg)
+        if not (args.skip_bot and args.skip_web):
+            step_build(host, args)
         print("deploy finished")
     finally:
         host.close()
+        pkg.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except subprocess.CalledProcessError as e:
-        sys.exit(f"command failed with exit code {e.returncode}")
     except KeyboardInterrupt:
         sys.exit("\ninterrupted")
