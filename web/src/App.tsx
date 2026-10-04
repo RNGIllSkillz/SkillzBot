@@ -40,7 +40,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout me={me} />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<Dashboard me={me} />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/users" element={<Users />} />
         <Route path="/stats" element={<Stats />} />
