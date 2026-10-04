@@ -32,7 +32,9 @@ import tarfile
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+# absolute(), not resolve(): on Windows resolve() turns a mapped drive (Z:\...) into its UNC path,
+# and cmd.exe (which runs npm.cmd) cannot use a UNC path as the working directory.
+ROOT = Path(__file__).absolute().parents[1]
 OUT = ROOT / "deploy" / "out"
 ALPINE = ROOT / "deploy" / "alpine"
 
@@ -41,6 +43,11 @@ ALPINE = ROOT / "deploy" / "alpine"
 
 def run(cmd, cwd=None):
     print("$", " ".join(str(c) for c in cmd), flush=True)
+    if os.name == "nt" and cwd is not None and str(cwd).startswith("\\\\"):
+        # Still a UNC path (script started from \\server\share\...): pushd maps a temporary drive letter for cmd.exe.
+        line = subprocess.list2cmdline([str(c) for c in cmd])
+        subprocess.run(f'pushd "{cwd}" && {line}', shell=True, check=True)
+        return
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
