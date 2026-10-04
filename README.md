@@ -1,6 +1,6 @@
 # SkillzBot v3.0
 
-Многофункциональный Twitch-бот на .NET 6/8. Интеграция с Twitch API, Riot Games API (League of Legends), StreamElements, YouTube и Discord.
+Многофункциональный Twitch-бот на .NET 10. Интеграция с Twitch API, Riot Games API (League of Legends), StreamElements, YouTube и Discord.
 
 ## Содержание
 
@@ -165,7 +165,7 @@
 
 Бот и панель живут на одной машине с Alpine Linux. Бот собирается на рабочей станции (`dotnet publish` для `linux-musl-x64`, самодостаточный исполняемый файл `SkillzBot`, .NET на хосте не нужен) и работает под OpenRC-службой `skillzbot`; панель собирается на хосте из исходников (`npm ci && npm run build`) и отдается системным nginx, который проксирует `/api` на бот. OpenRC (`supervise-daemon`) перезапускает процесс при любом выходе, поэтому «перезапуск» из панели - это просто завершение процесса.
 
-**Первое заполнение пустого хоста** - одной командой с ПК из корня репозитория (на ПК нужны .NET SDK, Python 3 и `pip install paramiko`; вход по паролю, он спрашивается скрыто один раз за запуск или берется из переменной `SKILLZBOT_SSH_PASSWORD`; хосту нужен выход в интернет для npm):
+**Первое заполнение пустого хоста** - одной командой с ПК из корня репозитория (на ПК нужны .NET 10 SDK, Python 3 и `pip install paramiko`; вход по паролю, он спрашивается скрыто один раз за запуск или берется из переменной `SKILLZBOT_SSH_PASSWORD`; хосту нужен выход в интернет для npm):
 
 ```
 python deploy\deploy.py --host 192.168.254.154 --init --data "\\192.168.255.10\skillzbot_data\skillzbotdata\Channels_Data" --channel general_hs_ --tz Europe/Moscow [--proxy-bin C:\tools\xray]
