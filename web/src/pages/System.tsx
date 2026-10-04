@@ -32,7 +32,7 @@ export default function System({ me }: { me: Me }) {
             <dt>API</dt><dd>порт {info.data.apiPort} · {info.data.publicUrl || 'ApiPublicUrl не задан'}</dd>
           </dl>}
         </Card>
-        {me.role === 'admin' && <Editors />}
+        {(me.role === 'root' || me.role === 'admin') && <Editors />}
       </div>
       <Card title="Лог" className="">
         <div className="toolbar">

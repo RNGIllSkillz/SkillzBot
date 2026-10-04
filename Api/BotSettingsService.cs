@@ -31,7 +31,7 @@ namespace SkillzBot.Api
             "BotTwitchAuth", "TApiAccessToken", "TApiClientSecret", "StreamElementsApiToken", "YouTubeApiToken",
             "RiotApiToken", "GPTApiToken", "DiscordBotToken", "MySQL_password", "ProxyUrl"
         };
-        /// <summary>Config keys that are bot settings rather than system settings; editors may change these.</summary>
+        /// <summary>Config keys that are bot settings rather than system settings; the only keys non-root roles see and may change.</summary>
         public static readonly HashSet<string> EditorConfigKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ChatFilterLvl", "VipLimit", "Summoner_Name", "SummonerRegion"
@@ -130,7 +130,11 @@ namespace SkillzBot.Api
 
         #region Config file
 
-        public async Task<ConfigViewDto> GetConfigAsync()
+        /// <summary>
+        /// Root sees every non-secret key (and which secrets are set); anyone else only the bot-setting keys in
+        /// <see cref="EditorConfigKeys"/>, so system settings never leave the box for admins or editors.
+        /// </summary>
+        public async Task<ConfigViewDto> GetConfigAsync(bool isRoot)
         {
             var root = JObject.Parse(await File.ReadAllTextAsync(_paths.ConfigPath));
             var values = new Dictionary<string, object>();
@@ -139,9 +143,10 @@ namespace SkillzBot.Api
             {
                 if (SecretKeys.Contains(prop.Name))
                 {
-                    if (prop.Value.Type != JTokenType.Null && !string.IsNullOrEmpty(prop.Value.ToString())) secretsSet.Add(prop.Name);
+                    if (isRoot && prop.Value.Type != JTokenType.Null && !string.IsNullOrEmpty(prop.Value.ToString())) secretsSet.Add(prop.Name);
                     continue;
                 }
+                if (!isRoot && !EditorConfigKeys.Contains(prop.Name)) continue;
                 values[prop.Name] = prop.Value.Type switch
                 {
                     JTokenType.Integer => (object)prop.Value.Value<long>(),
@@ -151,16 +156,16 @@ namespace SkillzBot.Api
                     _ => prop.Value.ToString()
                 };
             }
-            return new ConfigViewDto(values, SecretKeys.OrderBy(k => k).ToList(), secretsSet, EditorConfigKeys.OrderBy(k => k).ToList());
+            return new ConfigViewDto(values, isRoot ? SecretKeys.OrderBy(k => k).ToList() : Array.Empty<string>(), secretsSet, EditorConfigKeys.OrderBy(k => k).ToList());
         }
 
         /// <summary>Patches the channel config file. Returns true when a restart is needed for the change to apply.</summary>
-        public async Task<bool> PatchConfigAsync(Dictionary<string, JsonElement> patch, bool isAdmin, string by)
+        public async Task<bool> PatchConfigAsync(Dictionary<string, JsonElement> patch, bool isRoot, string by)
         {
             foreach (var key in patch.Keys)
             {
                 if (SecretKeys.Contains(key)) throw new ArgumentException($"{key} is a secret and cannot be changed through the API");
-                if (!isAdmin && !EditorConfigKeys.Contains(key)) throw new ArgumentException($"{key} is a system setting; only admins may change it");
+                if (!isRoot && !EditorConfigKeys.Contains(key)) throw new ArgumentException($"{key} is a system setting; only root may change it");
             }
             var root = JObject.Parse(await File.ReadAllTextAsync(_paths.ConfigPath));
             bool restart = false;
@@ -190,6 +195,11 @@ namespace SkillzBot.Api
 
         #region Filter dictionaries
 
+        /// <summary>The word lists behind the chat filter are root-only; other roles never see or save them.</summary>
+        private static readonly HashSet<string> RootOnlyFilters = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dic", "whitelist" };
+
+        public static bool IsRootOnlyFilter(string name) => name != null && RootOnlyFilters.Contains(name);
+
         private IEnumerable<(string Name, string Title, bool Shared, string File)> FilterFiles()
         {
             var f = _config.FilePaths;
@@ -201,11 +211,12 @@ namespace SkillzBot.Api
             yield return ("userblacklist", "Пользователи без заказа треков (Twitch id)", false, f.UserBlacklistFileName);
         }
 
-        public List<FilterListDto> GetFilters()
+        public List<FilterListDto> GetFilters(bool isRoot)
         {
             var list = new List<FilterListDto>();
             foreach (var (name, title, shared, file) in FilterFiles())
             {
+                if (!isRoot && IsRootOnlyFilter(name)) continue;
                 string path = _paths.GetFullPath(file, shared);
                 var lines = File.Exists(path) ? File.ReadAllLines(path).Select(l => l.TrimEnd('\r')).ToList() : new List<string>();
                 list.Add(new FilterListDto(name, title, shared, lines));
