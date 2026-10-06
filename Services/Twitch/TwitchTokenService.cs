@@ -55,6 +55,8 @@ namespace SkillzBot.Services.Twitch
     {
         public const string HttpClientName = "TwitchTokens";
         public const string FileName = "twitch-tokens.json";
+        /// <summary>Published by the hub into Channels_Data/_shared; managed channels read the bot account's token from it.</summary>
+        public const string HubBotTokenFileName = "bot-token.json";
 
         /// <summary>Everything the bot does on the streamer's behalf, including the EventSub subscriptions it opens.</summary>
         public static readonly string[] BroadcasterScopes =
@@ -93,6 +95,11 @@ namespace SkillzBot.Services.Twitch
         private readonly Dictionary<TwitchIdentity, List<Action<TwitchCredential>>> _listeners = new Dictionary<TwitchIdentity, List<Action<TwitchCredential>>>();
         private DateTime _lastRevalidationUtc = DateTime.MinValue;
         private bool _initialized;
+        private readonly bool _managed = HubSignature.IsManagedProcess;
+        private readonly string _hubBotTokenPath;
+        private TwitchCredential _hubBot;
+        private DateTime _hubBotFileWriteUtc = DateTime.MinValue;
+        private DateTime _hubBotCheckedUtc = DateTime.MinValue;
 
         public TwitchTokenService(BotConfigModel config, IPathProvider paths, IHttpClientFactory http, ILogger<TwitchTokenService> logger)
         {
@@ -100,6 +107,7 @@ namespace SkillzBot.Services.Twitch
             _http = http;
             _logger = logger;
             _filePath = Path.Combine(paths.DataPath, FileName);
+            _hubBotTokenPath = Path.Combine(paths.SharedPath, HubBotTokenFileName);
             foreach (TwitchIdentity id in Enum.GetValues(typeof(TwitchIdentity))) _listeners[id] = new List<Action<TwitchCredential>>();
             BuildConfigFallbacks();
         }
@@ -114,11 +122,22 @@ namespace SkillzBot.Services.Twitch
         /// <summary>The credential to use right now: a panel-granted token first, the config token otherwise, null when there is neither.</summary>
         public TwitchCredential Current(TwitchIdentity identity)
         {
+            if (identity == TwitchIdentity.Bot && _managed) return HubBotCredential();
             lock (_records)
             {
                 if (_records.TryGetValue(identity, out var r) && !string.IsNullOrEmpty(r.AccessToken))
                     return new TwitchCredential(identity, r.ClientId, r.AccessToken, r.UserId, r.Login, r.Scopes.AsReadOnly(), "oauth", r.ObtainedUtc);
                 return _configCredentials.TryGetValue(identity, out var c) ? c : null;
+            }
+        }
+
+        /// <summary>When the current credential expires: the stored record's expiry, or what validation learned about a config token.</summary>
+        public DateTime? ExpiryOf(TwitchIdentity identity)
+        {
+            lock (_records)
+            {
+                if (_records.TryGetValue(identity, out var r)) return r.ExpiresUtc;
+                return _configExpiresUtc.TryGetValue(identity, out var e) ? e : null;
             }
         }
 
@@ -162,6 +181,13 @@ namespace SkillzBot.Services.Twitch
                 Load();
                 foreach (TwitchIdentity id in Enum.GetValues(typeof(TwitchIdentity)))
                 {
+                    if (id == TwitchIdentity.Bot && _managed)
+                    {
+                        var hub = HubBotCredential();
+                        if (hub != null) _logger.LogInformation("[Tokens] Bot: token published by the hub for {Login}.", hub.Login);
+                        else _logger.LogWarning("[Tokens] Bot: the hub has not published a bot token yet (root authorizes it on the hub page).");
+                        continue;
+                    }
                     if (_records.TryGetValue(id, out var r))
                     {
                         var info = await ValidateAsync(r.AccessToken);
@@ -223,6 +249,11 @@ namespace SkillzBot.Services.Twitch
         /// <summary>A Helix call came back 401: refresh once, with a cooldown so a burst of failures does not hammer the token endpoint.</summary>
         public async Task<bool> HandleUnauthorizedAsync(TwitchIdentity identity)
         {
+            if (identity == TwitchIdentity.Bot && _managed)
+            {
+                lock (_records) { _hubBotCheckedUtc = DateTime.MinValue; } // re-read the hub's file on the next call
+                return false;
+            }
             lock (_records)
             {
                 if (!_records.ContainsKey(identity)) return false;
@@ -255,6 +286,7 @@ namespace SkillzBot.Services.Twitch
         /// <summary>Stores a token the panel just obtained for this identity and pushes it to the consumers.</summary>
         public async Task StoreAuthorizationAsync(TwitchIdentity identity, string accessToken, string refreshToken, int expiresInSeconds, IEnumerable<string> scopes, string userId, string login, string clientId)
         {
+            if (identity == TwitchIdentity.Bot && _managed) { _logger.LogWarning("[Tokens] bot identity is managed by the hub; grant ignored."); return; }
             await _gate.WaitAsync();
             try
             {
@@ -316,6 +348,15 @@ namespace SkillzBot.Services.Twitch
                 string expectedLogin = id == TwitchIdentity.Bot ? _config.BotTwitchName : _config.ChannelName;
                 string expectedUserId = id == TwitchIdentity.Bot ? null : _config.BroadcasterId;
                 TwitchTokenRecord r; TwitchCredential c; string err; DateTime? cfgExp; bool cfgValid;
+                if (id == TwitchIdentity.Bot && _managed)
+                {
+                    var hub = HubBotCredential(); DateTime? hubExp; lock (_records) _configExpiresUtc.TryGetValue(id, out hubExp);
+                    var missingHub = hub == null ? required.ToList() : required.Where(s => !hub.Scopes.Contains(s, StringComparer.OrdinalIgnoreCase)).ToList();
+                    list.Add(new TwitchTokenStatus("bot", hub == null ? "none" : "hub", hub?.Login, hub?.UserId, expectedLogin, null,
+                        hub?.Scopes ?? (IReadOnlyList<string>)Array.Empty<string>(), required, missingHub, hubExp, hubExp.HasValue ? Math.Max(0, (hubExp.Value - DateTime.UtcNow).TotalSeconds) : null, null,
+                        hub == null ? "the hub has not published a bot token yet; root authorizes the bot account on the hub page" : null, false, hub != null && hubExp > DateTime.UtcNow));
+                    continue;
+                }
                 lock (_records)
                 {
                     _records.TryGetValue(id, out r);
@@ -358,6 +399,60 @@ namespace SkillzBot.Services.Twitch
                 parts.Add($"{s.Identity}={s.Source} {left}{(flag.Length > 0 ? " " + flag : "")}");
             }
             return string.Join(" ", parts);
+        }
+
+        #endregion
+
+        #region Hub-published bot token
+
+        /// <summary>The bot token file the hub keeps current: {accessToken, userId, login, clientId, scopes, expiresUtc}.</summary>
+        public static void WriteHubBotToken(string path, TwitchCredential bot, DateTime expiresUtc)
+        {
+            var data = new { accessToken = bot.AccessToken, userId = bot.UserId, login = bot.Login, clientId = bot.ClientId, scopes = bot.Scopes, expiresUtc };
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(data, JsonOptions));
+            try { if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite); } catch { }
+            File.Move(tmp, path, true);
+        }
+
+        public static (TwitchCredential Credential, DateTime ExpiresUtc)? ReadHubBotToken(string path)
+        {
+            if (!File.Exists(path)) return null;
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            var r = doc.RootElement;
+            string Get(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+            var scopes = r.TryGetProperty("scopes", out var sc) && sc.ValueKind == JsonValueKind.Array ? sc.EnumerateArray().Select(e => e.GetString()).Where(e => e != null).ToList() : new List<string>();
+            var expires = r.TryGetProperty("expiresUtc", out var ex) && ex.TryGetDateTime(out var d) ? d : DateTime.MinValue;
+            string access = Get("accessToken");
+            if (string.IsNullOrEmpty(access)) return null;
+            return (new TwitchCredential(TwitchIdentity.Bot, Get("clientId"), access, Get("userId"), Get("login"), scopes.AsReadOnly(), "hub"), expires);
+        }
+
+        /// <summary>Re-reads the hub's file when it changed (checked at most every 10 seconds).</summary>
+        private TwitchCredential HubBotCredential()
+        {
+            lock (_records)
+            {
+                if (DateTime.UtcNow - _hubBotCheckedUtc < TimeSpan.FromSeconds(10)) return _hubBot;
+                _hubBotCheckedUtc = DateTime.UtcNow;
+                try
+                {
+                    if (!File.Exists(_hubBotTokenPath)) { _hubBot = null; return null; }
+                    var write = File.GetLastWriteTimeUtc(_hubBotTokenPath);
+                    if (write == _hubBotFileWriteUtc) return _hubBot;
+                    var read = ReadHubBotToken(_hubBotTokenPath);
+                    _hubBotFileWriteUtc = write;
+                    _hubBot = read?.Credential;
+                    _configExpiresUtc[TwitchIdentity.Bot] = read?.ExpiresUtc;
+                    _configValid[TwitchIdentity.Bot] = read.HasValue && read.Value.ExpiresUtc > DateTime.UtcNow;
+                    return _hubBot;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[Tokens] could not read the hub's bot token file.");
+                    return _hubBot;
+                }
+            }
         }
 
         #endregion

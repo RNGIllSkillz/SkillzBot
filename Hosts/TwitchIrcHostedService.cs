@@ -112,7 +112,7 @@ namespace SkillzBot.Hosts
         {
             _logger.LogInformation("Starting Twitch IRC Monitor Loop...");
 
-            if (_ingress.Decide(DateTime.UtcNow) == IrcPolicy.Required) await TryConnectAsync();
+            if (_ingress.Decide(DateTime.UtcNow) == IrcPolicy.Required) await TryConnectAsync(false, stoppingToken);
             else _logger.LogInformation("IRC not started: ChatTransport={Mode}.", _ingress.Mode);
 
             using var timer = new PeriodicTimer(MonitorInterval);
@@ -152,7 +152,7 @@ namespace SkillzBot.Hosts
                             break;
                     }
 
-                    await TryConnectAsync(verdict != "down");
+                    await TryConnectAsync(verdict != "down", stoppingToken);
                 }
             }
             catch (OperationCanceledException)
@@ -185,19 +185,23 @@ namespace SkillzBot.Hosts
             catch (Exception ex) { _logger.LogError(ex, "EventSub recovery request failed."); }
         }
 
-        private async Task TryConnectAsync(bool isZombie = false)
+        private async Task TryConnectAsync(bool isZombie, CancellationToken stoppingToken)
         {
             try
             {
-                bool success = isZombie
-                    ? await _ircClient.ReconnectAsync()
-                    : await _ircClient.InitializeAsync();
-
-                if (!success)
+                var attempt = isZombie ? _ircClient.ReconnectAsync() : _ircClient.InitializeAsync();
+                // A connect that hangs (Twitch unreachable) must not hold up shutdown: the loop lets go of it; StopAsync disposes the client.
+                using var delayCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                var finished = await Task.WhenAny(attempt, Task.Delay(Timeout.InfiniteTimeSpan, delayCts.Token));
+                delayCts.Cancel();
+                if (finished != attempt)
                 {
-                    _logger.LogWarning("IRC Connection attempt failed. Will retry in next tick.");
+                    _ = attempt.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                    return;
                 }
+                if (!await attempt) _logger.LogWarning("IRC Connection attempt failed. Will retry in next tick.");
             }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Critical error during IRC connection attempt.");

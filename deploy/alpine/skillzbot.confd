@@ -1,4 +1,6 @@
 # /etc/conf.d/skillzbot - environment for the SkillzBot OpenRC service
 SKILLZBOT_DIR="@APP_DIR@"
+# hub: all channels of Channels_Data/channels.json (recommended); channel: only ENV_CHANNEL_NAME, the old single-channel mode
+SKILLZBOT_ROLE="@ROLE@"
 ENV_CHANNEL_NAME="@CHANNEL@"
 TZ="@TZ@"

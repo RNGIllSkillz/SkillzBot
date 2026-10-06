@@ -18,7 +18,6 @@ namespace SkillzBot.Configuration
 
             // 2. Validate
             var missingFields = new List<string>();
-            if (string.IsNullOrWhiteSpace(botConfigs.BotTwitchAuth)) missingFields.Add("BotTwitchAuth");
             if (string.IsNullOrWhiteSpace(botConfigs.ChannelName)) missingFields.Add("ChannelName");
             if (string.IsNullOrWhiteSpace(botConfigs.RiotApiToken)) missingFields.Add("RiotApiToken");
             if (string.IsNullOrWhiteSpace(botConfigs.RootUser)) missingFields.Add("RootUser");

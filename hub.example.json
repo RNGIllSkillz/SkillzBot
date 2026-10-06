@@ -1,0 +1,29 @@
+{
+  "_comment": "Copy to Channels_Data/hub.json. The hub creates this file itself from the first channel config it finds when it is missing. ChannelTemplate holds the keys a newly onboarded channel's config starts with; channel-specific keys (ChannelName, BrodcasterId, ApiPort, tokens) are filled in by the hub.",
+
+  "HubPort": 8080,
+  "ApiPublicUrl": "https://bot.example.com (public URL of the panel; OAuth redirect is {ApiPublicUrl}/api/auth/callback)",
+  "ApiClientId": "client id of your Twitch application (required)",
+  "TApiClientSecret": "client secret of your Twitch application (required)",
+  "RootUser": "your_twitch_login (required; root on the hub and in every channel)",
+  "BotTwitchName": "bot_login (the account the bot chats from; root authorizes it on the hub page)",
+  "ChannelPortBase": 8100,
+
+  "ChannelTemplate": {
+    "RiotApiToken": "RGAPI-xxxxxxxx",
+    "YouTubeApiToken": "",
+    "GPTApiToken": "",
+    "MySQL_IP": "127.0.0.1",
+    "MySQL_Port": 3306,
+    "MySQL_User": "skillzbot",
+    "MySQL_password": "secret",
+    "ProxyUrl": "",
+    "ProxyCorePath": "",
+    "ProxyApplyTo": "youtube",
+    "ChatFilterLvl": 3,
+    "VipLimit": 100,
+    "ChatTransport": "auto",
+    "SummonerRegion": "euw",
+    "DiscordBotToken": ""
+  }
+}

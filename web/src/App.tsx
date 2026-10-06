@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { ApiError, get, post } from './api'
+import { ApiError, apiUrl, get, hubPost, post } from './api'
 import type { Me, Status } from './types'
 import Dashboard from './pages/Dashboard'
 import Chat from './pages/Chat'
@@ -22,25 +22,29 @@ const AUTH_ERRORS: Record<string, string> = {
   error: 'Ошибка входа, подробности в логе бота.',
 }
 
-export default function App() {
-  const [me, setMe] = useState<Me | null | undefined>(undefined)
-  const [loginConfigured, setLoginConfigured] = useState(true)
+/** The channel panel. `base` is '' for a standalone bot and /c/<login> behind the hub; `initial` is a probe the root already made. */
+export default function App({ base, initial }: { base: string; initial?: { me: Me | null; error: ApiError | null } }) {
+  const [me, setMe] = useState<Me | null | undefined>(initial ? initial.me : undefined)
+  const [loginConfigured, setLoginConfigured] = useState(initial ? initial.error?.body?.loginConfigured !== false : true)
+  const [managed, setManaged] = useState(initial ? initial.error?.body?.managed === true : false)
   const location = useLocation()
 
   useEffect(() => {
+    if (initial) return
     get<Me>('/api/auth/me').then(setMe).catch((e: ApiError) => {
       setMe(null)
-      // the 401 body says whether login is configured at all
+      // the 401 body says whether login is configured at all, and whether the hub does the login
       setLoginConfigured(e.body?.loginConfigured !== false)
+      setManaged(e.body?.managed === true)
     })
   }, [])
 
   if (me === undefined) return <div className="login"><div className="muted">Загрузка…</div></div>
-  if (me === null) return <Login configured={loginConfigured} />
+  if (me === null) return <Login configured={loginConfigured} managed={managed} base={base} />
 
   return (
     <Routes>
-      <Route element={<Layout me={me} />}>
+      <Route element={<Layout me={me} base={base} />}>
         <Route path="/" element={<Dashboard me={me} />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/users" element={<Users />} />
@@ -51,51 +55,58 @@ export default function App() {
         <Route path="/settings" element={<Settings me={me} />} />
         <Route path="/system" element={<System me={me} />} />
         <Route path="/twitch" element={<Twitch me={me} />} />
-        <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
+        <Route path="*" element={<Navigate to={base + '/'} replace state={{ from: location }} />} />
       </Route>
     </Routes>
   )
 }
 
-function Login({ configured }: { configured: boolean }) {
+function Login({ configured, managed, base }: { configured: boolean; managed: boolean; base: string }) {
   const params = new URLSearchParams(window.location.search)
   const err = params.get('auth')
-  const returnTo = window.location.pathname === '/' ? '/' : window.location.pathname
+  const returnTo = window.location.pathname || base + '/'
+  // Behind the hub the hub does the Twitch login (one cookie for every panel); standalone the bot does it itself.
+  const loginHref = (managed ? '' : apiUrl('')) + `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`
+  const channel = base.startsWith('/c/') ? base.slice(3) : null
   return (
     <div className="login">
       <div className="card">
-        <h1>SkillzBot</h1>
+        <h1>SkillzBot{channel ? <span className="muted"> · {channel}</span> : null}</h1>
         <p className="muted">Панель управления ботом. Вход для стримера, root и редакторов.</p>
         {err && <div className="banner bad" style={{ textAlign: 'left' }}>{AUTH_ERRORS[err] ?? `Ошибка входа: ${err}`}</div>}
-        {configured
-          ? <a className="primary" href={`/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`}><button className="primary">Войти через Twitch</button></a>
+        {configured || managed
+          ? <a className="primary" href={loginHref}><button className="primary">Войти через Twitch</button></a>
           : <div className="banner">Вход не настроен: в конфиге канала нужны ApiPublicUrl и TApiClientSecret.</div>}
+        {managed && <p className="muted" style={{ marginTop: 12 }}><a href="/">← к списку каналов</a></p>}
       </div>
     </div>
   )
 }
 
 import { Outlet } from 'react-router-dom'
-function Layout({ me }: { me: Me }) {
+function Layout({ me, base }: { me: Me; base: string }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState<Status | null>(null)
   const location = useLocation()
   useEffect(() => { setOpen(false) }, [location.pathname])
   useEffect(() => {
     // one shared SSE connection keeps the sidebar indicator live on every page
-    const es = new EventSource('/api/chat/stream')
+    const es = new EventSource(apiUrl('/api/chat/stream'))
     es.addEventListener('health', (ev: MessageEvent) => { try { setStatus(JSON.parse(ev.data)) } catch { } })
     return () => es.close()
   }, [])
-  const logout = () => post('/api/auth/logout').then(() => window.location.assign('/'))
+  // behind the hub the session cookie belongs to the hub, so the hub ends it
+  const logout = () => (me.managed ? hubPost('/api/auth/logout') : post('/api/auth/logout')).then(() => window.location.assign(me.managed ? '/' : base + '/'))
   const items: [string, string][] = [['/', 'Дашборд'], ['/chat', 'Чат'], ['/users', 'Пользователи'], ['/stats', 'Статистика'], ['/vips', 'VIP'], ['/filters', 'Фильтры'], ['/quiz', 'Викторина'], ['/settings', 'Настройки'], ['/system', 'Система']]
   if (me.role === 'root' || me.role === 'admin') items.push(['/twitch', 'Twitch'])
-  const healthy = !!status && status.eventSubConnected && status.dbOk && !status.chat.startsWith('NONE')
+  const channel = base.startsWith('/c/') ? base.slice(3) : null
+  const healthy = !!status && status.eventSubConnected && status.dbOk && !(status.chat ?? '').startsWith('NONE')
   return (
     <div className="layout">
       <aside className={`sidebar ${open ? 'open' : ''}`}>
-        <div className="brand"><span className={`dot ${healthy ? 'on' : ''}`} title={healthy ? 'все подключения в норме' : 'есть проблемы'} />SkillzBot</div>
-        <nav className="nav">{items.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>)}</nav>
+        <div className="brand"><span className={`dot ${healthy ? 'on' : ''}`} title={healthy ? 'все подключения в норме' : 'есть проблемы'} />SkillzBot{channel ? <small className="muted"> {channel}</small> : null}</div>
+        {me.managed && <nav className="nav"><a href="/">← Каналы</a></nav>}
+        <nav className="nav">{items.map(([to, label]) => <NavLink key={to} to={base + to} end={to === '/'}>{label}</NavLink>)}</nav>
         <div className="me">
           <span>{me.login} <span className="badge accent">{me.role}</span></span>
           {status && <span className="muted">{status.online ? 'стрим онлайн' : 'офлайн'}{status.inMatch ? ' · в матче' : ''}</span>}
