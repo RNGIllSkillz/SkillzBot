@@ -23,7 +23,8 @@ namespace SkillzBot.TtvClient
                 e.Message?.Text ?? "", e.Color,
                 e.IsModerator || Has("moderator"), e.IsVip || Has("vip"), e.IsSubscriber || Has("subscriber") || Has("founder"),
                 e.IsBroadcaster || Has("broadcaster"), Has("partner"),
-                e.Cheer?.Bits ?? 0, e.ChannelPointsCustomRewardId, e.Reply?.ParentMessageId, IncomingChatMessage.SourceEventSub);
+                e.Cheer?.Bits ?? 0, e.ChannelPointsCustomRewardId, e.Reply?.ParentMessageId, IncomingChatMessage.SourceEventSub,
+                string.IsNullOrEmpty(e.SourceBroadcasterUserId) ? null : e.SourceBroadcasterUserId);
         }
     }
 }

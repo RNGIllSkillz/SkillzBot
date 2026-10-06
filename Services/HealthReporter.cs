@@ -89,7 +89,7 @@ namespace SkillzBot.Services
                 IrcConnected = _irc.IsConnected,
                 IrcLastTrafficSeconds = (DateTimeOffset.UtcNow - _irc.LastActivity).TotalSeconds,
                 IrcLastMessageSeconds = (DateTimeOffset.UtcNow - _irc.LastChatMessage).TotalSeconds, IrcInChannel = _irc.InChannel,
-                Chat = _ingress.Describe(_irc.IsConnected), ChatLastMessageSeconds = (DateTime.UtcNow - _ingress.LastMessageUtc).TotalSeconds,
+                Chat = _ingress.Describe(_irc.IsConnected, _irc.InChannel), ChatLastMessageSeconds = (DateTime.UtcNow - _ingress.LastMessageUtc).TotalSeconds,
                 EventSubConnected = _health.EventSubConnected,
                 EventSubSinceSeconds = Age(_health.EventSubSinceUtc),
                 EventSubLastEventSeconds = Age(_health.EventSubLastEventUtc),
@@ -111,13 +111,14 @@ namespace SkillzBot.Services
             string stall = stalled == 0 ? "" : $" stalled={stalled} lastStall=\"{lastStall}\"";
             var s = _botState.Current;
 
-            string irc = _irc.IsConnected ? "connected" : _ingress.EventSubChatActive ? "parked" : "DOWN";
+            var ircPolicy = _ingress.Decide(DateTime.UtcNow);
+            string irc = _irc.IsConnected ? "connected" : ircPolicy == IrcPolicy.Unwanted ? "parked" : ircPolicy == IrcPolicy.Preferred ? "standby" : "DOWN";
             string eventSub = _health.EventSubConnected ? "connected" : "DOWN";
             string db = _health.DbCircuitOpen ? "CIRCUIT-OPEN" : "ok";
             string se = _health.StreamElementsFailures == 0 ? "ok" : $"FAILING x{_health.StreamElementsFailures}";
 
             return $"Health | up={HealthState.FormatAge(uptime)} ram={ramMb:F0}MB threads={process.Threads.Count}" +
-                   $" | chat={_ingress.Describe(_irc.IsConnected)} lastMsg={HealthState.FormatAge(DateTime.UtcNow - _ingress.LastMessageUtc)}" +
+                   $" | chat={_ingress.Describe(_irc.IsConnected, _irc.InChannel)} lastMsg={HealthState.FormatAge(DateTime.UtcNow - _ingress.LastMessageUtc)}" +
                    $" | irc={irc} traffic={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastActivity)} joined={(_irc.InChannel ? "yes" : "NO")}" +
                    $" | eventsub={eventSub} since={HealthState.FormatAge(_health.EventSubSinceUtc)} lastEvent={HealthState.FormatAge(_health.EventSubLastEventUtc)} reconnects={_health.EventSubReconnects}" +
                    $" | chat pending={pending} processed={processed} buffered={buffered}{stall}" +

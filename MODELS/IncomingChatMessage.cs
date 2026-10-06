@@ -22,7 +22,8 @@ namespace SkillzBot.MODELS
         int Bits,
         string CustomRewardId,
         string ReplyParentMessageId,
-        string Source)
+        string Source,
+        string SourceChannelId = null)
     {
         public const string SourceEventSub = "eventsub";
         public const string SourceIrc = "irc";

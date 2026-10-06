@@ -195,7 +195,7 @@ namespace SkillzBot.API.StreamElements
                 return;
             }
             try { await fallback(message, token); }
-            catch (Exception ex) { _logger.LogError(ex, "Fallback (IRC) send failed"); }
+            catch (Exception ex) { _logger.LogError(ex, "Fallback send (Helix/IRC) failed"); }
         }
 
         private async Task ProcessQueueAsync()

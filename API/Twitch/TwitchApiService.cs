@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
 using SkillzBot.Interfaces;
@@ -989,33 +990,62 @@ namespace SkillzBot.API.Twitch
             }, "DeleteAllMessages");
         }
 
-        public async Task<(bool Sent, string Reason)> SendChatMessageAsync(string text, string replyToMessageId = null)
+        private int _helixSendFailures;
+        private DateTime _helixSendOpenUntilUtc = DateTime.MinValue;
+
+        public bool HelixSendHealthy => DateTime.UtcNow >= _helixSendOpenUntilUtc && Volatile.Read(ref _helixSendFailures) < 2;
+
+        public Task<ChatSendResult> SendChatMessageAsync(string text, string replyToMessageId = null) => SendChatMessageAsync(text, replyToMessageId, false);
+
+        /// <summary>
+        /// Helix "Send Chat Message" as the bot account. A 401 (expired token or scope shape) triggers one token refresh
+        /// and one retry. Two consecutive failures open a 60-second circuit so a channel without StreamElements does not
+        /// pay the Helix timeout on every reply.
+        /// </summary>
+        private async Task<ChatSendResult> SendChatMessageAsync(string text, string replyToMessageId, bool retried)
         {
             var bot = _tokens.Current(TwitchIdentity.Bot);
-            if (string.IsNullOrEmpty(bot?.UserId)) return (false, "no bot token");
-            if (!_tokens.HasScope(TwitchIdentity.Bot, "user:write:chat")) return (false, "bot token lacks user:write:chat");
+            if (string.IsNullOrEmpty(bot?.UserId)) return ChatSendResult.Fail("no bot token");
+            if (!_tokens.HasScope(TwitchIdentity.Bot, "user:write:chat")) return ChatSendResult.Fail("bot token lacks user:write:chat");
+            if (DateTime.UtcNow < _helixSendOpenUntilUtc) return ChatSendResult.Fail("helix send circuit open");
             try
             {
                 var request = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest { BroadcasterId = _broadcasterID, SenderId = bot.UserId, Message = text, ReplyParentMessageId = replyToMessageId };
                 var response = await _botApi.Helix.Chat.SendChatMessage(request, null).WaitAsync(_apiTimeout);
                 var info = response?.Data != null && response.Data.Length > 0 ? response.Data[0] : null;
-                if (info == null) return (false, "empty response");
+                _helixSendFailures = 0;
+                if (info == null) return ChatSendResult.Maybe("empty response");
                 if (!info.IsSent)
                 {
                     _logger.LogWarning("Helix dropped a chat message: {Code} {Reason}", info.DropReason?.Code, info.DropReason?.Message);
-                    return (false, $"{info.DropReason?.Code}: {info.DropReason?.Message}");
+                    return ChatSendResult.Fail($"{info.DropReason?.Code}: {info.DropReason?.Message}");
                 }
-                return (true, null);
+                return ChatSendResult.Ok();
             }
-            catch (BadScopeException ex)
+            catch (Exception ex) when (!retried && (ex is BadScopeException || ex is TokenExpiredException))
             {
-                if (await _tokens.HandleUnauthorizedAsync(TwitchIdentity.Bot)) return await SendChatMessageAsync(text, replyToMessageId);
-                return (false, "401: " + ex.Message);
+                if (await _tokens.HandleUnauthorizedAsync(TwitchIdentity.Bot)) return await SendChatMessageAsync(text, replyToMessageId, true);
+                return Trip("401: " + ex.Message, false);
             }
-            catch (Exception ex)
+            catch (TimeoutException) { return Trip("helix timeout", true); }
+            catch (TaskCanceledException) { return Trip("helix request canceled", true); }
+            catch (Exception ex) when (ex is InternalServerErrorException || ex is BadGatewayException || ex is GatewayTimeoutException) { return Trip("twitch 5xx: " + ex.Message, true); }
+            catch (System.Net.Http.HttpRequestException ex) { return Trip(ex.Message, IsAmbiguous(ex)); }
+            catch (Exception ex) { return Trip(ex.Message, false); }
+
+            // Only a connection that broke mid-response leaves delivery in doubt; a failure to connect or a 4xx did not deliver.
+            static bool IsAmbiguous(System.Net.Http.HttpRequestException ex) =>
+                ex.HttpRequestError == System.Net.Http.HttpRequestError.ResponseEnded || ex.HttpRequestError == System.Net.Http.HttpRequestError.InvalidResponse || ex.InnerException is System.IO.IOException;
+
+            ChatSendResult Trip(string reason, bool ambiguous)
             {
-                _logger.LogWarning("Helix chat send failed: {Message}", ex.Message);
-                return (false, ex.Message);
+                if (++_helixSendFailures >= 2)
+                {
+                    _helixSendOpenUntilUtc = DateTime.UtcNow.AddSeconds(60);
+                    _logger.LogWarning("Helix chat send failed {Count} times in a row ({Reason}); skipping Helix for 60s.", _helixSendFailures, reason);
+                }
+                else _logger.LogWarning("Helix chat send failed: {Reason}", reason);
+                return ambiguous ? ChatSendResult.Maybe(reason) : ChatSendResult.Fail(reason);
             }
         }
 

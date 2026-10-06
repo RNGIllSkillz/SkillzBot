@@ -91,7 +91,7 @@ namespace SkillzBot.IllSkillzBot
             _messageChannel = Channel.CreateUnbounded<IncomingChatMessage>(new UnboundedChannelOptions
             {
                 SingleReader = true, // We have one processing loop
-                SingleWriter = true  // Only the IRC client writes
+                SingleWriter = false // EventSub and IRC may both write during a hand-over
             });
         }
 
