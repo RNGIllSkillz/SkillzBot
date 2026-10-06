@@ -1,3 +1,5 @@
+using SkillzBot.TtvClient;
+using SkillzBot.Services.Chat;
 using SkillzBot.Services.Twitch;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
@@ -26,6 +28,8 @@ namespace SkillzBot.IRC
         private readonly IDatabaseService _databaseService;
         private readonly BotConfigModel _config;
         private readonly TwitchTokenService _tokens;
+        private readonly ChatIngress _ingress;
+        private readonly ITwitchService _twitchService;
         private readonly IGameStateService _gameState;
         private readonly IBotStateService _botState;
         private readonly IStreamElementsService _streamElementsService;
@@ -59,8 +63,6 @@ namespace SkillzBot.IRC
         private const int MESSAGE_MAX_LENGTH = 500;
         private const int SMALL_DELAY_MS = 100;
 
-        public event Func<OnMessageReceivedArgs, Task> OnMessageReceived;
-
         public TtvIRCClientService(
             ILogger<TtvIRCClientService> logger,
             IDatabaseService database,
@@ -69,29 +71,52 @@ namespace SkillzBot.IRC
             IBotStateService botState,
             IStreamElementsService streamElementsService,
             Api.ChatFeed feed,
-            TwitchTokenService tokens)
+            TwitchTokenService tokens,
+            ChatIngress ingress,
+            ITwitchService twitchService)
         {
             _feed = feed;
             _tokens = tokens;
+            _ingress = ingress;
+            _twitchService = twitchService;
             _logger = logger;
             _databaseService = database;
             _config = config;
             _gameState = gameState;
             _botState = botState;
             _streamElementsService = streamElementsService;
-            _streamElementsService.FallbackSender = SendViaIrcAsync;
+            _streamElementsService.FallbackSender = SendViaFallbackAsync;
         }
 
-        /// <summary>Direct IRC send from the bot account; used when StreamElements is down or has no token.</summary>
-        private async Task SendViaIrcAsync(string message, CancellationToken cancellationToken)
+        /// <summary>
+        /// Used when StreamElements is down or has no token: Helix "Send Chat Message" from the bot account first
+        /// (needs the bot token with user:write:chat), the IRC socket when it happens to be connected, otherwise dropped.
+        /// </summary>
+        private async Task SendViaFallbackAsync(string message, CancellationToken cancellationToken)
         {
+            var (sent, reason) = await _twitchService.SendChatMessageAsync(message);
+            if (sent) return;
             var client = _client;
-            if (client == null || !client.IsConnected)
+            if (client != null && client.IsConnected)
             {
-                _logger?.LogWarning("IRC is not connected either; chat message dropped: {Text}", message);
+                await client.SendMessageAsync(_config.ChannelName, message, false);
                 return;
             }
-            await client.SendMessageAsync(_config.ChannelName, message, false);
+            _logger?.LogWarning("Chat message dropped: Helix send unavailable ({Reason}) and IRC is not connected: {Text}", reason, message);
+        }
+
+        /// <summary>Closes the connection on purpose (EventSub carries chat); the monitor reconnects when IRC is wanted again.</summary>
+        public async Task ParkAsync()
+        {
+            if (!await _connectionLock.WaitAsync(5000)) return;
+            try
+            {
+                if (_client == null) return;
+                _logger?.LogInformation("IRC parked: EventSub delivers chat.");
+                await DisposeClientInstanceAsync();
+                _isInitialized = false;
+            }
+            finally { _connectionLock.Release(); }
         }
 
         public bool IsConnected => _client?.IsConnected ?? false;
@@ -335,49 +360,21 @@ namespace SkillzBot.IRC
         {
             TouchActivity();
             TouchChatMessage();
-            var handler = OnMessageReceived;
-            if (handler != null)
-            {
-                await handler.Invoke(e);
-            }
+            await _ingress.PublishAsync(ChatMessageMapper.FromIrc(e.ChatMessage));
         }
 
         private async Task Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
+            // Bookkeeping (UvalTimer, UvalCon, "o7") happens in the EventSub channel.ban handler, which runs in every
+            // transport mode; here only a trace remains so IRC-mode logs still show the moment.
             try
             {
-                _logger?.LogInformation("User {Username} timed out for {Duration} seconds", e.UserTimeout.Username, e.UserTimeout.TimeoutDuration);
-
-                await UserTimedoutEventTask(e);
-
-                if (e.UserTimeout.TimeoutDuration.TotalSeconds > 50000)
-                {
-                    await SendMessage("o7");
-                }
+                _logger?.LogDebug("IRC saw a timeout: {Username} for {Duration}", e.UserTimeout.Username, e.UserTimeout.TimeoutDuration);
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error handling timeout for user {Username}", e.UserTimeout?.Username);
-            }
-        }
-
-        private async Task UserTimedoutEventTask(OnUserTimedoutArgs e)
-        {
-            if (e?.UserTimeout?.Username == null) return;
-
-            try
-            {
-                var user = await _databaseService.GetUserAsync(e.UserTimeout.Username);
-                if (user.dbID != -404)
-                {
-                    user.UvalTimer = e.UserTimeout.TimeoutDuration.TotalSeconds + DateTimeOffset.Now.ToUnixTimeSeconds();
-                    user.UvalCon++;
-                    await _databaseService.UpdateUserAsync(user);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error processing timeout for user {Username}", e.UserTimeout.Username);
             }
         }
 

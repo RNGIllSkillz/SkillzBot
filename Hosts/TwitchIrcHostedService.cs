@@ -1,3 +1,4 @@
+using SkillzBot.Services.Chat;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
@@ -27,14 +28,17 @@ namespace SkillzBot.Hosts
         private static readonly TimeSpan SilentLiveThreshold = TimeSpan.FromMinutes(10);
         private static readonly TimeSpan SilentOfflineThreshold = TimeSpan.FromHours(3);
         private readonly IBotStateService _botState;
+        private readonly ChatIngress _ingress;
         private int _ghostStrikes;
 
         public TwitchIrcHostedService(
             ITtvIRCClient ircClient,
             IllChatMessageHandler messageHandler,
             IBotStateService botState,
+            ChatIngress ingress,
             ILogger<TwitchIrcHostedService> logger)
         {
+            _ingress = ingress;
             _ircClient = ircClient;
             _messageHandler = messageHandler;
             _botState = botState;
@@ -42,8 +46,9 @@ namespace SkillzBot.Hosts
         }
 
         /// <summary>The reconnect decision, kept pure so it can be tested: "zombie" (socket silent), "ghost" (socket alive, chat silent), "down" or null.</summary>
-        internal static string Evaluate(bool connected, TimeSpan sinceTraffic, TimeSpan sinceMessage, bool online, int ghostStrikes)
+        internal static string Evaluate(bool connected, TimeSpan sinceTraffic, TimeSpan sinceMessage, bool online, int ghostStrikes, bool ircWanted = true)
         {
+            if (!ircWanted) return connected ? "park" : null;
             if (!connected) return "down";
             if (sinceTraffic > ZombieThreshold) return "zombie";
             var threshold = (online ? SilentLiveThreshold : SilentOfflineThreshold) * Math.Pow(2, Math.Min(ghostStrikes, 3));
@@ -52,7 +57,7 @@ namespace SkillzBot.Hosts
 
         public override Task StartAsync(CancellationToken cancellationToken)
         {
-            _ircClient.OnMessageReceived += _messageHandler.HandleMessage;
+            _ingress.MessageReceived += _messageHandler.HandleMessage;
             _loopCts = new CancellationTokenSource();
             _loopTask = Task.Run(() => RunProcessingLoopAsync(_loopCts.Token));
             return base.StartAsync(cancellationToken);
@@ -86,7 +91,7 @@ namespace SkillzBot.Hosts
 
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            _ircClient.OnMessageReceived -= _messageHandler.HandleMessage;
+            _ingress.MessageReceived -= _messageHandler.HandleMessage;
             _logger.LogInformation("Stopping Twitch IRC service...");
             _loopCts?.Cancel();
             try
@@ -104,7 +109,8 @@ namespace SkillzBot.Hosts
         {
             _logger.LogInformation("Starting Twitch IRC Monitor Loop...");
 
-            await TryConnectAsync();
+            if (_ingress.IrcWanted(DateTime.UtcNow)) await TryConnectAsync();
+            else _logger.LogInformation("IRC not started: ChatTransport={Mode}.", _ingress.Mode);
 
             using var timer = new PeriodicTimer(MonitorInterval);
 
@@ -117,8 +123,14 @@ namespace SkillzBot.Hosts
                     bool online = _botState.Current.BroadcasterIsOnline;
                     if (timeSinceLastMessage < SilentLiveThreshold) _ghostStrikes = 0; // chat is flowing again
 
-                    string verdict = Evaluate(_ircClient.IsConnected, timeSinceLastActivity, timeSinceLastMessage, online, _ghostStrikes);
+                    string verdict = Evaluate(_ircClient.IsConnected, timeSinceLastActivity, timeSinceLastMessage, online, _ghostStrikes, _ingress.IrcWanted(DateTime.UtcNow));
                     if (verdict == null) continue;
+                    if (verdict == "park")
+                    {
+                        _ghostStrikes = 0;
+                        await _ircClient.ParkAsync();
+                        continue;
+                    }
 
                     switch (verdict)
                     {

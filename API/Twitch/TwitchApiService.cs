@@ -989,6 +989,36 @@ namespace SkillzBot.API.Twitch
             }, "DeleteAllMessages");
         }
 
+        public async Task<(bool Sent, string Reason)> SendChatMessageAsync(string text, string replyToMessageId = null)
+        {
+            var bot = _tokens.Current(TwitchIdentity.Bot);
+            if (string.IsNullOrEmpty(bot?.UserId)) return (false, "no bot token");
+            if (!_tokens.HasScope(TwitchIdentity.Bot, "user:write:chat")) return (false, "bot token lacks user:write:chat");
+            try
+            {
+                var request = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest { BroadcasterId = _broadcasterID, SenderId = bot.UserId, Message = text, ReplyParentMessageId = replyToMessageId };
+                var response = await _botApi.Helix.Chat.SendChatMessage(request, null).WaitAsync(_apiTimeout);
+                var info = response?.Data != null && response.Data.Length > 0 ? response.Data[0] : null;
+                if (info == null) return (false, "empty response");
+                if (!info.IsSent)
+                {
+                    _logger.LogWarning("Helix dropped a chat message: {Code} {Reason}", info.DropReason?.Code, info.DropReason?.Message);
+                    return (false, $"{info.DropReason?.Code}: {info.DropReason?.Message}");
+                }
+                return (true, null);
+            }
+            catch (BadScopeException ex)
+            {
+                if (await _tokens.HandleUnauthorizedAsync(TwitchIdentity.Bot)) return await SendChatMessageAsync(text, replyToMessageId);
+                return (false, "401: " + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Helix chat send failed: {Message}", ex.Message);
+                return (false, ex.Message);
+            }
+        }
+
         public async Task<bool> Announce(string message)
         {
             if (!IsReady()) return false;

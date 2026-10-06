@@ -1,3 +1,4 @@
+using SkillzBot.Services.Chat;
 using SkillzBot.Services.Twitch;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ namespace SkillzBot.Services
         private readonly IBotStateService _botState;
         private readonly ProxyService _proxy;
         private readonly TwitchTokenService _tokens;
+        private readonly ChatIngress _ingress;
         private readonly ILogger<HealthReporter> _logger;
 
         public HealthReporter(
@@ -35,10 +37,12 @@ namespace SkillzBot.Services
             IBotStateService botState,
             ProxyService proxy,
             ILogger<HealthReporter> logger,
-            TwitchTokenService tokens)
+            TwitchTokenService tokens,
+            ChatIngress chatIngress)
         {
             _proxy = proxy;
             _tokens = tokens;
+            _ingress = chatIngress;
             _irc = irc;
             _chat = chat;
             _health = health;
@@ -85,6 +89,7 @@ namespace SkillzBot.Services
                 IrcConnected = _irc.IsConnected,
                 IrcLastTrafficSeconds = (DateTimeOffset.UtcNow - _irc.LastActivity).TotalSeconds,
                 IrcLastMessageSeconds = (DateTimeOffset.UtcNow - _irc.LastChatMessage).TotalSeconds, IrcInChannel = _irc.InChannel,
+                Chat = _ingress.Describe(_irc.IsConnected), ChatLastMessageSeconds = (DateTime.UtcNow - _ingress.LastMessageUtc).TotalSeconds,
                 EventSubConnected = _health.EventSubConnected,
                 EventSubSinceSeconds = Age(_health.EventSubSinceUtc),
                 EventSubLastEventSeconds = Age(_health.EventSubLastEventUtc),
@@ -106,13 +111,14 @@ namespace SkillzBot.Services
             string stall = stalled == 0 ? "" : $" stalled={stalled} lastStall=\"{lastStall}\"";
             var s = _botState.Current;
 
-            string irc = _irc.IsConnected ? "connected" : "DOWN";
+            string irc = _irc.IsConnected ? "connected" : _ingress.EventSubChatActive ? "parked" : "DOWN";
             string eventSub = _health.EventSubConnected ? "connected" : "DOWN";
             string db = _health.DbCircuitOpen ? "CIRCUIT-OPEN" : "ok";
             string se = _health.StreamElementsFailures == 0 ? "ok" : $"FAILING x{_health.StreamElementsFailures}";
 
             return $"Health | up={HealthState.FormatAge(uptime)} ram={ramMb:F0}MB threads={process.Threads.Count}" +
-                   $" | irc={irc} traffic={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastActivity)} lastMsg={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastChatMessage)} joined={(_irc.InChannel ? "yes" : "NO")}" +
+                   $" | chat={_ingress.Describe(_irc.IsConnected)} lastMsg={HealthState.FormatAge(DateTime.UtcNow - _ingress.LastMessageUtc)}" +
+                   $" | irc={irc} traffic={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastActivity)} joined={(_irc.InChannel ? "yes" : "NO")}" +
                    $" | eventsub={eventSub} since={HealthState.FormatAge(_health.EventSubSinceUtc)} lastEvent={HealthState.FormatAge(_health.EventSubLastEventUtc)} reconnects={_health.EventSubReconnects}" +
                    $" | chat pending={pending} processed={processed} buffered={buffered}{stall}" +
                    $" | db={db} failures={_health.DbFailures}" +

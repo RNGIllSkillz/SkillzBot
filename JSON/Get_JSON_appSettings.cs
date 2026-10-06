@@ -105,6 +105,9 @@ namespace SkillzBot.JSON.Settings
         public int? VipLimit { get; set; }
         [JsonProperty("TApiClientSecret")]
         public string TApiClientSecret { get; set; }
+        [JsonProperty("ChatTransport")]
+        public string ChatTransport { get; set; }
+
         [JsonProperty("ApiClientId")]
         public string ApiClientId { get; set; }
         [JsonProperty("ApiPort")]

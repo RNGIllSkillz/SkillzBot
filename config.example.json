@@ -44,6 +44,7 @@
   "ApiPort": 8080,
   "ApiPublicUrl": "https://bot.example.com (public URL of the web panel; OAuth redirect is {ApiPublicUrl}/api/auth/callback)",
   "TApiClientSecret": "client secret of your own Twitch application (required): panel login, scope grants and token refresh",
+  "ChatTransport": "auto | eventsub | irc (default auto: chat via EventSub channel.chat.message when the streamer token has user:read:chat, IRC otherwise)",
   "ApiClientId": "client id of your own Twitch application (required): panel login, scope grants and token refresh; defaults to TApiClientId",
 
   "ProxyUrl": "",

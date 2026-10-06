@@ -32,6 +32,8 @@ namespace SkillzBot.IllConfiguration
         /// <summary>Client id of the application used for the panel login; defaults to TApiClientId. Set it when the API token
         /// was issued by a third-party app whose secret you cannot obtain, and the login uses an application of your own.</summary>
         public string ApiClientId { get; init; }
+        /// <summary>auto (default): EventSub chat when the broadcaster token allows it, IRC otherwise; eventsub: never IRC; irc: never EventSub chat.</summary>
+        public string ChatTransport { get; init; }
         /// <summary>Port of the web panel API inside the container; 0 disables it.</summary>
         public int ApiPort { get; init; }
         /// <summary>Public https URL of the web panel (the OAuth redirect is {ApiPublicUrl}/api/auth/callback).</summary>

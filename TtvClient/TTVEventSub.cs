@@ -1,3 +1,5 @@
+using SkillzBot.TtvClient;
+using SkillzBot.Services.Chat;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
@@ -35,6 +37,7 @@ namespace SkillzBot.EventSub
         private readonly RewardsRedemption _rewardsRedemption;
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
         private readonly TwitchTokenService _tokens;
+        private readonly ChatIngress _chatIngress;
         private readonly BotConfigModel _config;
         private readonly IBotStateService _botState;
         private readonly ITwitchService _twitchService;
@@ -69,13 +72,15 @@ namespace SkillzBot.EventSub
             HealthState health,
             Services.Vip.VipRegistryService vips,
             IEngagementRepository engagement,
-            TwitchTokenService tokens)
+            TwitchTokenService tokens,
+            ChatIngress chatIngress)
         {
             _ircClient = ircClient;
             _health = health;
             _vips = vips;
             _engagement = engagement;
             _tokens = tokens;
+            _chatIngress = chatIngress;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
@@ -100,6 +105,7 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelPollEnd += OnPollEnd;
             _eventSubWebsocketClient.ChannelVipAdd += OnVipAdd;
             _eventSubWebsocketClient.ChannelVipRemove += OnVipRemove;
+            _eventSubWebsocketClient.ChannelChatMessage += OnChannelChatMessage;
 
             // Subscriptions are created under the broadcaster token; a refreshed token lands here without a restart.
             _tokens.Attach(TwitchIdentity.Broadcaster, c => { _twitchApi.Settings.ClientId = c.ClientId; _twitchApi.Settings.AccessToken = c.AccessToken; });
@@ -166,6 +172,7 @@ namespace SkillzBot.EventSub
 
         private void MarkDisconnected()
         {
+            _chatIngress.SetEventSubChat(false, "websocket disconnected");
             if (_isConnected)
                 Interlocked.Exchange(ref _disconnectedSinceTicks, DateTime.UtcNow.Ticks);
             _isConnected = false;
@@ -283,6 +290,40 @@ namespace SkillzBot.EventSub
                 }
             }
             _logger.LogInformation("EventSub ready: {Count}/{Total} subscriptions active on session {SessionId}.", subscribed, SubscriptionsTypes.Count, _eventSubWebsocketClient.SessionId);
+            await SubscribeToChatAsync();
+        }
+
+        /// <summary>
+        /// channel.chat.message under the broadcaster token (user:read:chat). Optional: a refusal (typically the legacy
+        /// token without the scope) leaves the other subscriptions alone and hands chat to IRC through the ingress.
+        /// </summary>
+        private async Task SubscribeToChatAsync()
+        {
+            if (!_chatIngress.EventSubWanted)
+            {
+                _chatIngress.SetEventSubChat(false, "ChatTransport=irc");
+                return;
+            }
+            if (!_tokens.HasScope(TwitchIdentity.Broadcaster, "user:read:chat"))
+            {
+                _chatIngress.SetEventSubChat(false, "broadcaster token has no user:read:chat; authorize the streamer on the panel's Twitch page");
+                return;
+            }
+            try
+            {
+                await SubscribeToChannelEvents("channel.chat.message", "1");
+                _chatIngress.SetEventSubChat(true, "subscribed on session " + _eventSubWebsocketClient.SessionId);
+            }
+            catch (Exception ex)
+            {
+                _chatIngress.SetEventSubChat(false, "subscription refused: " + ex.Message);
+            }
+        }
+
+        private Task OnChannelChatMessage(object sender, ChannelChatMessageArgs e)
+        {
+            _health.MarkEventSubEvent();
+            return Guard(() => _chatIngress.PublishAsync(ChatMessageMapper.FromEventSub(e.Payload.Event)), nameof(OnChannelChatMessage));
         }
 
         private async Task<bool> SubscribeToChannelEventsWithRetry(string _type, string _version)
@@ -332,7 +373,7 @@ namespace SkillzBot.EventSub
                     { "broadcaster_user_id", _config.BroadcasterId }
                 };
 
-                if (_type == "channel.chat_settings.update")
+                if (_type == "channel.chat_settings.update" || _type == "channel.chat.message")
                 {
                     condition["user_id"] = _config.BroadcasterId;
                 }
@@ -426,7 +467,26 @@ namespace SkillzBot.EventSub
 
         private Task OnChannelBan(object sender, ChannelBanArgs e) => OnEvent(async () =>
         {
-            if (e.Payload.Event.IsPermanent)
+            var ev = e.Payload.Event;
+            // Timeout bookkeeping used by the uval rewards and the re-mod logic; this replaces the IRC CLEARCHAT path
+            // and runs whatever transport carries chat.
+            if (!ev.IsPermanent && ev.EndsAt.HasValue && long.TryParse(ev.UserId, out long uid))
+            {
+                try
+                {
+                    var user = await _databaseService.GetUserAsync(uid);
+                    if (user != null && user.dbID != -404)
+                    {
+                        user.UvalTimer = ev.EndsAt.Value.ToUnixTimeSeconds();
+                        user.UvalCon++;
+                        await _databaseService.UpdateUserAsync(user);
+                    }
+                }
+                catch (Exception ex) { _logger.LogError(ex, "Timeout bookkeeping failed for {Login}", ev.UserLogin); }
+                _logger.LogInformation("User {Login} timed out until {EndsAt:HH:mm:ss} by {Mod}", ev.UserLogin, ev.EndsAt.Value.ToLocalTime(), ev.ModeratorUserLogin);
+            }
+            bool longOne = !ev.IsPermanent && ev.EndsAt.HasValue && (ev.EndsAt.Value - ev.BannedAt).TotalSeconds > 50000;
+            if (ev.IsPermanent || longOne)
                 await _ircClient.SendMessage("o7");
         }, nameof(OnChannelBan));
 

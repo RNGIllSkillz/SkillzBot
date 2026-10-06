@@ -77,6 +77,8 @@ namespace SkillzBot.Interfaces
         Task DeleteMessage(string messageID);
         Task DeleteAllMessages();
         Task<bool> Announce(string message);
+        /// <summary>Helix "Send Chat Message" from the bot account; (false, reason) when no bot token with user:write:chat, or when Twitch dropped it.</summary>
+        Task<(bool Sent, string Reason)> SendChatMessageAsync(string text, string replyToMessageId = null);
         Task<CreatedClipResponse> CreateClip();
         Task<bool> CheckClipExistence(string clipID);
         Task<GetChattersResponse> GetChattersAsync();
