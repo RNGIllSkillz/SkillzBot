@@ -29,7 +29,7 @@ export default function Dashboard({ me }: { me: Me }) {
       {note && <Notice>{note}</Notice>}
       <div className="grid cards">
         <Stat title="Стрим" value={status.online ? 'онлайн' : 'офлайн'} sub={status.inMatch ? 'в матче' : undefined} tone={status.online ? 'good' : undefined} />
-        <Stat title="IRC" value={status.ircConnected ? 'подключен' : 'НЕТ'} sub={`трафик ${fmtAge(status.ircLastTrafficSeconds)} назад`} tone={status.ircConnected ? 'good' : 'bad'} />
+        <Stat title="IRC" value={status.ircConnected ? (status.ircInChannel ? 'подключен' : 'не в канале') : 'НЕТ'} sub={`трафик ${fmtAge(status.ircLastTrafficSeconds)} назад · сообщение ${fmtAge(status.ircLastMessageSeconds)} назад`} tone={!status.ircConnected ? 'bad' : !status.ircInChannel || (status.online && status.ircLastMessageSeconds > 600) ? 'warn' : 'good'} />
         <Stat title="EventSub" value={status.eventSubConnected ? 'подключен' : 'НЕТ'} sub={`событие ${fmtAge(status.eventSubLastEventSeconds)} назад · реконнектов ${status.eventSubReconnects}`} tone={status.eventSubConnected ? 'good' : 'bad'} />
         <Stat title="База данных" value={status.dbOk ? 'ок' : 'НЕДОСТУПНА'} sub={`сбоев ${status.dbFailures}`} tone={status.dbOk ? 'good' : 'bad'} />
         <Stat title="StreamElements" value={status.streamElementsFailures === 0 ? 'ок' : `сбоит x${status.streamElementsFailures}`} sub={`успех ${fmtAge(status.streamElementsLastOkSeconds)} назад`} tone={status.streamElementsFailures === 0 ? 'good' : 'warn'} />

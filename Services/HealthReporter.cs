@@ -84,6 +84,7 @@ namespace SkillzBot.Services
                 Threads = process.Threads.Count,
                 IrcConnected = _irc.IsConnected,
                 IrcLastTrafficSeconds = (DateTimeOffset.UtcNow - _irc.LastActivity).TotalSeconds,
+                IrcLastMessageSeconds = (DateTimeOffset.UtcNow - _irc.LastChatMessage).TotalSeconds, IrcInChannel = _irc.InChannel,
                 EventSubConnected = _health.EventSubConnected,
                 EventSubSinceSeconds = Age(_health.EventSubSinceUtc),
                 EventSubLastEventSeconds = Age(_health.EventSubLastEventUtc),
@@ -111,7 +112,7 @@ namespace SkillzBot.Services
             string se = _health.StreamElementsFailures == 0 ? "ok" : $"FAILING x{_health.StreamElementsFailures}";
 
             return $"Health | up={HealthState.FormatAge(uptime)} ram={ramMb:F0}MB threads={process.Threads.Count}" +
-                   $" | irc={irc} traffic={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastActivity)}" +
+                   $" | irc={irc} traffic={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastActivity)} lastMsg={HealthState.FormatAge(DateTimeOffset.UtcNow - _irc.LastChatMessage)} joined={(_irc.InChannel ? "yes" : "NO")}" +
                    $" | eventsub={eventSub} since={HealthState.FormatAge(_health.EventSubSinceUtc)} lastEvent={HealthState.FormatAge(_health.EventSubLastEventUtc)} reconnects={_health.EventSubReconnects}" +
                    $" | chat pending={pending} processed={processed} buffered={buffered}{stall}" +
                    $" | db={db} failures={_health.DbFailures}" +
