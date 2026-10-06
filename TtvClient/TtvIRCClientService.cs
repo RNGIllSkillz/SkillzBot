@@ -4,6 +4,7 @@ using SkillzBot.IllConfiguration;
 using SkillzBot.IllSTRINGS;
 using SkillzBot.Interfaces;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TwitchLib.Client;
@@ -33,7 +34,19 @@ namespace SkillzBot.IRC
         // Updated on every byte that crosses the socket (PING/PONG, JOIN/PART, PRIVMSG), so a
         // quiet chat is not mistaken for a dead connection.
         private long _lastActivityTicks = DateTimeOffset.UtcNow.UtcTicks;
+        private long _lastChatMessageTicks = DateTimeOffset.UtcNow.UtcTicks;
         public DateTimeOffset LastActivity => new DateTimeOffset(Interlocked.Read(ref _lastActivityTicks), TimeSpan.Zero);
+        public DateTimeOffset LastChatMessage => new DateTimeOffset(Interlocked.Read(ref _lastChatMessageTicks), TimeSpan.Zero);
+        public bool InChannel
+        {
+            get
+            {
+                var client = _client;
+                if (client == null || !client.IsConnected) return false;
+                try { return client.JoinedChannels.Any(c => string.Equals(c.Channel, _config?.ChannelName, StringComparison.OrdinalIgnoreCase)); }
+                catch { return false; }
+            }
+        }
 
         private TwitchClient _client;
         private bool _isInitialized = false;
@@ -85,6 +98,7 @@ namespace SkillzBot.IRC
         public bool IsInitialized => _isInitialized && !_isDisposed;
 
         private void TouchActivity() => Interlocked.Exchange(ref _lastActivityTicks, DateTimeOffset.UtcNow.UtcTicks);
+        private void TouchChatMessage() => Interlocked.Exchange(ref _lastChatMessageTicks, DateTimeOffset.UtcNow.UtcTicks);
 
         public async Task<bool> InitializeAsync()
         {
@@ -181,6 +195,7 @@ namespace SkillzBot.IRC
                                     {
                                         _isInitialized = true;
                                         TouchActivity();
+                                        TouchChatMessage(); // the silence clock starts at connect time
                                         _logger?.LogInformation("Twitch IRC Connected Successfully.");
                                         return true;
                                     }
@@ -225,6 +240,53 @@ namespace SkillzBot.IRC
             _client.OnDisconnected += Client_OnDisconnected;
             _client.OnReconnected += Client_OnReconnected;
             _client.OnSendReceiveData += Client_OnSendReceiveData;
+            _client.OnJoinedChannel += Client_OnJoinedChannel;
+            _client.OnLeftChannel += Client_OnLeftChannel;
+            _client.OnFailureToReceiveJoinConfirmation += Client_OnFailureToReceiveJoinConfirmation;
+        }
+
+        /// <summary>
+        /// Twitch can drop the bot from the channel without closing the socket, and the library's own reconnect
+        /// does not always re-join. Sends a JOIN whenever the client no longer lists the channel.
+        /// </summary>
+        public async Task<bool> EnsureJoinedAsync()
+        {
+            var client = _client;
+            if (client == null || !client.IsConnected || _isDisposed) return false;
+            if (InChannel) return false;
+            try
+            {
+                _logger?.LogWarning("IRC client is connected but not in #{Channel}; sending JOIN.", _config.ChannelName);
+                await client.JoinChannelAsync(_config.ChannelName, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "JOIN #{Channel} failed.", _config.ChannelName);
+                return false;
+            }
+        }
+
+        private Task Client_OnJoinedChannel(object sender, OnJoinedChannelArgs e)
+        {
+            TouchActivity();
+            TouchChatMessage();
+            _logger?.LogInformation("Joined #{Channel} as {Bot}.", e.Channel, e.BotUsername);
+            return Task.CompletedTask;
+        }
+
+        private async Task Client_OnLeftChannel(object sender, OnLeftChannelArgs e)
+        {
+            TouchActivity();
+            if (_isDisposed) return;
+            _logger?.LogWarning("Left #{Channel} (not requested); re-joining.", e.Channel);
+            await EnsureJoinedAsync();
+        }
+
+        private Task Client_OnFailureToReceiveJoinConfirmation(object sender, OnFailureToReceiveJoinConfirmationArgs e)
+        {
+            _logger?.LogError("No JOIN confirmation for #{Channel}: {Details}. The monitor will reconnect if chat stays silent.", e.Exception?.Channel, e.Exception?.Details);
+            return Task.CompletedTask;
         }
 
         private async Task DisposeClientInstanceAsync()
@@ -238,6 +300,9 @@ namespace SkillzBot.IRC
                     _client.OnDisconnected -= Client_OnDisconnected;
                     _client.OnReconnected -= Client_OnReconnected;
                     _client.OnSendReceiveData -= Client_OnSendReceiveData;
+                    _client.OnJoinedChannel -= Client_OnJoinedChannel;
+                    _client.OnLeftChannel -= Client_OnLeftChannel;
+                    _client.OnFailureToReceiveJoinConfirmation -= Client_OnFailureToReceiveJoinConfirmation;
 
                     if (_client.IsConnected)
                     {
@@ -258,16 +323,18 @@ namespace SkillzBot.IRC
             return Task.CompletedTask;
         }
 
-        private Task Client_OnReconnected(object sender, OnConnectedEventArgs e)
+        private async Task Client_OnReconnected(object sender, OnConnectedEventArgs e)
         {
             TouchActivity();
-            _logger?.LogInformation("Twitch IRC client reconnected on its own.");
-            return Task.CompletedTask;
+            TouchChatMessage();
+            _logger?.LogInformation("Twitch IRC client reconnected on its own; checking channel membership.");
+            await EnsureJoinedAsync();
         }
 
         private async Task Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
         {
             TouchActivity();
+            TouchChatMessage();
             var handler = OnMessageReceived;
             if (handler != null)
             {

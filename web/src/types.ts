@@ -3,7 +3,7 @@ export interface Me { twitchId: number; login: string; role: Role }
 
 export interface Status {
   timeUtc: string; version: string; uptimeSeconds: number; ramMb: number; threads: number
-  ircConnected: boolean; ircLastTrafficSeconds: number
+  ircConnected: boolean; ircLastTrafficSeconds: number; ircLastMessageSeconds: number; ircInChannel: boolean
   eventSubConnected: boolean; eventSubSinceSeconds?: number; eventSubLastEventSeconds?: number; eventSubReconnects: number
   chatPending: number; chatProcessed: number; chatBuffered: number; chatStalled: number; chatLastStall: string
   dbOk: boolean; dbFailures: number
