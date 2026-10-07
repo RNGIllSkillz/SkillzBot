@@ -18,6 +18,8 @@ namespace SkillzBot.Api
     public sealed class HubHeaderAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
         public const string SchemeName = "hub";
+        public const string RefusedLoginItem = "SkillzBot.HubRefusedLogin";
+        public const string RoleErrorItem = "SkillzBot.HubRoleError";
         private static readonly ConcurrentDictionary<string, (string Role, DateTime Until)> RoleCache = new ConcurrentDictionary<string, (string, DateTime)>();
         private readonly TwitchAuth _auth;
         private readonly string _secret = Environment.GetEnvironmentVariable(HubSignature.EnvSecret);
@@ -44,12 +46,18 @@ namespace SkillzBot.Api
                     catch (Exception ex)
                     {
                         Logger.LogWarning("[Hub] role lookup for {Login} failed: {Message}", who.Login, ex.Message);
+                        Context.Items[RefusedLoginItem] = who.Login;
+                        Context.Items[RoleErrorItem] = true; // the database, not the user: the panel says "try again" instead of "no access"
                         return AuthenticateResult.Fail("role lookup failed");
                     }
                     RoleCache[key] = (role, DateTime.UtcNow.AddSeconds(role == null ? 30 : 120));
                 }
             }
-            if (role == null) return AuthenticateResult.NoResult(); // known to the hub, but not an editor of this channel
+            if (role == null)
+            {
+                Context.Items[RefusedLoginItem] = who.Login; // known to the hub, but not an editor of this channel: the 401 body says so
+                return AuthenticateResult.NoResult();
+            }
             var identity = new ClaimsIdentity(SchemeName);
             identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, who.UserId ?? "0"));
             identity.AddClaim(new Claim(ClaimTypes.Name, who.Login ?? "hub"));

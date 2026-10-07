@@ -20,18 +20,18 @@ const SOURCE: Record<TwitchTokenStatus['source'], string> = { oauth: 'выдан
 export default function Twitch({ me }: { me: Me }) {
   const tokens = useAsync(() => get<TwitchTokenStatus[]>('/api/twitch/tokens'), [])
   const [params, setParams] = useSearchParams()
-  const [note, setNote] = useState<string | null>(null)
+  const [note, setNote] = useState<{ text: string; bad?: boolean } | null>(null)
   const grant = params.get('grant')
-  useEffect(() => { if (grant) { setNote(GRANT_MESSAGES[grant] ?? `Результат: ${grant}`); setParams({}, { replace: true }) } }, [grant])
+  useEffect(() => { if (grant) { setNote({ text: GRANT_MESSAGES[grant] ?? `Результат: ${grant}`, bad: grant !== 'ok' }); setParams({}, { replace: true }) } }, [grant])
   const remove = async (identity: string) => {
-    try { tokens.setData(await del<TwitchTokenStatus[]>(`/api/twitch/tokens/${identity}`)); setNote('Токен панели удален; бот вернулся к токену из конфига, если он задан.') }
-    catch (e: any) { setNote(`Ошибка: ${e.message}`) }
+    try { tokens.setData(await del<TwitchTokenStatus[]>(`/api/twitch/tokens/${identity}`)); setNote({ text: 'Токен панели удален; бот вернулся к токену из конфига, если он задан.' }) }
+    catch (e: any) { setNote({ text: `Ошибка: ${e.message}`, bad: true }) }
   }
   const authorize = (identity: string) => window.location.assign(apiUrl(`/api/twitch/authorize?identity=${identity}`))
   return (
     <>
       <div className="page-title"><h1>Twitch</h1><span className="muted">токены бота и стримера</span></div>
-      {note && <Notice kind={grant && grant !== 'ok' ? 'bad' : undefined}>{note}</Notice>}
+      {note && <Notice kind={note.bad ? 'bad' : undefined}>{note.text}</Notice>}
       {tokens.error && <Notice kind="bad">{tokens.error}</Notice>}
       <p className="muted">Бот действует от двух аккаунтов. От имени стримера идут ставки, опросы, награды, VIP, модерация и подписки EventSub; от имени аккаунта бота - чат и шепот. Токены, выданные через эту страницу, обновляются автоматически; токены из конфига (TApiAccessToken, BotTwitchAuth) остаются запасным вариантом и однажды истекут.</p>
       <div className="grid two">

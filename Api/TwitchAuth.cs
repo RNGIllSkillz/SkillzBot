@@ -69,7 +69,7 @@ namespace SkillzBot.Api
                 return ctx.Response.WriteAsync("Login is not configured: set ApiClientId, TApiClientSecret and ApiPublicUrl in the channel config.");
             }
             string returnTo = ctx.Request.Query["returnTo"].ToString();
-            if (string.IsNullOrEmpty(returnTo) || !returnTo.StartsWith('/') || returnTo.StartsWith("//")) returnTo = "/";
+            returnTo = SafeReturnPath(returnTo);
             string state = NewState();
             ctx.Response.Cookies.Append(StateCookie, state + "|" + returnTo, StateCookieOptions(ctx));
             ctx.Response.Redirect(AuthorizeUrl(state, ""));
@@ -229,6 +229,15 @@ namespace SkillzBot.Api
             if (!string.IsNullOrEmpty(userId) && userId == _config.BroadcasterId) return RoleAdmin;
             if (long.TryParse(userId, out long id) && await _admin.IsEditorAsync(id)) return RoleEditor;
             return null;
+        }
+
+        /// <summary>A returnTo the browser can only resolve inside this site: a plain absolute path, no scheme-relative or backslash tricks.</summary>
+        public static string SafeReturnPath(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length > 2048 || value[0] != '/') return "/";
+            if (value.Length > 1 && (value[1] == '/' || value[1] == '\\')) return "/";
+            foreach (char c in value) if (c == '\\' || c <= ' ' || c == '\x7f') return "/";
+            return value;
         }
 
         public static UserInfoDto Describe(ClaimsPrincipal user)

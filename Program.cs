@@ -40,8 +40,7 @@ namespace IllSkillzBot
 
                 var hostBuilders = new IHostBuilders(levelSwitch);
                 bool hub = SkillzBot.Services.Twitch.HubSignature.IsHubProcess;
-                if (hub && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ENV_CHANNEL_NAME")))
-                    Environment.SetEnvironmentVariable("ENV_CHANNEL_NAME", "hub");
+                if (hub) Environment.SetEnvironmentVariable("ENV_CHANNEL_NAME", "hub"); // the hub's own folder, whatever conf.d exports
                 using var host = hub ? hostBuilders.BuildHubHost(args) : hostBuilders.BuildMainApplicationHost(args);
 
                 Log.Information("Starting Host...");

@@ -119,16 +119,48 @@ namespace SkillzBot.Hub
 
                     case "onboard":
                     {
+                        string login = (grant.Login ?? "").ToLowerInvariant();
+                        if (!IsValidChannelLogin(login) || !IsTwitchId(grant.UserId))
+                        {
+                            // "hub" and "_shared" are the hub's own folders; anything else odd is not worth a folder either
+                            await TwitchOAuthClient.RevokeQuietlyAsync(client, _hub.ApiClientId, grant.AccessToken);
+                            _logger.LogWarning("[Hub] onboarding refused for login {Login} ({Id}): reserved or malformed.", grant.Login, grant.UserId);
+                            ctx.Response.Redirect("/?grant=reserved&login=" + Uri.EscapeDataString(grant.Login ?? "")); return;
+                        }
                         var existing = _registry.GetByBroadcaster(grant.UserId);
+                        if (existing == null)
+                        {
+                            var byLogin = _registry.Get(login);
+                            if (byLogin != null && IsTwitchId(byLogin.BroadcasterId))
+                            {
+                                // the same login registered for another Twitch user id: a recycled name or a wrong import; root sorts it out by hand
+                                await TwitchOAuthClient.RevokeQuietlyAsync(client, _hub.ApiClientId, grant.AccessToken);
+                                _logger.LogWarning("[Hub] onboarding refused: channel {Login} belongs to broadcaster {Owner}, but {Id} authorized.", login, byLogin.BroadcasterId, grant.UserId);
+                                ctx.Response.Redirect("/?grant=conflict&login=" + Uri.EscapeDataString(login)); return;
+                            }
+                            if (byLogin != null)
+                            {
+                                // imported before the hub knew the owner's id (empty or placeholder BrodcasterId): the login's owner claims it
+                                _registry.SetBroadcasterId(byLogin.Login, grant.UserId);
+                                _provisioner.SetBroadcasterId(byLogin.Login, grant.UserId);
+                                _logger.LogWarning("[Hub] channel {Login} claimed by its broadcaster {Id} (the import had no valid id).", login, grant.UserId);
+                                existing = _registry.Get(login);
+                                if (existing.Enabled) _ = _supervisor.RestartAsync(existing.Login); // the running process still has the old id in its config
+                            }
+                        }
                         if (existing != null)
                         {
                             await DeliverBroadcasterTokenAsync(existing, grant);
-                            if (!existing.Enabled) { _registry.SetEnabled(existing.Login, true); _supervisor.Ensure(existing.Login); }
+                            if (!existing.Enabled)
+                            {
+                                if (!IsRoot(ctx.User)) { ctx.Response.Redirect("/?grant=disabled&login=" + Uri.EscapeDataString(existing.Login)); return; } // root switched it off; only root switches it on
+                                _registry.SetEnabled(existing.Login, true); _supervisor.Ensure(existing.Login);
+                            }
                             ctx.Response.Redirect($"/c/{existing.Login}/twitch?grant=ok&identity=broadcaster");
                             return;
                         }
                         string by = ctx.User?.Identity?.Name ?? grant.Login;
-                        var entry = _provisioner.Provision(grant.Login, grant.Login, grant.UserId, by);
+                        var entry = _provisioner.Provision(login, grant.Login, grant.UserId, by);
                         _provisioner.WriteBroadcasterToken(entry.Login, grant);
                         _supervisor.Ensure(entry.Login);
                         _logger.LogWarning("[Hub] channel {Login} onboarded by {By}.", entry.Login, by);
@@ -146,10 +178,28 @@ namespace SkillzBot.Hub
             }
         }
 
-        /// <summary>Writes the token into the channel's store and tells a running process about it (it keeps the file otherwise).</summary>
+        /// <summary>
+        /// Writes the token into the channel's store and tells the running process about it. A process that is still
+        /// starting (port closed) gets the call retried in the background for a minute; it also picks the file up by
+        /// itself within a minute, so the grant is never lost.
+        /// </summary>
         private async Task DeliverBroadcasterTokenAsync(ChannelEntry entry, TwitchTokenGrant grant)
         {
             _provisioner.WriteBroadcasterToken(entry.Login, grant);
+            if (await PushBroadcasterTokenAsync(entry, grant, 1)) return;
+            _ = Task.Run(async () =>
+            {
+                for (int attempt = 2; attempt <= 20; attempt++)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(3));
+                    if (await PushBroadcasterTokenAsync(entry, grant, attempt)) return;
+                }
+                _logger.LogWarning("[Hub] channel {Login} did not take the new broadcaster token over the API; it is in the channel's token file and will be picked up from there.", entry.Login);
+            });
+        }
+
+        private async Task<bool> PushBroadcasterTokenAsync(ChannelEntry entry, TwitchTokenGrant grant, int attempt)
+        {
             try
             {
                 using var req = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{entry.ApiPort}/api/internal/tokens/broadcaster");
@@ -157,9 +207,16 @@ namespace SkillzBot.Hub
                 req.Headers.TryAddWithoutValidation(ApiHost.CsrfHeader, ApiHost.CsrfValue);
                 req.Content = new StringContent(JsonSerializer.Serialize(new { accessToken = grant.AccessToken, refreshToken = grant.RefreshToken, expiresIn = grant.ExpiresIn, scopes = grant.Scopes, userId = grant.UserId, login = grant.Login, clientId = _hub.ApiClientId }), System.Text.Encoding.UTF8, "application/json");
                 using var resp = await _http.CreateClient(HubProxy.HttpClientName).SendAsync(req);
-                _logger.LogInformation("[Hub] broadcaster token delivered to channel {Login}: HTTP {Status}.", entry.Login, (int)resp.StatusCode);
+                if (resp.IsSuccessStatusCode) { _logger.LogInformation("[Hub] broadcaster token delivered to channel {Login} (attempt {Attempt}).", entry.Login, attempt); return true; }
+                string body = await resp.Content.ReadAsStringAsync();
+                _logger.LogWarning("[Hub] channel {Login} rejected the broadcaster token: HTTP {Status} {Body}", entry.Login, (int)resp.StatusCode, body.Length > 200 ? body.Substring(0, 200) : body);
+                return (int)resp.StatusCode < 500 && resp.StatusCode != System.Net.HttpStatusCode.Unauthorized; // a 400 will not change by retrying; a 401 (secret rotated) or 5xx may
             }
-            catch (Exception ex) { _logger.LogWarning("[Hub] channel {Login} not reachable to apply the new token now ({Message}); it will read it at the next start.", entry.Login, ex.Message); }
+            catch (Exception ex)
+            {
+                if (attempt == 1) _logger.LogInformation("[Hub] channel {Login} not reachable yet ({Message}); retrying in the background.", entry.Login, ex.Message);
+                return false;
+            }
         }
 
         private async Task SignInAsync(HttpContext ctx, string userId, string login)
@@ -178,6 +235,8 @@ namespace SkillzBot.Hub
             ctx.Response.StatusCode = 204;
         }
 
-        private static string SafeReturn(string value) => string.IsNullOrEmpty(value) || !value.StartsWith('/') || value.StartsWith("//") ? "/" : value;
+        private static string SafeReturn(string value) => TwitchAuth.SafeReturnPath(value);
+        private static bool IsTwitchId(string id) => !string.IsNullOrEmpty(id) && id.All(char.IsAsciiDigit);
+        private static bool IsValidChannelLogin(string login) => !string.IsNullOrEmpty(login) && login.Length <= 25 && login != "hub" && !login.StartsWith('_') && login.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_');
     }
 }

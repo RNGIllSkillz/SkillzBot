@@ -24,23 +24,49 @@ const AUTH_ERRORS: Record<string, string> = {
 
 /** The channel panel. `base` is '' for a standalone bot and /c/<login> behind the hub; `initial` is a probe the root already made. */
 export default function App({ base, initial }: { base: string; initial?: { me: Me | null; error: ApiError | null } }) {
+  const managedByPath = base.startsWith('/c/')
   const [me, setMe] = useState<Me | null | undefined>(initial ? initial.me : undefined)
-  const [loginConfigured, setLoginConfigured] = useState(initial ? initial.error?.body?.loginConfigured !== false : true)
-  const [managed, setManaged] = useState(initial ? initial.error?.body?.managed === true : false)
+  const [loginConfigured, setLoginConfigured] = useState(true)
+  const [managed, setManaged] = useState(managedByPath)
+  const [refused, setRefused] = useState<{ login: string; roleError: boolean } | null>(null)
+  const [unavailable, setUnavailable] = useState<string | null>(null)
   const location = useLocation()
 
   useEffect(() => {
-    if (initial) return
-    get<Me>('/api/auth/me').then(setMe).catch((e: ApiError) => {
-      setMe(null)
-      // the 401 body says whether login is configured at all, and whether the hub does the login
-      setLoginConfigured(e.body?.loginConfigured !== false)
-      setManaged(e.body?.managed === true)
-    })
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const apply = (m: Me | null, e: ApiError | null) => {
+      if (!alive) return
+      if (m) { setMe(m); setUnavailable(null); return }
+      if (e && e.status === 401) {
+        // the 401 body says whether login is configured, whether the hub does the login, and whom the channel refused
+        setMe(null); setUnavailable(null)
+        setLoginConfigured(e.body?.loginConfigured !== false)
+        setManaged(managedByPath || e.body?.managed === true)
+        setRefused(e.body?.login ? { login: e.body.login, roleError: e.body?.roleError === true } : null)
+        return
+      }
+      // 502 while the channel process starts, 5xx, network: keep asking until it answers
+      setUnavailable(e ? (e.status ? `HTTP ${e.status}: ${e.message}` : e.message) : 'нет ответа')
+      timer = setTimeout(probe, 3000)
+    }
+    const probe = () => get<Me>('/api/auth/me').then(m => apply(m, null)).catch((e: ApiError) => apply(null, e))
+    if (initial) apply(initial.me, initial.error); else probe()
+    return () => { alive = false; if (timer) clearTimeout(timer) }
   }, [])
 
-  if (me === undefined) return <div className="login"><div className="muted">Загрузка…</div></div>
-  if (me === null) return <Login configured={loginConfigured} managed={managed} base={base} />
+  if (me === undefined) {
+    return (
+      <div className="login"><div className="card">
+        <h1>SkillzBot{managedByPath ? <span className="muted"> · {base.slice(3)}</span> : null}</h1>
+        {unavailable
+          ? <><p className="muted">{managedByPath ? 'Бот этого канала запускается или остановлен' : 'Бот не отвечает'} ({unavailable}). Пробую снова каждые несколько секунд…</p>
+            {managedByPath && <p className="muted"><a href="/">← к списку каналов</a></p>}</>
+          : <div className="muted">Загрузка…</div>}
+      </div></div>
+    )
+  }
+  if (me === null) return <Login configured={loginConfigured} managed={managed} base={base} refused={refused} />
 
   return (
     <Routes>
@@ -61,23 +87,32 @@ export default function App({ base, initial }: { base: string; initial?: { me: M
   )
 }
 
-function Login({ configured, managed, base }: { configured: boolean; managed: boolean; base: string }) {
+function Login({ configured, managed, base, refused }: { configured: boolean; managed: boolean; base: string; refused: { login: string; roleError: boolean } | null }) {
   const params = new URLSearchParams(window.location.search)
   const err = params.get('auth')
   const returnTo = window.location.pathname || base + '/'
   // Behind the hub the hub does the Twitch login (one cookie for every panel); standalone the bot does it itself.
   const loginHref = (managed ? '' : apiUrl('')) + `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`
   const channel = base.startsWith('/c/') ? base.slice(3) : null
+  const logout = () => hubPost('/api/auth/logout').then(() => window.location.assign('/'))
   return (
     <div className="login">
       <div className="card">
         <h1>SkillzBot{channel ? <span className="muted"> · {channel}</span> : null}</h1>
-        <p className="muted">Панель управления ботом. Вход для стримера, root и редакторов.</p>
-        {err && <div className="banner bad" style={{ textAlign: 'left' }}>{AUTH_ERRORS[err] ?? `Ошибка входа: ${err}`}</div>}
-        {configured || managed
-          ? <a className="primary" href={loginHref}><button className="primary">Войти через Twitch</button></a>
-          : <div className="banner">Вход не настроен: в конфиге канала нужны ApiPublicUrl и TApiClientSecret.</div>}
-        {managed && <p className="muted" style={{ marginTop: 12 }}><a href="/">← к списку каналов</a></p>}
+        {refused && managed
+          ? refused.roleError
+            ? <><p className="muted">Вы вошли как <b>{refused.login}</b>, но канал {channel} сейчас не может проверить доступ (база данных недоступна). Обновите страницу через минуту.</p>
+              <div className="toolbar"><a href="/"><button>← к списку каналов</button></a><button onClick={() => window.location.reload()}>Обновить</button></div></>
+            : <><p className="muted">Вы вошли как <b>{refused.login}</b>, но к панели канала <b>{channel}</b> у этого аккаунта доступа нет. Доступ есть у стримера, root и редакторов (стример добавляет их командой !editor add &lt;login&gt;).</p>
+              <div className="toolbar"><a href="/"><button>← к списку каналов</button></a><button onClick={logout}>Выйти</button></div></>
+          : <>
+            <p className="muted">Панель управления ботом. Вход для стримера, root и редакторов.</p>
+            {err && <div className="banner bad" style={{ textAlign: 'left' }}>{AUTH_ERRORS[err] ?? `Ошибка входа: ${err}`}</div>}
+            {configured || managed
+              ? <a className="primary" href={loginHref}><button className="primary">Войти через Twitch</button></a>
+              : <div className="banner">Вход не настроен: в конфиге канала нужны ApiPublicUrl и TApiClientSecret.</div>}
+            {managed && <p className="muted" style={{ marginTop: 12 }}><a href="/">← к списку каналов</a></p>}
+          </>}
       </div>
     </div>
   )

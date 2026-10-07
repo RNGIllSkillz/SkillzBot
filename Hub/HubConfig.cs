@@ -25,6 +25,8 @@ namespace SkillzBot.Hub
         public string TApiClientSecret { get; set; }
         public string RootUser { get; set; }
         public string BotTwitchName { get; set; }
+        /// <summary>Legacy static IRC token of the bot account (oauth:...); published to the channels until root authorizes the account on the hub.</summary>
+        public string BotTwitchAuth { get; set; }
         public int ChannelPortBase { get; set; } = 8100;
         public JObject ChannelTemplate { get; set; } = new JObject();
         public string Path { get; private set; }
@@ -39,8 +41,9 @@ namespace SkillzBot.Hub
                 ApiPublicUrl = root.Value<string>("ApiPublicUrl")?.Trim().TrimEnd('/'),
                 ApiClientId = root.Value<string>("ApiClientId")?.Trim(),
                 TApiClientSecret = root.Value<string>("TApiClientSecret")?.Trim(),
-                RootUser = root.Value<string>("RootUser")?.Trim().ToLowerInvariant(),
-                BotTwitchName = root.Value<string>("BotTwitchName")?.Trim().ToLowerInvariant(),
+                RootUser = root.Value<string>("RootUser")?.Trim().TrimStart('@').ToLowerInvariant(),
+                BotTwitchName = root.Value<string>("BotTwitchName")?.Trim().TrimStart('@').ToLowerInvariant(),
+                BotTwitchAuth = root.Value<string>("BotTwitchAuth")?.Trim(),
                 ChannelPortBase = root.Value<int?>("ChannelPortBase") ?? 8100,
                 ChannelTemplate = root["ChannelTemplate"] as JObject ?? new JObject(),
             };
@@ -60,9 +63,13 @@ namespace SkillzBot.Hub
             return missing;
         }
 
-        /// <summary>Builds hub.json from an existing channel config, so a single-channel install migrates without retyping secrets.</summary>
+        /// <summary>
+        /// Builds hub.json from an existing channel config, so a single-channel install migrates without retyping secrets.
+        /// The hub takes the port nginx already proxies to (the channel's ApiPort); the channels start above it.
+        /// </summary>
         public static JObject FromChannelConfig(JObject channel, int hubPort)
         {
+            int channelBase = hubPort >= 8100 && hubPort < 8200 ? 8200 : 8100;
             var template = new JObject();
             foreach (var key in TemplateKeys)
                 if (channel.TryGetValue(key, StringComparison.OrdinalIgnoreCase, out var v)) template[key] = v.DeepClone();
@@ -74,9 +81,10 @@ namespace SkillzBot.Hub
                 ["ApiPublicUrl"] = channel.Value<string>("ApiPublicUrl") ?? "",
                 ["ApiClientId"] = clientId ?? "",
                 ["TApiClientSecret"] = channel.Value<string>("TApiClientSecret") ?? "",
-                ["RootUser"] = channel.Value<string>("RootUser") ?? "",
-                ["BotTwitchName"] = channel.Value<string>("BotTwitchName") ?? "",
-                ["ChannelPortBase"] = 8100,
+                ["RootUser"] = channel.Value<string>("RootUser")?.Trim().TrimStart('@') ?? "",
+                ["BotTwitchName"] = channel.Value<string>("BotTwitchName")?.Trim().TrimStart('@') ?? "",
+                ["BotTwitchAuth"] = channel.Value<string>("BotTwitchAuth") ?? "",
+                ["ChannelPortBase"] = channelBase,
                 ["ChannelTemplate"] = template,
             };
         }

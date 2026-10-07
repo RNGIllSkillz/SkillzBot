@@ -55,9 +55,12 @@ namespace SkillzBot.Hub
         public ProcessStatus StatusOf(string login)
         {
             if (!_running.TryGetValue(login, out var m)) return new ProcessStatus("stopped", null, null, 0, null, null);
-            bool alive = m.Process != null && !m.Process.HasExited;
+            var p = m.Process; // the tick may dispose and null it while we look
+            int? pid = null;
+            try { if (p != null && !p.HasExited) pid = p.Id; } catch (InvalidOperationException) { pid = null; }
+            bool alive = pid.HasValue;
             string state = alive ? "running" : m.StopRequested ? "stopped" : m.NextStartUtc > DateTime.UtcNow ? "restarting" : "starting";
-            return new ProcessStatus(state, alive ? m.Process.Id : null, alive ? m.StartedUtc : null, m.Restarts, m.LastExitCode, m.LastExitUtc);
+            return new ProcessStatus(state, pid, alive ? m.StartedUtc : null, m.Restarts, m.LastExitCode, m.LastExitUtc);
         }
 
         /// <summary>Starts a channel now (also used right after provisioning).</summary>
@@ -68,12 +71,16 @@ namespace SkillzBot.Hub
             await _reconcileLock.WaitAsync();
             try
             {
-                if (_running.TryGetValue(login, out var m) && m.Process != null && !m.Process.HasExited)
+                if (_running.TryGetValue(login, out var m))
                 {
-                    _logger.LogWarning("[Hub] restarting channel {Login} (pid {Pid}).", login, m.Process.Id);
-                    await TerminateAsync(m.Process, Grace);
-                    m.LastExitCode = SafeExitCode(m.Process); m.LastExitUtc = DateTime.UtcNow;
-                    m.Process.Dispose(); m.Process = null;
+                    if (m.Process != null && !m.Process.HasExited)
+                    {
+                        _logger.LogWarning("[Hub] restarting channel {Login} (pid {Pid}).", login, m.Process.Id);
+                        await TerminateAsync(m.Process, Grace);
+                        m.LastExitCode = SafeExitCode(m.Process); m.LastExitUtc = DateTime.UtcNow;
+                        m.Process.Dispose(); m.Process = null;
+                    }
+                    else _logger.LogWarning("[Hub] channel {Login} is not running; starting it now instead of waiting out the backoff.", login);
                     m.NextStartUtc = DateTime.UtcNow; m.Backoff = 0; // a requested restart is not a crash
                 }
             }
@@ -165,9 +172,11 @@ namespace SkillzBot.Hub
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
-            string entry = System.Reflection.Assembly.GetEntryAssembly()?.Location;
-            if (!string.IsNullOrEmpty(entry) && Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "").Equals("dotnet", StringComparison.OrdinalIgnoreCase))
-                psi.ArgumentList.Add(entry); // the hub runs as "dotnet SkillzBot.dll" (development); the published single file needs no argument
+            if (Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "").Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+            {
+                string entry = Environment.GetCommandLineArgs().FirstOrDefault(); // the hub runs as "dotnet SkillzBot.dll" (development); the published single file needs no argument
+                if (!string.IsNullOrEmpty(entry) && entry.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)) psi.ArgumentList.Add(entry);
+            }
             psi.Environment["ENV_CHANNEL_NAME"] = m.Entry.Login;
             psi.Environment[HubSignature.EnvRole] = "channel";
             psi.Environment[HubSignature.EnvManaged] = "1";

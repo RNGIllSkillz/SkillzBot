@@ -91,16 +91,26 @@ namespace SkillzBot.Hub
                 if (login.StartsWith("_") || login.Equals("hub", StringComparison.OrdinalIgnoreCase)) continue;
                 string path = ConfigPath(login);
                 if (!File.Exists(path)) continue;
-                if (_registry.Get(login) != null) continue;
+                if (_registry.Get(login) != null || _registry.IsRemoved(login)) continue;
+                if (login != login.ToLowerInvariant())
+                {
+                    // the registry and ENV_CHANNEL_NAME are lower-case; a process could not find this folder
+                    _logger.LogError("[Hub] channel folder {Login} is not lower-case; rename it to {Lower} to have it imported.", login, login.ToLowerInvariant());
+                    continue;
+                }
                 try
                 {
                     var cfg = JObject.Parse(File.ReadAllText(path));
-                    string broadcasterId = cfg.Value<string>("BrodcasterId");
+                    string broadcasterId = cfg.Value<string>("BrodcasterId")?.Trim();
+                    if (string.IsNullOrEmpty(broadcasterId) || !broadcasterId.All(char.IsAsciiDigit))
+                    {
+                        _logger.LogWarning("[Hub] channel {Login} has no valid BrodcasterId ({Value}); its owner claims it by adding the bot on the hub page.", login, broadcasterId ?? "");
+                        broadcasterId = "";
+                    }
                     var entry = _registry.Add(login, login, broadcasterId, "import");
-                    // The hub owns the public URL and the login; the process listens where the hub tells it to.
+                    // The hub owns the public URL, the Twitch application and the port; the process listens where the hub tells it to.
                     cfg["ApiPublicUrl"] = _hub.ApiPublicUrl; cfg["ApiPort"] = entry.ApiPort;
-                    if (string.IsNullOrWhiteSpace(cfg.Value<string>("ApiClientId"))) cfg["ApiClientId"] = _hub.ApiClientId;
-                    if (string.IsNullOrWhiteSpace(cfg.Value<string>("TApiClientSecret"))) cfg["TApiClientSecret"] = _hub.TApiClientSecret;
+                    cfg["ApiClientId"] = _hub.ApiClientId; cfg["TApiClientSecret"] = _hub.TApiClientSecret;
                     WriteJson(path, cfg, secret: true);
                     imported.Add(login);
                     _logger.LogWarning("[Hub] imported existing channel {Login} (broadcaster {Id}) on port {Port}.", login, broadcasterId ?? "?", entry.ApiPort);
@@ -110,13 +120,30 @@ namespace SkillzBot.Hub
             return imported;
         }
 
-        /// <summary>The first channel's bot token record, if a pre-hub install had authorized the bot account on the panel.</summary>
+        /// <summary>
+        /// Takes (reads and removes) a channel's bot token record, left by a pre-hub install that had authorized the bot
+        /// account on the panel. The hub owns that token from now on; two refreshers would invalidate each other.
+        /// </summary>
         public JObject TakeBotRecordFromChannel(string login)
         {
             string path = Path.Combine(DataDir(login), TwitchTokenService.FileName);
             if (!File.Exists(path)) return null;
             var store = JObject.Parse(File.ReadAllText(path));
-            return store["bot"] as JObject;
+            var bot = store["bot"] as JObject;
+            if (bot == null) return null;
+            store.Remove("bot");
+            WriteJson(path, store, secret: true);
+            return bot;
+        }
+
+        /// <summary>Records the real owner of an imported channel whose config carried no valid id.</summary>
+        public void SetBroadcasterId(string login, string broadcasterId)
+        {
+            string path = ConfigPath(login);
+            if (!File.Exists(path)) return;
+            var cfg = JObject.Parse(File.ReadAllText(path));
+            cfg["BrodcasterId"] = broadcasterId;
+            WriteJson(path, cfg, secret: true);
         }
 
         public static void WriteJson(string path, JObject obj, bool secret = false)

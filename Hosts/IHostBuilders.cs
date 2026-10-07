@@ -259,7 +259,7 @@ namespace SkillzBot.Hosts
             {
                 builder.ConfigureWebHostDefaults(web =>
                 {
-                    web.ConfigureKestrel(k => k.ListenAnyIP(apiPort));
+                    web.ConfigureKestrel(k => { if (Services.Twitch.HubSignature.IsManagedProcess) k.ListenLocalhost(apiPort); else k.ListenAnyIP(apiPort); }); // behind the hub only the hub talks to us
                     web.ConfigureServices(Api.ApiHost.ConfigureWebServices);
                     web.Configure(Api.ApiHost.Configure);
                 });

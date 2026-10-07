@@ -19,12 +19,16 @@ const GRANT_MESSAGES: Record<string, string> = {
   wronguser: 'Авторизовался не владелец канала.',
   forbidden: 'Авторизовать аккаунт бота может только root.',
   unknown: 'Канал не найден в реестре хаба.',
+  reserved: 'Этот логин нельзя использовать как имя канала.',
+  conflict: 'Канал с таким логином уже зарегистрирован за другим аккаунтом Twitch. Напиши root, чтобы разобраться.',
+  disabled: 'Токен сохранен, но канал выключен root; включить его может только root.',
   error: 'Ошибка авторизации, подробности в логе хаба.',
 }
 const STATE: Record<string, { label: string; tone?: 'good' | 'bad' | 'warn' }> = {
   running: { label: 'работает', tone: 'good' },
   starting: { label: 'запускается', tone: 'warn' },
   stopped: { label: 'остановлен' },
+  restarting: { label: 'упал, перезапуск', tone: 'bad' },
   disabled: { label: 'выключен' },
   crashed: { label: 'упал, перезапуск', tone: 'bad' },
   failed: { label: 'не запускается', tone: 'bad' },
@@ -68,7 +72,8 @@ function HubHome({ me }: { me: HubMe }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const grant = params.get('grant'); const auth = params.get('auth')
-    if (grant) setNote({ text: GRANT_MESSAGES[grant] ?? `Результат: ${grant}`, bad: !grant.endsWith('ok') })
+    const login = params.get('login')
+    if (grant) setNote({ text: (GRANT_MESSAGES[grant] ?? `Результат: ${grant}`) + (login ? ` (${login})` : ''), bad: !grant.endsWith('ok') })
     else if (auth) setNote({ text: AUTH_ERRORS[auth] ?? `Ошибка входа: ${auth}`, bad: true })
     if (grant || auth) window.history.replaceState(null, '', '/')
   }, [])

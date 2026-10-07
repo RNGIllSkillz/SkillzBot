@@ -7,6 +7,7 @@
   "TApiClientSecret": "client secret of your Twitch application (required)",
   "RootUser": "your_twitch_login (required; root on the hub and in every channel)",
   "BotTwitchName": "bot_login (the account the bot chats from; root authorizes it on the hub page)",
+  "BotTwitchAuth": "optional legacy oauth:xxxx IRC token of the bot account, published to the channels until root authorizes the account on the hub page; copied from the first channel config at bootstrap",
   "ChannelPortBase": 8100,
 
   "ChannelTemplate": {

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.Api;
 using SkillzBot.Services.Twitch;
@@ -7,6 +8,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SkillzBot.Hub
@@ -23,11 +25,12 @@ namespace SkillzBot.Hub
         private readonly ChannelRegistry _registry;
         private readonly IHttpClientFactory _http;
         private readonly string _secret;
+        private readonly IHostApplicationLifetime _lifetime;
         private readonly ILogger<HubProxy> _logger;
 
-        public HubProxy(ChannelRegistry registry, IHttpClientFactory http, HubSecret secret, ILogger<HubProxy> logger)
+        public HubProxy(ChannelRegistry registry, IHttpClientFactory http, HubSecret secret, IHostApplicationLifetime lifetime, ILogger<HubProxy> logger)
         {
-            _registry = registry; _http = http; _secret = secret.Value; _logger = logger;
+            _registry = registry; _http = http; _secret = secret.Value; _lifetime = lifetime; _logger = logger;
         }
 
         /// <summary>A signed identity for the hub itself: internal calls into a channel process.</summary>
@@ -52,20 +55,23 @@ namespace SkillzBot.Hub
                 if (HopByHop.Contains(h.Key, StringComparer.OrdinalIgnoreCase) || h.Key.Equals(HubSignature.Header, StringComparison.OrdinalIgnoreCase)) continue;
                 upstream.Headers.TryAddWithoutValidation(h.Key, h.Value.ToArray());
             }
-            string token = UserToken(ctx.User);
-            if (token != null) upstream.Headers.TryAddWithoutValidation(HubSignature.Header, token);
+            string identity = UserToken(ctx.User);
+            if (identity != null) upstream.Headers.TryAddWithoutValidation(HubSignature.Header, identity);
             if (ctx.Request.ContentLength > 0 || ctx.Request.Headers.ContainsKey("Transfer-Encoding"))
             {
                 upstream.Content = new StreamContent(ctx.Request.Body);
                 if (ctx.Request.ContentType != null) upstream.Content.Headers.TryAddWithoutValidation("Content-Type", ctx.Request.ContentType);
             }
 
+            // a long-lived stream (chat SSE) ends when the browser leaves or when the hub shuts down, never later
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted, _lifetime.ApplicationStopping);
+            var token = cts.Token;
             HttpResponseMessage response;
             try
             {
-                response = await _http.CreateClient(HttpClientName).SendAsync(upstream, HttpCompletionOption.ResponseHeadersRead, ctx.RequestAborted);
+                response = await _http.CreateClient(HttpClientName).SendAsync(upstream, HttpCompletionOption.ResponseHeadersRead, token);
             }
-            catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested) { return; }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
             catch (HttpRequestException ex)
             {
                 _logger.LogWarning("[Hub] channel {Login} unreachable on port {Port}: {Message}", channel.Login, channel.ApiPort, ex.Message);
@@ -84,17 +90,17 @@ namespace SkillzBot.Hub
                 ctx.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
                 try
                 {
-                    await using var body = await response.Content.ReadAsStreamAsync(ctx.RequestAborted);
+                    await using var body = await response.Content.ReadAsStreamAsync(token);
                     var buffer = new byte[16 * 1024];
                     int n;
-                    while ((n = await body.ReadAsync(buffer, ctx.RequestAborted)) > 0)
+                    while ((n = await body.ReadAsync(buffer, token)) > 0)
                     {
-                        await ctx.Response.Body.WriteAsync(buffer.AsMemory(0, n), ctx.RequestAborted);
-                        await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+                        await ctx.Response.Body.WriteAsync(buffer.AsMemory(0, n), token);
+                        await ctx.Response.Body.FlushAsync(token);
                     }
                 }
                 catch (OperationCanceledException) { }
-                catch (Exception ex) when (ctx.RequestAborted.IsCancellationRequested) { _logger.LogDebug(ex, "proxy stream ended"); }
+                catch (Exception ex) when (token.IsCancellationRequested) { _logger.LogDebug(ex, "proxy stream ended"); }
             }
         }
     }

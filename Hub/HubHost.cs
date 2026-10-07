@@ -15,6 +15,7 @@ using SkillzBot.Services.Twitch;
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,9 +43,11 @@ namespace SkillzBot.Hub
                     logger.LogError("[Hub] {File} is missing and there is no channel config to build it from. Create it from hub.example.json.", path);
                     return null;
                 }
-                var generated = HubConfig.FromChannelConfig(JObject.Parse(File.ReadAllText(source)), 8080);
+                var sourceCfg = JObject.Parse(File.ReadAllText(source));
+                int port = sourceCfg.Value<int?>("ApiPort") ?? 0; // nginx already points at this port; the hub takes it over
+                var generated = HubConfig.FromChannelConfig(sourceCfg, port > 0 ? port : 8080);
                 ChannelProvisioner.WriteJson(path, generated, secret: true);
-                logger.LogWarning("[Hub] {File} created from {Source}; review it (ApiPublicUrl, ChannelTemplate).", path, source);
+                logger.LogWarning("[Hub] {File} created from {Source}; review it (HubPort must be the port nginx proxies to, ApiPublicUrl, ChannelTemplate).", path, source);
             }
             var cfg = HubConfig.Load(path);
             var missing = cfg.Missing();
@@ -56,23 +59,25 @@ namespace SkillzBot.Hub
         {
             services.AddSingleton(hub);
             services.AddSingleton(new HubSecret(Path.Combine(paths.DataPath, "hub-secret")));
-            services.AddSingleton(new ChannelRegistry(Path.Combine(channelsDir, ChannelRegistry.FileName), hub.ChannelPortBase));
+            services.AddSingleton(new ChannelRegistry(Path.Combine(channelsDir, ChannelRegistry.FileName), hub.ChannelPortBase, hub.HubPort));
             services.AddSingleton(sp => new ChannelProvisioner(hub, sp.GetRequiredService<ChannelRegistry>(), channelsDir, sp.GetRequiredService<ILogger<ChannelProvisioner>>()));
             services.AddSingleton<ChannelSupervisor>();
             services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(45)); // the channels get 25s to exit cleanly
-            services.AddHostedService(sp => sp.GetRequiredService<ChannelSupervisor>());
             // The hub's own token service holds the bot identity; the config it sees is the hub's view of the application.
-            services.AddSingleton(new BotConfigModel { ChannelName = "hub", RootUser = hub.RootUser, BotTwitchName = hub.BotTwitchName, ApiClientId = hub.ApiClientId, TApiClientId = hub.ApiClientId, TApiClientSecret = hub.TApiClientSecret, ApiPublicUrl = hub.ApiPublicUrl });
+            services.AddSingleton(new BotConfigModel { ChannelName = "hub", RootUser = hub.RootUser, BotTwitchName = hub.BotTwitchName, BotTwitchAuth = hub.BotTwitchAuth, ApiClientId = hub.ApiClientId, TApiClientId = hub.ApiClientId, TApiClientSecret = hub.TApiClientSecret, ApiPublicUrl = hub.ApiPublicUrl });
             services.AddSingleton<TwitchTokenService>();
             services.AddHostedService<TwitchTokenRefresher>();
-            services.AddHostedService<HubBootstrap>();
+            services.AddHostedService<HubBootstrap>(); // imports folders and publishes the bot token...
+            services.AddHostedService(sp => sp.GetRequiredService<ChannelSupervisor>()); // ...before the first channel process starts
             services.AddHttpClient(TwitchTokenService.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(15));
             services.AddHttpClient(TwitchAuth.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(15));
-            services.AddHttpClient(HubProxy.HttpClientName, c => c.Timeout = Timeout.InfiniteTimeSpan);
+            // a proxy passes redirects and cookies through to the browser; it never follows or keeps them itself
+            services.AddHttpClient(HubProxy.HttpClientName, c => c.Timeout = Timeout.InfiniteTimeSpan)
+                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false });
             services.AddSingleton<HubProxy>();
             services.AddSingleton<HubAuth>();
             services.AddRouting();
-            services.AddDataProtection().SetApplicationName("SkillzBotHub").PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(paths.DataPath, "keys")));
+            services.AddDataProtection().SetApplicationName("SkillzBotHub").PersistKeysToFileSystem(ApiHost.PrivateKeyDirectory(Path.Combine(paths.DataPath, "keys")));
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o =>
             {
                 o.Cookie.Name = "skillzbot.hub";
@@ -187,6 +192,12 @@ namespace SkillzBot.Hub
             e.MapDelete("/api/hub/bot", async ctx =>
             {
                 await S<TwitchTokenService>(ctx).RemoveAsync(TwitchIdentity.Bot, Who(ctx));
+                if (S<TwitchTokenService>(ctx).Current(TwitchIdentity.Bot) == null)
+                {
+                    // nothing to publish any more: the channels see a missing file as "no bot token"
+                    string published = Path.Combine(S<IPathProvider>(ctx).SharedPath, TwitchTokenService.HubBotTokenFileName);
+                    try { File.Delete(published); } catch (Exception ex) { S<ILogger<HubAuth>>(ctx).LogWarning("[Hub] could not remove {File}: {Message}", published, ex.Message); }
+                }
                 await Results.Json(S<TwitchTokenService>(ctx).Describe().First(t => t.Identity == "bot")).ExecuteAsync(ctx);
             }).RequireAuthorization("root");
 
@@ -216,21 +227,27 @@ namespace SkillzBot.Hub
         private readonly ChannelRegistry _registry;
         private readonly TwitchTokenService _tokens;
         private readonly IPathProvider _paths;
+        private readonly HubConfig _hub;
         private readonly ILogger<HubBootstrap> _logger;
 
-        public HubBootstrap(ChannelProvisioner provisioner, ChannelRegistry registry, TwitchTokenService tokens, IPathProvider paths, ILogger<HubBootstrap> logger)
+        public HubBootstrap(ChannelProvisioner provisioner, ChannelRegistry registry, TwitchTokenService tokens, IPathProvider paths, HubConfig hub, ILogger<HubBootstrap> logger)
         {
-            _provisioner = provisioner; _registry = registry; _tokens = tokens; _paths = paths; _logger = logger;
+            _provisioner = provisioner; _registry = registry; _tokens = tokens; _paths = paths; _hub = hub; _logger = logger;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             var imported = _provisioner.ImportExisting();
+            try { await _tokens.InitializeAsync(); } // the hub's own store first, so a stale record from a folder never replaces a live token
+            catch (Exception ex) { _logger.LogError(ex, "[Hub] token initialization failed."); }
             // A bot token a pre-hub channel had obtained on its panel moves to the hub, which refreshes it from now on.
             foreach (var login in imported)
             {
-                var bot = _provisioner.TakeBotRecordFromChannel(login);
-                if (bot == null || _tokens.Current(TwitchIdentity.Bot)?.Source == "oauth") continue;
+                var bot = _provisioner.TakeBotRecordFromChannel(login); // removed from the channel either way: one refresher per token
+                if (bot == null) continue;
+                if (_tokens.Current(TwitchIdentity.Bot)?.Source == "oauth") { _logger.LogWarning("[Hub] channel {Login} had a bot token too; the hub keeps its own.", login); continue; }
+                if (!string.Equals(bot.Value<string>("clientId"), _hub.ApiClientId, StringComparison.Ordinal))
+                { _logger.LogWarning("[Hub] bot token of channel {Login} was issued by another Twitch application ({ClientId}); it cannot be refreshed here and is dropped.", login, bot.Value<string>("clientId")); continue; }
                 await _tokens.StoreAuthorizationAsync(TwitchIdentity.Bot, bot.Value<string>("accessToken"), bot.Value<string>("refreshToken"),
                     Math.Max(60, (int)((bot.Value<DateTime?>("expiresUtc") ?? DateTime.UtcNow) - DateTime.UtcNow).TotalSeconds),
                     (bot["scopes"] as JArray)?.Select(s => s.ToString()) ?? Array.Empty<string>(), bot.Value<string>("userId"), bot.Value<string>("login"), bot.Value<string>("clientId"));
@@ -246,8 +263,6 @@ namespace SkillzBot.Hub
                 }
                 catch (Exception ex) { _logger.LogError(ex, "[Hub] could not publish the bot token."); }
             });
-            try { await _tokens.InitializeAsync(); }
-            catch (Exception ex) { _logger.LogError(ex, "[Hub] token initialization failed."); }
             _logger.LogInformation("[Hub] {Count} channel(s) registered: {Logins}", _registry.All().Count, string.Join(", ", _registry.All().Select(c => c.Login + (c.Enabled ? "" : " (disabled)"))));
         }
 

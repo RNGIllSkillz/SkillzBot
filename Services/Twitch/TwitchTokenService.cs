@@ -99,6 +99,8 @@ namespace SkillzBot.Services.Twitch
         private readonly string _hubBotTokenPath;
         private TwitchCredential _hubBot;
         private DateTime _hubBotFileWriteUtc = DateTime.MinValue;
+        /// <summary>When the store file was last read or written by this process; records on disk newer than this were put there by the hub.</summary>
+        private DateTime _storeSyncUtc = DateTime.MinValue;
         private DateTime _hubBotCheckedUtc = DateTime.MinValue;
 
         public TwitchTokenService(BotConfigModel config, IPathProvider paths, IHttpClientFactory http, ILogger<TwitchTokenService> logger)
@@ -230,8 +232,11 @@ namespace SkillzBot.Services.Twitch
             await _gate.WaitAsync();
             try
             {
+                if (_managed) HubBotCredential(); // notices a token the hub rotated even when nobody asked for it
+                SyncStoreFromDisk();
                 foreach (TwitchIdentity id in Enum.GetValues(typeof(TwitchIdentity)))
                 {
+                    if (id == TwitchIdentity.Bot && _managed) continue;
                     if (_records.TryGetValue(id, out var r) && r.ExpiresUtc - DateTime.UtcNow < RefreshMargin)
                         await RefreshLockedAsync(id, $"expires in {Left(r.ExpiresUtc)}");
                 }
@@ -268,6 +273,7 @@ namespace SkillzBot.Services.Twitch
         /// <summary>The credential, refreshed first when it is about to expire. For callers that connect once and keep the session, like IRC.</summary>
         public async Task<TwitchCredential> GetCredentialAsync(TwitchIdentity identity)
         {
+            if (identity == TwitchIdentity.Bot && _managed) return Current(identity);
             TwitchTokenRecord r;
             lock (_records) _records.TryGetValue(identity, out r);
             if (r != null && r.ExpiresUtc - DateTime.UtcNow < RefreshMargin)
@@ -309,6 +315,7 @@ namespace SkillzBot.Services.Twitch
         /// <summary>Revokes and forgets the panel token; the identity falls back to the config token, if any.</summary>
         public async Task RemoveAsync(TwitchIdentity identity, string by)
         {
+            if (identity == TwitchIdentity.Bot && _managed) { _logger.LogWarning("[Tokens] bot identity is managed by the hub; {By} must remove it there.", by); return; }
             TwitchTokenRecord removed;
             await _gate.WaitAsync();
             try
@@ -428,16 +435,22 @@ namespace SkillzBot.Services.Twitch
             return (new TwitchCredential(TwitchIdentity.Bot, Get("clientId"), access, Get("userId"), Get("login"), scopes.AsReadOnly(), "hub"), expires);
         }
 
-        /// <summary>Re-reads the hub's file when it changed (checked at most every 10 seconds).</summary>
+        /// <summary>
+        /// Re-reads the hub's file when it changed (checked at most every 10 seconds). A rotated token is pushed to the
+        /// consumers (Helix client, IRC) exactly like a panel grant would be, so nothing keeps using the old one.
+        /// </summary>
         private TwitchCredential HubBotCredential()
         {
+            TwitchCredential result;
+            bool rotated = false;
             lock (_records)
             {
                 if (DateTime.UtcNow - _hubBotCheckedUtc < TimeSpan.FromSeconds(10)) return _hubBot;
                 _hubBotCheckedUtc = DateTime.UtcNow;
                 try
                 {
-                    if (!File.Exists(_hubBotTokenPath)) { _hubBot = null; return null; }
+                    string before = _hubBot?.AccessToken;
+                    if (!File.Exists(_hubBotTokenPath)) { _hubBot = null; _hubBotFileWriteUtc = DateTime.MinValue; return null; }
                     var write = File.GetLastWriteTimeUtc(_hubBotTokenPath);
                     if (write == _hubBotFileWriteUtc) return _hubBot;
                     var read = ReadHubBotToken(_hubBotTokenPath);
@@ -445,7 +458,8 @@ namespace SkillzBot.Services.Twitch
                     _hubBot = read?.Credential;
                     _configExpiresUtc[TwitchIdentity.Bot] = read?.ExpiresUtc;
                     _configValid[TwitchIdentity.Bot] = read.HasValue && read.Value.ExpiresUtc > DateTime.UtcNow;
-                    return _hubBot;
+                    rotated = _hubBot != null && before != _hubBot.AccessToken; // first appearance counts too: the file may arrive after our start
+                    result = _hubBot;
                 }
                 catch (Exception ex)
                 {
@@ -453,6 +467,12 @@ namespace SkillzBot.Services.Twitch
                     return _hubBot;
                 }
             }
+            if (rotated)
+            {
+                _logger.LogInformation("[Tokens] Bot: the hub published a new token for {Login}.", result.Login);
+                Notify(TwitchIdentity.Bot); // outside the lock: listeners may call back into Current()
+            }
+            return result;
         }
 
         #endregion
@@ -605,24 +625,81 @@ namespace SkillzBot.Services.Twitch
                 lock (_records)
                 {
                     foreach (var (key, rec) in data)
-                        if (Enum.TryParse<TwitchIdentity>(key, true, out var id) && rec != null && !string.IsNullOrEmpty(rec.AccessToken)) _records[id] = rec;
+                    {
+                        if (!Enum.TryParse<TwitchIdentity>(key, true, out var id) || rec == null || string.IsNullOrEmpty(rec.AccessToken)) continue;
+                        if (id == TwitchIdentity.Bot && _managed) continue; // the hub owns and refreshes the bot token; a leftover record must not compete for it
+                        _records[id] = rec;
+                    }
+                    _storeSyncUtc = DateTime.UtcNow;
                 }
             }
             catch (Exception ex) { _logger.LogError(ex, "[Tokens] could not read {File}; starting without panel tokens.", _filePath); }
         }
 
+        /// <summary>
+        /// Adopts records another writer (the hub delivering a broadcaster grant) put into the file since this process
+        /// last read or wrote it, so a Save() never overwrites a newer grant and a grant is applied within a minute
+        /// even when the process could not be told about it. Returns the identities that changed. Call under _records.
+        /// </summary>
+        private List<TwitchIdentity> AdoptNewerFromDiskLocked()
+        {
+            var adopted = new List<TwitchIdentity>();
+            try
+            {
+                if (!File.Exists(_filePath) || File.GetLastWriteTimeUtc(_filePath) <= _storeSyncUtc) return adopted;
+                var onDisk = JsonSerializer.Deserialize<Dictionary<string, TwitchTokenRecord>>(File.ReadAllText(_filePath), JsonOptions);
+                if (onDisk == null) return adopted;
+                foreach (var (key, rec) in onDisk)
+                {
+                    if (!Enum.TryParse<TwitchIdentity>(key, true, out var id) || rec == null || string.IsNullOrEmpty(rec.AccessToken)) continue;
+                    if (id == TwitchIdentity.Bot && _managed) continue;
+                    if (rec.ObtainedUtc <= _storeSyncUtc) continue; // was there when we last synced: ours, or removed by us on purpose
+                    if (_records.TryGetValue(id, out var mine) && mine.ObtainedUtc >= rec.ObtainedUtc) continue;
+                    _records[id] = rec; _lastError.Remove(id);
+                    adopted.Add(id);
+                }
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Tokens] could not re-read {File}.", _filePath); }
+            return adopted;
+        }
+
         private void Save()
         {
+            List<TwitchIdentity> adopted;
             try
             {
                 Dictionary<string, TwitchTokenRecord> data;
-                lock (_records) data = _records.ToDictionary(kv => kv.Key.ToString().ToLowerInvariant(), kv => kv.Value);
+                lock (_records)
+                {
+                    adopted = AdoptNewerFromDiskLocked();
+                    data = _records.ToDictionary(kv => kv.Key.ToString().ToLowerInvariant(), kv => kv.Value);
+                }
                 string tmp = _filePath + ".tmp";
                 File.WriteAllText(tmp, JsonSerializer.Serialize(data, JsonOptions));
                 try { if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite); } catch { }
                 File.Move(tmp, _filePath, true);
+                lock (_records) _storeSyncUtc = DateTime.UtcNow;
             }
-            catch (Exception ex) { _logger.LogError(ex, "[Tokens] could not write {File}.", _filePath); }
+            catch (Exception ex) { _logger.LogError(ex, "[Tokens] could not write {File}.", _filePath); return; }
+            foreach (var id in adopted)
+            {
+                _logger.LogWarning("[Tokens] {Identity}: a newer token appeared in the store (delivered by the hub); using it.", id);
+                Notify(id);
+            }
+        }
+
+        /// <summary>Picks up a grant the hub wrote into the store while this process was running (checked every minute).</summary>
+        private void SyncStoreFromDisk()
+        {
+            List<TwitchIdentity> adopted;
+            lock (_records) adopted = AdoptNewerFromDiskLocked();
+            if (adopted.Count == 0) return;
+            lock (_records) _storeSyncUtc = DateTime.UtcNow;
+            foreach (var id in adopted)
+            {
+                _logger.LogWarning("[Tokens] {Identity}: a newer token appeared in the store (delivered by the hub); using it.", id);
+                Notify(id);
+            }
         }
 
         private static string Left(DateTime expiresUtc) => FormatLeft(expiresUtc - DateTime.UtcNow);
