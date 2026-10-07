@@ -1,3 +1,7 @@
+using SkillzBot.Services;
+using SkillzBot.MODELS;
+using SkillzBot.TtvClient;
+using SkillzBot.Services.Chat;
 using SkillzBot.Services.Twitch;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
@@ -26,6 +30,9 @@ namespace SkillzBot.IRC
         private readonly IDatabaseService _databaseService;
         private readonly BotConfigModel _config;
         private readonly TwitchTokenService _tokens;
+        private readonly ChatIngress _ingress;
+        private readonly ITwitchService _twitchService;
+        private readonly HealthState _health;
         private readonly IGameStateService _gameState;
         private readonly IBotStateService _botState;
         private readonly IStreamElementsService _streamElementsService;
@@ -59,8 +66,6 @@ namespace SkillzBot.IRC
         private const int MESSAGE_MAX_LENGTH = 500;
         private const int SMALL_DELAY_MS = 100;
 
-        public event Func<OnMessageReceivedArgs, Task> OnMessageReceived;
-
         public TtvIRCClientService(
             ILogger<TtvIRCClientService> logger,
             IDatabaseService database,
@@ -69,29 +74,60 @@ namespace SkillzBot.IRC
             IBotStateService botState,
             IStreamElementsService streamElementsService,
             Api.ChatFeed feed,
-            TwitchTokenService tokens)
+            TwitchTokenService tokens,
+            ChatIngress ingress,
+            ITwitchService twitchService,
+            HealthState health)
         {
+            _health = health;
             _feed = feed;
             _tokens = tokens;
+            _ingress = ingress;
+            _twitchService = twitchService;
             _logger = logger;
             _databaseService = database;
             _config = config;
             _gameState = gameState;
             _botState = botState;
             _streamElementsService = streamElementsService;
-            _streamElementsService.FallbackSender = SendViaIrcAsync;
+            _streamElementsService.FallbackSender = SendViaFallbackAsync;
         }
 
-        /// <summary>Direct IRC send from the bot account; used when StreamElements is down or has no token.</summary>
-        private async Task SendViaIrcAsync(string message, CancellationToken cancellationToken)
+        /// <summary>
+        /// Used when StreamElements is down or has no token: Helix "Send Chat Message" from the bot account first
+        /// (needs the bot token with user:write:chat), the IRC socket when it happens to be connected, otherwise dropped.
+        /// </summary>
+        private async Task SendViaFallbackAsync(string message, CancellationToken cancellationToken)
         {
-            var client = _client;
-            if (client == null || !client.IsConnected)
+            var result = await _twitchService.SendChatMessageAsync(message);
+            if (result.Sent) return;
+            if (result.Outcome == ChatSendOutcome.Unknown)
             {
-                _logger?.LogWarning("IRC is not connected either; chat message dropped: {Text}", message);
+                // Twitch may have delivered it; a second copy over IRC would be worse than a possible miss.
+                _logger?.LogWarning("Helix send outcome unknown ({Reason}); not resending over IRC: {Text}", result.Reason, message);
                 return;
             }
-            await client.SendMessageAsync(_config.ChannelName, message, false);
+            var client = _client;
+            if (client != null && client.IsConnected)
+            {
+                await client.SendMessageAsync(_config.ChannelName, message, false);
+                return;
+            }
+            _logger?.LogWarning("Chat message dropped: Helix send unavailable ({Reason}) and IRC is not connected: {Text}", result.Reason, message);
+        }
+
+        /// <summary>Closes the connection on purpose (EventSub carries chat); the monitor reconnects when IRC is wanted again.</summary>
+        public async Task ParkAsync()
+        {
+            if (!await _connectionLock.WaitAsync(5000)) return;
+            try
+            {
+                if (_client == null) return;
+                _logger?.LogInformation("IRC parked: EventSub delivers chat.");
+                await DisposeClientInstanceAsync();
+                _isInitialized = false;
+            }
+            finally { _connectionLock.Release(); }
         }
 
         public bool IsConnected => _client?.IsConnected ?? false;
@@ -335,49 +371,33 @@ namespace SkillzBot.IRC
         {
             TouchActivity();
             TouchChatMessage();
-            var handler = OnMessageReceived;
-            if (handler != null)
-            {
-                await handler.Invoke(e);
-            }
+            await _ingress.PublishAsync(ChatMessageMapper.FromIrc(e.ChatMessage));
         }
 
         private async Task Client_OnUserTimedout(object sender, OnUserTimedoutArgs e)
         {
+            // Bookkeeping (UvalTimer, UvalCon, "o7") lives in the EventSub channel.ban handler. IRC only steps in while
+            // that subscription is not live (websocket down, rejected or revoked), so a timeout is never counted twice and never lost.
             try
             {
-                _logger?.LogInformation("User {Username} timed out for {Duration} seconds", e.UserTimeout.Username, e.UserTimeout.TimeoutDuration);
-
-                await UserTimedoutEventTask(e);
-
-                if (e.UserTimeout.TimeoutDuration.TotalSeconds > 50000)
+                if (_health.IsEventSubSubscriptionActive("channel.ban"))
                 {
-                    await SendMessage("o7");
+                    _logger?.LogDebug("IRC saw a timeout: {Username} for {Duration} (EventSub does the bookkeeping)", e.UserTimeout.Username, e.UserTimeout.TimeoutDuration);
+                    return;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error handling timeout for user {Username}", e.UserTimeout?.Username);
-            }
-        }
-
-        private async Task UserTimedoutEventTask(OnUserTimedoutArgs e)
-        {
-            if (e?.UserTimeout?.Username == null) return;
-
-            try
-            {
+                if (e?.UserTimeout?.Username == null) return;
                 var user = await _databaseService.GetUserAsync(e.UserTimeout.Username);
-                if (user.dbID != -404)
+                if (user != null && user.dbID != -404)
                 {
                     user.UvalTimer = e.UserTimeout.TimeoutDuration.TotalSeconds + DateTimeOffset.Now.ToUnixTimeSeconds();
                     user.UvalCon++;
                     await _databaseService.UpdateUserAsync(user);
                 }
+                if (e.UserTimeout.TimeoutDuration.TotalSeconds > 50000) await SendMessage("o7");
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Error processing timeout for user {Username}", e.UserTimeout.Username);
+                _logger?.LogError(ex, "Error handling timeout for user {Username}", e.UserTimeout?.Username);
             }
         }
 
@@ -454,7 +474,7 @@ namespace SkillzBot.IRC
                 if (length == MESSAGE_MAX_LENGTH && message[startIndex + length - 1] != ' ')
                 {
                     int lastSpace = message.LastIndexOf(' ', startIndex + length - 1, length);
-                    if (lastSpace != -1) length = lastSpace - startIndex;
+                    if (lastSpace > startIndex) length = lastSpace - startIndex; // never a zero-length chunk
                 }
                 await SendSingleMessage(message.Substring(startIndex, length), cancellationToken);
                 startIndex += length;

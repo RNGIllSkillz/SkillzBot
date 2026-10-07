@@ -1,3 +1,5 @@
+using SkillzBot.TtvClient;
+using SkillzBot.Services.Chat;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SkillzBot.IllConfiguration;
@@ -35,6 +37,7 @@ namespace SkillzBot.EventSub
         private readonly RewardsRedemption _rewardsRedemption;
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
         private readonly TwitchTokenService _tokens;
+        private readonly ChatIngress _chatIngress;
         private readonly BotConfigModel _config;
         private readonly IBotStateService _botState;
         private readonly ITwitchService _twitchService;
@@ -69,13 +72,15 @@ namespace SkillzBot.EventSub
             HealthState health,
             Services.Vip.VipRegistryService vips,
             IEngagementRepository engagement,
-            TwitchTokenService tokens)
+            TwitchTokenService tokens,
+            ChatIngress chatIngress)
         {
             _ircClient = ircClient;
             _health = health;
             _vips = vips;
             _engagement = engagement;
             _tokens = tokens;
+            _chatIngress = chatIngress;
             _eventSubWebsocketClient = eventSubWebsocketClient ?? throw new ArgumentNullException(nameof(eventSubWebsocketClient));
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             _rewardsRedemption = rewardsRedemption;
@@ -100,9 +105,22 @@ namespace SkillzBot.EventSub
             _eventSubWebsocketClient.ChannelPollEnd += OnPollEnd;
             _eventSubWebsocketClient.ChannelVipAdd += OnVipAdd;
             _eventSubWebsocketClient.ChannelVipRemove += OnVipRemove;
+            _eventSubWebsocketClient.ChannelChatMessage += OnChannelChatMessage;
+            _eventSubWebsocketClient.Revocation += OnRevocation;
+            _chatIngress.EventSubRecovery = ForceReconnectAsync;
 
             // Subscriptions are created under the broadcaster token; a refreshed token lands here without a restart.
-            _tokens.Attach(TwitchIdentity.Broadcaster, c => { _twitchApi.Settings.ClientId = c.ClientId; _twitchApi.Settings.AccessToken = c.AccessToken; });
+            _tokens.Attach(TwitchIdentity.Broadcaster, c =>
+            {
+                // A different application or source (panel grant replacing the config token, or the reverse) means the
+                // subscriptions of the current session belong to the old client: open a fresh session. A refresh of the
+                // same token changes nothing here.
+                // A new grant with the same application (ObtainedUtc moves) also counts: it may carry new scopes or revive a revoked authorization.
+                bool changed = _lastClientId != null && (_lastClientId != c.ClientId || _lastSource != c.Source || _lastObtainedUtc != c.ObtainedUtc);
+                _lastClientId = c.ClientId; _lastSource = c.Source; _lastObtainedUtc = c.ObtainedUtc;
+                _twitchApi.Settings.ClientId = c.ClientId; _twitchApi.Settings.AccessToken = c.AccessToken;
+                if (changed) _ = ForceReconnectAsync($"broadcaster credential changed ({c.Source}, client {c.ClientId})");
+            });
 
             SubscriptionsTypes = new Dictionary<string, string>
             {
@@ -133,7 +151,12 @@ namespace SkillzBot.EventSub
             {
                 while (await timer.WaitForNextTickAsync(stoppingToken))
                 {
-                    if (_isConnected) continue;
+                    if (_isConnected)
+                    {
+                        if (!_chatIngress.EventSubChatActive && DateTime.UtcNow >= _chatRetryDueUtc)
+                            await Guard(SubscribeToChatAsync, "chat resubscribe");
+                        continue;
+                    }
 
                     var now = DateTime.UtcNow;
                     var disconnectedSince = new DateTime(Interlocked.Read(ref _disconnectedSinceTicks), DateTimeKind.Utc);
@@ -166,6 +189,8 @@ namespace SkillzBot.EventSub
 
         private void MarkDisconnected()
         {
+            _health.ClearEventSubSubscriptions();
+            if (_chatIngress.EventSubWanted) _chatIngress.SetEventSubChat(false, "websocket disconnected");
             if (_isConnected)
                 Interlocked.Exchange(ref _disconnectedSinceTicks, DateTime.UtcNow.Ticks);
             _isConnected = false;
@@ -204,6 +229,7 @@ namespace SkillzBot.EventSub
 
                 if (!ok)
                 {
+                    _chatIngress.SetEventSubChat(false, "EventSub (re)connect failed");
                     _consecutiveFailures++;
                     var backoff = TimeSpan.FromSeconds(Math.Min(MaxBackoff.TotalSeconds, 5 * Math.Pow(2, Math.Min(_consecutiveFailures - 1, 6))));
                     _nextAttemptUtc = DateTime.UtcNow + backoff;
@@ -257,6 +283,14 @@ namespace SkillzBot.EventSub
             return Task.CompletedTask;
         }
 
+        private enum SubscribeResult { Subscribed, Rejected, Failed }
+
+        private DateTime _chatRetryDueUtc = DateTime.MinValue;
+        private string _lastClientId, _lastSource;
+        private DateTime? _lastObtainedUtc;
+        private readonly HashSet<string> _seenBanNotifications = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Queue<string> _seenBanOrder = new Queue<string>();
+
         private async Task Subscribe()
         {
             if (string.IsNullOrEmpty(_eventSubWebsocketClient.SessionId))
@@ -268,11 +302,15 @@ namespace SkillzBot.EventSub
             int subscribed = 0;
             foreach (var type in SubscriptionsTypes)
             {
-                bool success = await SubscribeToChannelEventsWithRetry(type.Key, type.Value);
-                if (success) subscribed++;
-
-                if (!success)
+                var result = await SubscribeToChannelEventsWithRetry(type.Key, type.Value);
+                _health.SetEventSubSubscription(type.Key, result == SubscribeResult.Subscribed);
+                if (result == SubscribeResult.Subscribed) { subscribed++; continue; }
+                if (result == SubscribeResult.Rejected)
                 {
+                    // A 400 is a permanent answer for this token (scope or affiliate status); keep the rest alive.
+                    _logger.LogError("Subscription {Type} rejected by Twitch; continuing without it.", type.Key);
+                    continue;
+                }
                     _logger.LogError("Critical: Failed to subscribe to {Type} after retries. Disconnecting to reset state.", type.Key);
                     try { await _eventSubWebsocketClient.DisconnectAsync(); }
                     catch (Exception ex) { _logger.LogWarning(ex, "Disconnect after failed subscribe threw."); }
@@ -280,20 +318,115 @@ namespace SkillzBot.EventSub
                     _consecutiveFailures++;
                     _nextAttemptUtc = DateTime.UtcNow + TimeSpan.FromSeconds(Math.Min(MaxBackoff.TotalSeconds, 5 * Math.Pow(2, Math.Min(_consecutiveFailures - 1, 6))));
                     return;
-                }
             }
             _logger.LogInformation("EventSub ready: {Count}/{Total} subscriptions active on session {SessionId}.", subscribed, SubscriptionsTypes.Count, _eventSubWebsocketClient.SessionId);
+            await SubscribeToChatAsync();
         }
 
-        private async Task<bool> SubscribeToChannelEventsWithRetry(string _type, string _version)
+        /// <summary>
+        /// channel.chat.message under the broadcaster token (user:read:chat). Optional: a refusal leaves the other
+        /// subscriptions alone and hands chat to IRC through the ingress. Transient failures are retried by the watchdog;
+        /// a missing scope waits for the credential to change (the streamer authorizing on the panel forces a new session).
+        /// </summary>
+        private async Task SubscribeToChatAsync()
+        {
+            if (!_chatIngress.EventSubWanted)
+            {
+                _chatIngress.SetEventSubChat(false, "ChatTransport=irc");
+                _chatRetryDueUtc = DateTime.MaxValue;
+                return;
+            }
+            if (!_isConnected || string.IsNullOrEmpty(_eventSubWebsocketClient.SessionId)) return;
+            var cred = _tokens.Current(TwitchIdentity.Broadcaster);
+            if (cred == null)
+            {
+                _chatIngress.SetEventSubChat(false, "no broadcaster token");
+                _chatRetryDueUtc = DateTime.MaxValue;
+                return;
+            }
+            // The scopes of a config token are only known after a successful validate call; when unknown, let Twitch decide.
+            if (cred.Scopes.Count > 0 && !cred.Scopes.Contains("user:read:chat", StringComparer.OrdinalIgnoreCase))
+            {
+                _chatIngress.SetEventSubChat(false, "broadcaster token has no user:read:chat; authorize the streamer on the panel's Twitch page");
+                _chatRetryDueUtc = DateTime.MaxValue;
+                return;
+            }
+            try
+            {
+                var result = await SubscribeToChannelEvents("channel.chat.message", "1");
+                _health.SetEventSubSubscription("channel.chat.message", result == SubscribeResult.Subscribed);
+                if (result == SubscribeResult.Subscribed)
+                {
+                    _chatIngress.SetEventSubChat(true, "subscribed on session " + _eventSubWebsocketClient.SessionId);
+                    _chatRetryDueUtc = DateTime.MaxValue;
+                }
+                else
+                {
+                    _chatIngress.SetEventSubChat(false, "subscription rejected by Twitch (missing user:read:chat or wrong application); authorize the streamer on the panel's Twitch page");
+                    _chatRetryDueUtc = DateTime.UtcNow.AddMinutes(10);
+                }
+            }
+            catch (Exception ex)
+            {
+                _chatIngress.SetEventSubChat(false, "subscribe failed: " + ex.Message);
+                _chatRetryDueUtc = DateTime.UtcNow.AddSeconds(60);
+            }
+        }
+
+        private Task OnChannelChatMessage(object sender, ChannelChatMessageArgs e)
+        {
+            _health.MarkEventSubEvent();
+            return Guard(() => _chatIngress.PublishAsync(ChatMessageMapper.FromEventSub(e.Payload.Event)), nameof(OnChannelChatMessage));
+        }
+
+        private Task OnRevocation(object sender, RevocationArgs e)
+        {
+            var sub = e.Payload?.Subscription;
+            string type = sub?.Type ?? "?", status = sub?.Status ?? "?";
+            _logger.LogWarning("EventSub revoked subscription {Type}: {Status}.", type, status);
+            _health.SetEventSubSubscription(type, false);
+            if (type == "channel.chat.message")
+            {
+                _chatIngress.SetEventSubChat(false, $"revoked by Twitch ({status})");
+                _chatRetryDueUtc = status.Contains("authorization", StringComparison.OrdinalIgnoreCase) ? DateTime.MaxValue : DateTime.UtcNow.AddSeconds(60);
+            }
+            return Task.CompletedTask;
+        }
+
+        /// <summary>Drops the websocket so the watchdog opens a fresh session and re-subscribes everything, chat included.</summary>
+        private async Task ForceReconnectAsync(string reason)
+        {
+            if (!_hasConnectedBefore || !_isConnected) return; // a reconnect already in flight will subscribe with the current token
+            _logger.LogWarning("EventSub: forcing a fresh session ({Reason}).", reason);
+            try { await _eventSubWebsocketClient.DisconnectAsync(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Disconnect for the forced reconnect threw."); }
+            MarkDisconnected();
+            Interlocked.Exchange(ref _disconnectedSinceTicks, DateTime.MinValue.Ticks); // no grace: reconnect on the next tick
+            _nextAttemptUtc = DateTime.UtcNow;
+            _chatRetryDueUtc = DateTime.MinValue;
+        }
+
+        /// <summary>True the first time a ban/timeout key is seen; EventSub may redeliver a notification.</summary>
+        private bool FirstDelivery(string notificationId)
+        {
+            if (string.IsNullOrEmpty(notificationId)) return true;
+            lock (_seenBanNotifications)
+            {
+                if (!_seenBanNotifications.Add(notificationId)) return false;
+                _seenBanOrder.Enqueue(notificationId);
+                while (_seenBanOrder.Count > 256) _seenBanNotifications.Remove(_seenBanOrder.Dequeue());
+                return true;
+            }
+        }
+
+        private async Task<SubscribeResult> SubscribeToChannelEventsWithRetry(string _type, string _version)
         {
             int attempts = 0;
             while (attempts < 3)
             {
                 try
                 {
-                    await SubscribeToChannelEvents(_type, _version);
-                    return true;
+                    return await SubscribeToChannelEvents(_type, _version);
                 }
                 catch (Exception ex) when (ex is BadScopeException || ex is TokenExpiredException)
                 {
@@ -311,18 +444,19 @@ namespace SkillzBot.EventSub
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Unexpected error during subscription.");
-                    return false;
+                    return SubscribeResult.Failed;
                 }
             }
-            return false;
+            return SubscribeResult.Failed;
         }
 
-        private async Task SubscribeToChannelEvents(string _type, string _version)
+        /// <summary>Subscribed on success or 409 (already there); Rejected on 400; transient errors are thrown for the retry wrapper.</summary>
+        private async Task<SubscribeResult> SubscribeToChannelEvents(string _type, string _version)
         {
             if (string.IsNullOrEmpty(_eventSubWebsocketClient.SessionId))
             {
                 _logger.LogError("Cannot subscribe to {_type}: SessionId is null.", _type);
-                return;
+                return SubscribeResult.Failed;
             }
 
             try
@@ -332,7 +466,7 @@ namespace SkillzBot.EventSub
                     { "broadcaster_user_id", _config.BroadcasterId }
                 };
 
-                if (_type == "channel.chat_settings.update")
+                if (_type == "channel.chat_settings.update" || _type == "channel.chat.message")
                 {
                     condition["user_id"] = _config.BroadcasterId;
                 }
@@ -346,18 +480,27 @@ namespace SkillzBot.EventSub
 
                 if (subscription.Subscriptions.Length > 0)
                     _logger.LogInformation("Subscribed to {_type}. Subscription ID: {Id}", _type, subscription.Subscriptions[0].Id);
+                return SubscribeResult.Subscribed;
             }
             catch (BadRequestException ex)
             {
                 _logger.LogError("Failed to subscribe to {_type}: Bad Request: {Message}", _type, ex.Message);
+                return SubscribeResult.Rejected;
+            }
+            catch (BadTokenException ex)
+            {
+                // 403: the token lacks the scope for this subscription. Permanent for this token; keep the session.
+                _logger.LogError("Failed to subscribe to {_type}: Forbidden (missing scope): {Message}", _type, ex.Message);
+                return SubscribeResult.Rejected;
             }
             catch (HttpRequestException ex) when (ex.Message.Contains("409") || ex.Message.Contains("Conflict"))
             {
                 _logger.LogDebug("Subscription for {_type} already exists (Conflict 409).", _type);
+                return SubscribeResult.Subscribed;
             }
             catch (Exception ex)
             {
-                if (ex.InnerException is System.Net.Sockets.SocketException || ex is HttpRequestException)
+                if (ex.InnerException is System.Net.Sockets.SocketException || ex is HttpRequestException || ex is BadScopeException || ex is TokenExpiredException)
                 {
                     throw; // Re-throw for retry
                 }
@@ -365,12 +508,11 @@ namespace SkillzBot.EventSub
                 if (ex.Message.Contains("Conflict") || (ex.InnerException?.Message.Contains("Conflict") ?? false))
                 {
                     _logger.LogDebug("Subscription for {_type} already exists (Conflict).", _type);
+                    return SubscribeResult.Subscribed;
                 }
-                else
-                {
-                    _logger.LogError(ex, "Failed to subscribe to {_type} event.", _type);
-                    throw; // Re-throw to trigger retry
-                }
+
+                _logger.LogError(ex, "Failed to subscribe to {_type} event.", _type);
+                throw; // Re-throw to trigger retry
             }
         }
 
@@ -426,7 +568,28 @@ namespace SkillzBot.EventSub
 
         private Task OnChannelBan(object sender, ChannelBanArgs e) => OnEvent(async () =>
         {
-            if (e.Payload.Event.IsPermanent)
+            var ev = e.Payload.Event;
+            // The library does not expose the notification id, so a redelivery is recognized by user + banned_at.
+            if (!FirstDelivery($"{ev.UserId}|{ev.BannedAt.UtcTicks}")) return;
+            // Timeout bookkeeping used by the uval rewards and the re-mod logic; this replaces the IRC CLEARCHAT path
+            // and runs whatever transport carries chat.
+            if (!ev.IsPermanent && ev.EndsAt.HasValue && long.TryParse(ev.UserId, out long uid))
+            {
+                try
+                {
+                    var user = await _databaseService.GetUserAsync(uid);
+                    if (user != null && user.dbID != -404)
+                    {
+                        user.UvalTimer = ev.EndsAt.Value.ToUnixTimeSeconds();
+                        user.UvalCon++;
+                        await _databaseService.UpdateUserAsync(user);
+                    }
+                }
+                catch (Exception ex) { _logger.LogError(ex, "Timeout bookkeeping failed for {Login}", ev.UserLogin); }
+                _logger.LogInformation("User {Login} timed out until {EndsAt:HH:mm:ss} by {Mod}", ev.UserLogin, ev.EndsAt.Value.ToLocalTime(), ev.ModeratorUserLogin);
+            }
+            bool longOne = !ev.IsPermanent && ev.EndsAt.HasValue && (ev.EndsAt.Value - ev.BannedAt).TotalSeconds > 50000;
+            if (ev.IsPermanent || longOne)
                 await _ircClient.SendMessage("o7");
         }, nameof(OnChannelBan));
 

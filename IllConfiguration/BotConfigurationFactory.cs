@@ -51,6 +51,7 @@ namespace SkillzBot.Configuration
 
                 VipLimit = botConfigs.VipLimit ?? 100,
                 TApiClientSecret = botConfigs.TApiClientSecret?.Trim(),
+                ChatTransport = string.IsNullOrWhiteSpace(botConfigs.ChatTransport) ? "auto" : botConfigs.ChatTransport.Trim().ToLowerInvariant(),
                 ApiClientId = string.IsNullOrWhiteSpace(botConfigs.ApiClientId) ? botConfigs.TApiClientId?.Trim() : botConfigs.ApiClientId.Trim(),
                 ApiPort = botConfigs.ApiPort ?? 8080,
                 ApiPublicUrl = botConfigs.ApiPublicUrl?.Trim().TrimEnd('/'),

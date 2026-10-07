@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using TwitchLib.Client.Events;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -165,29 +164,29 @@ namespace SkillzBot.IllSkillzBot
         /// Deletes messages from non-moderators that contain links, except a single
         /// clip link from this channel.
         /// </summary>
-        public async Task<bool> DeleteLinks(UserObject user, OnMessageReceivedArgs e)
+        public async Task<bool> DeleteLinks(UserObject user, IncomingChatMessage e)
         {
             if (user.isMod == 1 || user.IsBroadcaster == 1) return false;
 
-            int links = await _linkDetector.CountLinksAsync(e.ChatMessage.Message).ConfigureAwait(false);
+            int links = await _linkDetector.CountLinksAsync(e.Text).ConfigureAwait(false);
             if (links == 0) return false;
 
             if (links == 1)
             {
-                var clipId = StringUtil.ExtractClipId(e.ChatMessage.Message);
+                var clipId = StringUtil.ExtractClipId(e.Text);
                 if (clipId != null && await _twitchService.CheckClipExistence(clipId).ConfigureAwait(false))
                     return false;
             }
 
-            await _twitchService.DeleteMessage(e.ChatMessage.Id);
+            await _twitchService.DeleteMessage(e.Id);
             return true;
         }
 
-        public bool FilterASCII(OnMessageReceivedArgs e)
+        public bool FilterASCII(IncomingChatMessage e)
         {
-            if (e.ChatMessage.CustomRewardId == _config.ChannelIds.Pi4KaId) return false;
+            if (e.CustomRewardId == _config.ChannelIds.Pi4KaId) return false;
 
-            string message = e.ChatMessage.Message;
+            string message = e.Text;
             int count = StringUtil.CheckASCII(message);
             if (count / CharsInRow >= RowsNum && message.Length / CharsInRow > RowsNum)
                 return true;

@@ -1,3 +1,4 @@
+using SkillzBot.Services.Chat;
 using Camille.Enums;
 using Camille.RiotGames.LeagueV4;
 using System.Diagnostics;
@@ -46,6 +47,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
         private readonly MediaQueueService _mediaQueueService;
         private readonly BlacklistService _blacklistService;
         private readonly SubscriptionService _subscriptionService;
+        private readonly ChatIngress _chatIngress;
         private readonly IMmrService _mmrService;
         private readonly HealthState _health;
         private readonly ProxyService _proxy;
@@ -78,6 +80,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             MediaQueueService mediaQueueService,
             BlacklistService blacklistService,
             SubscriptionService subscriptionService,
+            ChatIngress chatIngress,
             IMmrService mmrService,
             HealthState health,
             ProxyService proxy,
@@ -110,6 +113,7 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             _streamElementsService = streamElementsService;
             _illAccess = illAccess;
             _subscriptionService = subscriptionService;
+            _chatIngress = chatIngress;
             _mediaQueueService = mediaQueueService;
             _configWriter = configWriter;
             _blacklistService = blacklistService;
@@ -1003,7 +1007,8 @@ namespace SkillzBot.IllSkillzBot.IllCommandsNest
             var (chatPending, chatProcessed, _, chatStalled, _) = _chatStats?.Invoke() ?? (0, 0L, 0, 0L, "");
 
             // 2. Connection Stats
-            string ircStatus = _ircClient.IsConnected ? "up" : "DOWN";
+            string ircStatus = _ircClient.IsConnected ? "up" : _chatIngress.Decide(DateTime.UtcNow) == IrcPolicy.Unwanted ? "parked (chat via EventSub)" : "DOWN";
+            ircStatus += $" | chat: {_chatIngress.Describe(_ircClient.IsConnected, true).Split(' ')[0]}";
             string eventSubStatus = _health.EventSubConnected
                 ? $"up (since {HealthState.FormatAge(_health.EventSubSinceUtc)}, last event {HealthState.FormatAge(_health.EventSubLastEventUtc)})"
                 : "DOWN";

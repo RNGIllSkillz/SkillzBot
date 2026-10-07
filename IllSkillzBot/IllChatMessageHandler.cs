@@ -12,8 +12,6 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using TwitchLib.Client.Events;
-using TwitchLib.Client.Models;
 
 namespace SkillzBot.IllSkillzBot
 {
@@ -44,7 +42,7 @@ namespace SkillzBot.IllSkillzBot
         private const int TimeoutSec = 300;
         private const int LightTimeoutSec = 10;
 
-        private readonly Channel<OnMessageReceivedArgs> _messageChannel;
+        private readonly Channel<IncomingChatMessage> _messageChannel;
         private const int SaveBufferCount = 20;
         /// <summary>Upper bound for unsaved messages kept in memory while the database is down.</summary>
         private const int MaxBufferedMessages = 5000;
@@ -90,14 +88,14 @@ namespace SkillzBot.IllSkillzBot
             _illAccess = illAccess;
             _streamElementsService = streamElementsService;
             illCommands._chatStats = GetStats;
-            _messageChannel = Channel.CreateUnbounded<OnMessageReceivedArgs>(new UnboundedChannelOptions
+            _messageChannel = Channel.CreateUnbounded<IncomingChatMessage>(new UnboundedChannelOptions
             {
                 SingleReader = true, // We have one processing loop
-                SingleWriter = true  // Only the IRC client writes
+                SingleWriter = false // EventSub and IRC may both write during a hand-over
             });
         }
 
-        public Task HandleMessage(OnMessageReceivedArgs e)
+        public Task HandleMessage(IncomingChatMessage e)
         {
             _feed.PublishIncoming(e);
             Interlocked.Increment(ref _pendingMessageCount);
@@ -134,32 +132,32 @@ namespace SkillzBot.IllSkillzBot
                         Interlocked.Increment(ref _stalledMessages);
                         _lastStall = $"{stage} at {DateTime.UtcNow:HH:mm:ss}Z";
                         _logger.LogWarning("[STALL] Message from {User} still running after {Seconds}s at stage '{Stage}'; chat loop moves on, it continues in the background. Content: {Message}",
-                            e.ChatMessage.Username, (int)MessageTimeout.TotalSeconds, stage, e.ChatMessage.Message);
+                            e.Login, (int)MessageTimeout.TotalSeconds, stage, e.Text);
                         var started = DateTime.UtcNow;
                         _ = work.ContinueWith(t =>
                         {
-                            if (t.IsFaulted) _logger.LogError(t.Exception?.GetBaseException(), "Stalled message from {User} failed", e.ChatMessage.Username);
-                            else _logger.LogWarning("Stalled message from {User} finished after {Seconds}s more.", e.ChatMessage.Username, (int)(DateTime.UtcNow - started).TotalSeconds);
+                            if (t.IsFaulted) _logger.LogError(t.Exception?.GetBaseException(), "Stalled message from {User} failed", e.Login);
+                            else _logger.LogWarning("Stalled message from {User} finished after {Seconds}s more.", e.Login, (int)(DateTime.UtcNow - started).TotalSeconds);
                         }, TaskScheduler.Default);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error processing chat message from {User}", e.ChatMessage.Username);
+                        _logger.LogError(ex, "Error processing chat message from {User}", e.Login);
                     }
                 }
             }
         }
 
-        public async Task ProcessMessageInternal(OnMessageReceivedArgs e)
+        public async Task ProcessMessageInternal(IncomingChatMessage e)
         {
             var sw = Stopwatch.StartNew();
-            if (e.ChatMessage.Username.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return;
+            if (e.Login.Equals("streamelements", StringComparison.OrdinalIgnoreCase)) return;
 
             SaveToBuffer(e);
-            var tracker = AddToTracker(e.ChatMessage.Username, e.ChatMessage.Message);
+            var tracker = AddToTracker(e.Login, e.Text);
 
             _stage = "load-user";
-            UserObject user = await GetAddUser(e.ChatMessage);
+            UserObject user = await GetAddUser(e);
             if (user == null) return;
 
             user.messageCon++;
@@ -176,7 +174,7 @@ namespace SkillzBot.IllSkillzBot
             if (_botState.Current.IsSubActive)
             {
                 _stage = "filters";
-                if (_chatFilters.CheckBooB(e.ChatMessage.Message))
+                if (_chatFilters.CheckBooB(e.Text))
                 {
                     await _twitchService.TimeOutUser(user, HardTimeoutSec, STRINGS.TimeOutBadPic);
                     await SaveUserAsync(user);
@@ -188,13 +186,13 @@ namespace SkillzBot.IllSkillzBot
                     await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOutPic);
                 }
 
-                if (await _chatFilters.ZapCheck(e.ChatMessage.Message, e.ChatMessage.DisplayName).ConfigureAwait(false))
+                if (await _chatFilters.ZapCheck(e.Text, e.DisplayName).ConfigureAwait(false))
                 {
                     _ = Task.Run(async () =>
                     {
                         try
                         {
-                            var updatedUser = await _modInteractions.IllFilterTrigger(user, e.ChatMessage.Id);
+                            var updatedUser = await _modInteractions.IllFilterTrigger(user, e.Id);
                             await SaveUserAsync(updatedUser);
                         }
                         catch (Exception ex)
@@ -209,14 +207,14 @@ namespace SkillzBot.IllSkillzBot
                 await _chatFilters.DeleteLinks(user, e);
                 _stage = "spam-phrase";
 
-                if (CheckSpam(tracker, e.ChatMessage.Message))
+                if (CheckSpam(tracker, e.Text))
                 {
                     await _twitchService.TimeOutUser(user, LightTimeoutSec, STRINGS.TimeOutSpam);
                     await SaveUserAsync(user);
                     return;
                 }
 
-                if (_chatFilters.ContainsBlockedPhrase(e.ChatMessage.Message))
+                if (_chatFilters.ContainsBlockedPhrase(e.Text))
                 {
                     await _twitchService.TimeOutUser(user, TimeoutSec, STRINGS.TimeOut1wReason);
                     await SaveUserAsync(user);
@@ -225,16 +223,16 @@ namespace SkillzBot.IllSkillzBot
 
                 _stage = "quiz";
                 if (_botState.Current.QuizIsRunning)
-                    user = await _illGames.UserGuessAnswer(user, e.ChatMessage.Message);
+                    user = await _illGames.UserGuessAnswer(user, e.Text);
                 else
                     _illGames.QuizzActiveUser(user.TwitchID.ToString());
             }
 
-            if (e.ChatMessage.Message.StartsWith("!"))
+            if (e.Text.StartsWith("!"))
             {
-                int space = e.ChatMessage.Message.IndexOf(' ');
-                _stage = "command " + (space > 0 ? e.ChatMessage.Message.Substring(0, space) : e.ChatMessage.Message);
-                user = await _commandHandler.CommandHandler(user, e.ChatMessage.Message);
+                int space = e.Text.IndexOf(' ');
+                _stage = "command " + (space > 0 ? e.Text.Substring(0, space) : e.Text);
+                user = await _commandHandler.CommandHandler(user, e.Text);
             }
             _stage = "save-user";
             await SaveUserAsync(user);
@@ -246,12 +244,12 @@ namespace SkillzBot.IllSkillzBot
             if (sw.ElapsedMilliseconds > 1500)
             {
                 _logger.LogWarning("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
-                    e.ChatMessage.Username, sw.ElapsedMilliseconds, e.ChatMessage.Message);
+                    e.Login, sw.ElapsedMilliseconds, e.Text);
             }
             else if (sw.ElapsedMilliseconds > 500)
             {
                 _logger.LogDebug("[SLOW OP] Message from {User} took {Time}ms to process. Content: {Message}",
-                    e.ChatMessage.Username, sw.ElapsedMilliseconds, e.ChatMessage.Message);
+                    e.Login, sw.ElapsedMilliseconds, e.Text);
             }
 
             if (_botState.Current.PerformanceDebugMode && _illAccess.Root(user))
@@ -287,13 +285,13 @@ namespace SkillzBot.IllSkillzBot
             }
         }
 
-        private void SaveToBuffer(OnMessageReceivedArgs e)
+        private void SaveToBuffer(IncomingChatMessage e)
         {
             _messagesBuffer.Enqueue(new MessageBuffer()
             {
-                Message = e.ChatMessage.Message,
-                TtvID = e.ChatMessage.UserId,
-                Name = e.ChatMessage.Username,
+                Message = e.Text,
+                TtvID = e.UserId,
+                Name = e.Login,
                 TimeStamp = DateTimeOffset.Now.ToUnixTimeSeconds().ToString()
             });
 
@@ -365,11 +363,11 @@ namespace SkillzBot.IllSkillzBot
         /// When the database is unreachable a transient user is built from the chat
         /// metadata so moderation and commands keep working.
         /// </summary>
-        private async Task<UserObject> GetAddUser(ChatMessage chatmessage)
+        private async Task<UserObject> GetAddUser(IncomingChatMessage chatmessage)
         {
             if (!long.TryParse(chatmessage.UserId, out long ttvid))
             {
-                _logger.LogError("GetAddUser(): TtvID Conversion Error for user {Username}", chatmessage.Username);
+                _logger.LogError("GetAddUser(): TtvID Conversion Error for user {Username}", chatmessage.Login);
                 return null;
             }
 
@@ -380,7 +378,7 @@ namespace SkillzBot.IllSkillzBot
             }
             catch (Exception ex)
             {
-                WarnDatabaseDown(ex, "Database unreachable; processing {User} with a transient profile.", chatmessage.Username);
+                WarnDatabaseDown(ex, "Database unreachable; processing {User} with a transient profile.", chatmessage.Login);
                 return BuildTransientUser(chatmessage, ttvid);
             }
 
@@ -392,10 +390,10 @@ namespace SkillzBot.IllSkillzBot
                 needsUpdate = true;
             }
 
-            if (user.Name != chatmessage.Username ||
-                user.isSub != (chatmessage.UserDetail.IsSubscriber ? 1 : 0) ||
-                user.isMod != (chatmessage.UserDetail.IsModerator ? 1 : 0) ||
-                user.isVip != (chatmessage.UserDetail.IsVip ? 1 : 0))
+            if (user.Name != chatmessage.Login ||
+                user.isSub != (chatmessage.IsSubscriber ? 1 : 0) ||
+                user.isMod != (chatmessage.IsModerator ? 1 : 0) ||
+                user.isVip != (chatmessage.IsVip ? 1 : 0))
             {
                 needsUpdate = true;
             }
@@ -413,7 +411,7 @@ namespace SkillzBot.IllSkillzBot
                 }
                 catch (Exception ex)
                 {
-                    WarnDatabaseDown(ex, "Failed to add/update user {User}; continuing with a transient profile.", chatmessage.Username);
+                    WarnDatabaseDown(ex, "Failed to add/update user {User}; continuing with a transient profile.", chatmessage.Login);
                     user.IsTransient = true;
                 }
             }
@@ -421,21 +419,21 @@ namespace SkillzBot.IllSkillzBot
             return user;
         }
 
-        private static UserObject BuildTransientUser(ChatMessage chatmessage, long ttvid)
+        private static UserObject BuildTransientUser(IncomingChatMessage chatmessage, long ttvid)
         {
             var user = new UserObject { dbID = -404, TwitchID = ttvid, IsTransient = true };
             ApplyChatMetadata(user, chatmessage);
             return user;
         }
 
-        private static void ApplyChatMetadata(UserObject user, ChatMessage chatmessage)
+        private static void ApplyChatMetadata(UserObject user, IncomingChatMessage chatmessage)
         {
-            user.Name = chatmessage.Username;
-            user.isSub = chatmessage.UserDetail.IsSubscriber ? 1 : 0;
-            user.isVip = chatmessage.UserDetail.IsVip ? 1 : 0;
+            user.Name = chatmessage.Login;
+            user.isSub = chatmessage.IsSubscriber ? 1 : 0;
+            user.isVip = chatmessage.IsVip ? 1 : 0;
             user.IsBroadcaster = chatmessage.IsBroadcaster ? 1 : 0;
-            user.isMod = chatmessage.UserDetail.IsModerator ? 1 : 0;
-            user.isPartner = chatmessage.UserDetail.IsPartner ? 1 : 0;
+            user.isMod = chatmessage.IsModerator ? 1 : 0;
+            user.isPartner = chatmessage.IsPartner ? 1 : 0;
         }
 
         private bool CheckSpam(UserChatTracker tracker, string currentMessage)

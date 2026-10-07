@@ -18,6 +18,8 @@ namespace SkillzBot.Api
         public double IrcLastTrafficSeconds { get; set; }
         public double IrcLastMessageSeconds { get; set; }
         public bool IrcInChannel { get; set; }
+        public string Chat { get; set; }
+        public double ChatLastMessageSeconds { get; set; }
         public bool EventSubConnected { get; set; }
         public double? EventSubSinceSeconds { get; set; }
         public double? EventSubLastEventSeconds { get; set; }

@@ -1,3 +1,4 @@
+using SkillzBot.Services.Chat;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
@@ -27,24 +28,31 @@ namespace SkillzBot.Hosts
         private static readonly TimeSpan SilentLiveThreshold = TimeSpan.FromMinutes(10);
         private static readonly TimeSpan SilentOfflineThreshold = TimeSpan.FromHours(3);
         private readonly IBotStateService _botState;
+        private readonly ChatIngress _ingress;
         private int _ghostStrikes;
 
         public TwitchIrcHostedService(
             ITtvIRCClient ircClient,
             IllChatMessageHandler messageHandler,
             IBotStateService botState,
+            ChatIngress ingress,
             ILogger<TwitchIrcHostedService> logger)
         {
+            _ingress = ingress;
             _ircClient = ircClient;
             _messageHandler = messageHandler;
             _botState = botState;
             _logger = logger;
         }
 
-        /// <summary>The reconnect decision, kept pure so it can be tested: "zombie" (socket silent), "ghost" (socket alive, chat silent), "down" or null.</summary>
-        internal static string Evaluate(bool connected, TimeSpan sinceTraffic, TimeSpan sinceMessage, bool online, int ghostStrikes)
+        /// <summary>
+        /// The reconnect decision, kept pure so it can be tested: "park" (EventSub carries chat), "down" (connect),
+        /// "zombie" (socket silent), "ghost" (socket alive, chat silent) or null (nothing to do).
+        /// </summary>
+        internal static string Evaluate(bool connected, TimeSpan sinceTraffic, TimeSpan sinceMessage, bool online, int ghostStrikes, IrcPolicy policy = IrcPolicy.Required)
         {
-            if (!connected) return "down";
+            if (policy == IrcPolicy.Unwanted) return connected ? "park" : null;
+            if (!connected) return policy == IrcPolicy.Required ? "down" : null;
             if (sinceTraffic > ZombieThreshold) return "zombie";
             var threshold = (online ? SilentLiveThreshold : SilentOfflineThreshold) * Math.Pow(2, Math.Min(ghostStrikes, 3));
             return sinceMessage > threshold ? "ghost" : null;
@@ -52,7 +60,7 @@ namespace SkillzBot.Hosts
 
         public override Task StartAsync(CancellationToken cancellationToken)
         {
-            _ircClient.OnMessageReceived += _messageHandler.HandleMessage;
+            _ingress.MessageReceived += _messageHandler.HandleMessage;
             _loopCts = new CancellationTokenSource();
             _loopTask = Task.Run(() => RunProcessingLoopAsync(_loopCts.Token));
             return base.StartAsync(cancellationToken);
@@ -86,7 +94,7 @@ namespace SkillzBot.Hosts
 
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            _ircClient.OnMessageReceived -= _messageHandler.HandleMessage;
+            _ingress.MessageReceived -= _messageHandler.HandleMessage;
             _logger.LogInformation("Stopping Twitch IRC service...");
             _loopCts?.Cancel();
             try
@@ -104,7 +112,8 @@ namespace SkillzBot.Hosts
         {
             _logger.LogInformation("Starting Twitch IRC Monitor Loop...");
 
-            await TryConnectAsync();
+            if (_ingress.Decide(DateTime.UtcNow) == IrcPolicy.Required) await TryConnectAsync();
+            else _logger.LogInformation("IRC not started: ChatTransport={Mode}.", _ingress.Mode);
 
             using var timer = new PeriodicTimer(MonitorInterval);
 
@@ -117,8 +126,16 @@ namespace SkillzBot.Hosts
                     bool online = _botState.Current.BroadcasterIsOnline;
                     if (timeSinceLastMessage < SilentLiveThreshold) _ghostStrikes = 0; // chat is flowing again
 
-                    string verdict = Evaluate(_ircClient.IsConnected, timeSinceLastActivity, timeSinceLastMessage, online, _ghostStrikes);
+                    await WatchEventSubChatAsync(online);
+
+                    string verdict = Evaluate(_ircClient.IsConnected, timeSinceLastActivity, timeSinceLastMessage, online, _ghostStrikes, _ingress.Decide(DateTime.UtcNow));
                     if (verdict == null) continue;
+                    if (verdict == "park")
+                    {
+                        _ghostStrikes = 0;
+                        await _ircClient.ParkAsync();
+                        continue;
+                    }
 
                     switch (verdict)
                     {
@@ -142,6 +159,30 @@ namespace SkillzBot.Hosts
             {
                 // Graceful shutdown
             }
+        }
+
+        private int _eventSubStrikes;
+
+        /// <summary>
+        /// EventSub has keepalives, but a session can also just stop delivering chat. The same silence rule as for IRC
+        /// applies: no message for 10 minutes on a live stream (doubling per strike, cap x8) asks the EventSub service
+        /// for a fresh session, which re-subscribes chat.
+        /// </summary>
+        private async Task WatchEventSubChatAsync(bool online)
+        {
+            if (!_ingress.EventSubChatActive) return; // a session being rebuilt keeps its strike count
+            var since = _ingress.EventSubChatSinceUtc ?? DateTime.MinValue;
+            var last = _ingress.LastMessageUtc;
+            var silence = DateTime.UtcNow - (last > since ? last : since); // a fresh session gets a full threshold
+            if (silence < SilentLiveThreshold || !online) { _eventSubStrikes = 0; return; }
+            var threshold = SilentLiveThreshold * Math.Pow(2, Math.Min(_eventSubStrikes, 3));
+            if (silence <= threshold) return;
+            var recovery = _ingress.EventSubRecovery;
+            if (recovery == null) return;
+            _eventSubStrikes++;
+            _logger.LogWarning("EventSub chat silent for {Silence} on a live stream; asking for a fresh EventSub session (strike {Strike}).", HealthState.FormatAge(silence), _eventSubStrikes);
+            try { await recovery($"no chat message for {HealthState.FormatAge(silence)} while live"); }
+            catch (Exception ex) { _logger.LogError(ex, "EventSub recovery request failed."); }
         }
 
         private async Task TryConnectAsync(bool isZombie = false)

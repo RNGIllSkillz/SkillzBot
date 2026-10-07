@@ -37,7 +37,7 @@ namespace SkillzBot.Services.Twitch
     }
 
     /// <summary>What a Twitch client needs to call Helix or IRC as one identity, plus where it came from.</summary>
-    public sealed record TwitchCredential(TwitchIdentity Identity, string ClientId, string AccessToken, string UserId, string Login, IReadOnlyList<string> Scopes, string Source);
+    public sealed record TwitchCredential(TwitchIdentity Identity, string ClientId, string AccessToken, string UserId, string Login, IReadOnlyList<string> Scopes, string Source, DateTime? ObtainedUtc = null);
 
     /// <summary>Panel view of one identity.</summary>
     public sealed record TwitchTokenStatus(string Identity, string Source, string Login, string UserId, string ExpectedLogin, string ExpectedUserId,
@@ -117,7 +117,7 @@ namespace SkillzBot.Services.Twitch
             lock (_records)
             {
                 if (_records.TryGetValue(identity, out var r) && !string.IsNullOrEmpty(r.AccessToken))
-                    return new TwitchCredential(identity, r.ClientId, r.AccessToken, r.UserId, r.Login, r.Scopes.AsReadOnly(), "oauth");
+                    return new TwitchCredential(identity, r.ClientId, r.AccessToken, r.UserId, r.Login, r.Scopes.AsReadOnly(), "oauth", r.ObtainedUtc);
                 return _configCredentials.TryGetValue(identity, out var c) ? c : null;
             }
         }

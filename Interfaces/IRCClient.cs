@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using TwitchLib.Client.Events;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace SkillzBot.Interfaces
@@ -10,9 +9,10 @@ namespace SkillzBot.Interfaces
     {
         bool IsConnected { get; }
         bool IsInitialized { get; }
-        event Func<OnMessageReceivedArgs, Task> OnMessageReceived;
         Task<bool> InitializeAsync();
         Task<bool> ReconnectAsync();
+        /// <summary>Closes the IRC connection without disposing the service; the monitor can reconnect later.</summary>
+        Task ParkAsync();
         Task SendMessage(string messageToSend, CancellationToken cancellationToken = default);
         Task OnStreamDown();
         Task OnStreamUp();

@@ -1,3 +1,4 @@
+using SkillzBot.Services.Chat;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -204,6 +205,7 @@ namespace SkillzBot.Hosts
                     services.AddSingleton<HealthReporter>();              // Periodic one-line health log + API snapshot
                     services.AddHostedService(sp => sp.GetRequiredService<HealthReporter>());
                     services.AddSingleton<Api.ChatFeed>();
+                    services.AddSingleton<ChatIngress>();                 // Single entry for chat from EventSub or IRC; dedup + transport policy
                     services.AddSingleton<Api.BotSettingsService>();
                 });
 

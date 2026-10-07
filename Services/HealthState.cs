@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Threading;
 
@@ -19,6 +20,7 @@ namespace SkillzBot.Services
         private long _dbFailures;
 
         private long _seFailures;      // consecutive StreamElements send failures
+        private readonly HashSet<string> _eventSubSubscriptions = new HashSet<string>(StringComparer.Ordinal);
         private long _seLastOkTicks;
 
         public bool EventSubConnected => Volatile.Read(ref _eventSubConnected) == 1;
@@ -57,6 +59,12 @@ namespace SkillzBot.Services
         }
 
         public void MarkEventSubEvent() => Interlocked.Exchange(ref _eventSubLastEventTicks, DateTime.UtcNow.Ticks);
+
+        /// <summary>True while this subscription type is confirmed on the current session (cleared on disconnect, removed on revocation).</summary>
+        public bool IsEventSubSubscriptionActive(string type) { lock (_eventSubSubscriptions) return _eventSubSubscriptions.Contains(type); }
+        public void SetEventSubSubscription(string type, bool active) { lock (_eventSubSubscriptions) { if (active) _eventSubSubscriptions.Add(type); else _eventSubSubscriptions.Remove(type); } }
+        public void ClearEventSubSubscriptions() { lock (_eventSubSubscriptions) _eventSubSubscriptions.Clear(); }
+        public int EventSubSubscriptionCount { get { lock (_eventSubSubscriptions) return _eventSubSubscriptions.Count; } }
 
         public void MarkDbFailure(DateTime circuitOpenUntilUtc)
         {

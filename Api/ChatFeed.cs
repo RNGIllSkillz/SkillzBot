@@ -1,9 +1,9 @@
+using SkillzBot.MODELS;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Channels;
-using TwitchLib.Client.Events;
 
 namespace SkillzBot.Api
 {
@@ -25,11 +25,10 @@ namespace SkillzBot.Api
 
         public int Subscribers => _subscribers.Count;
 
-        public void PublishIncoming(OnMessageReceivedArgs e)
+        public void PublishIncoming(IncomingChatMessage m)
         {
-            var m = e.ChatMessage;
-            Publish(new ChatMessageDto(m.Id, DateTime.UtcNow, m.Username, m.DisplayName, m.Message,
-                m.UserDetail.IsModerator, m.UserDetail.IsVip, m.UserDetail.IsSubscriber, m.IsBroadcaster, false, m.HexColor));
+            Publish(new ChatMessageDto(m.Id, DateTime.UtcNow, m.Login, m.DisplayName, m.Text,
+                m.IsModerator, m.IsVip, m.IsSubscriber, m.IsBroadcaster, false, m.Color));
         }
 
         public void PublishOutgoing(string text)

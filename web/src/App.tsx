@@ -90,7 +90,7 @@ function Layout({ me }: { me: Me }) {
   const logout = () => post('/api/auth/logout').then(() => window.location.assign('/'))
   const items: [string, string][] = [['/', 'Дашборд'], ['/chat', 'Чат'], ['/users', 'Пользователи'], ['/stats', 'Статистика'], ['/vips', 'VIP'], ['/filters', 'Фильтры'], ['/quiz', 'Викторина'], ['/settings', 'Настройки'], ['/system', 'Система']]
   if (me.role === 'root' || me.role === 'admin') items.push(['/twitch', 'Twitch'])
-  const healthy = !!status && status.ircConnected && status.eventSubConnected && status.dbOk
+  const healthy = !!status && status.eventSubConnected && status.dbOk && !status.chat.startsWith('NONE')
   return (
     <div className="layout">
       <aside className={`sidebar ${open ? 'open' : ''}`}>

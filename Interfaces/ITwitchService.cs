@@ -77,6 +77,10 @@ namespace SkillzBot.Interfaces
         Task DeleteMessage(string messageID);
         Task DeleteAllMessages();
         Task<bool> Announce(string message);
+        /// <summary>Helix "Send Chat Message" from the bot account. Unknown = the request may or may not have gone through (timeout), so the caller must not resend elsewhere.</summary>
+        Task<ChatSendResult> SendChatMessageAsync(string text, string replyToMessageId = null);
+        /// <summary>False while the Helix send circuit is open or until a send succeeds after it closed; IRC must then stay up as the outbound fallback.</summary>
+        bool HelixSendHealthy { get; }
         Task<CreatedClipResponse> CreateClip();
         Task<bool> CheckClipExistence(string clipID);
         Task<GetChattersResponse> GetChattersAsync();
