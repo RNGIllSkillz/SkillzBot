@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { fmtTime, get, post } from '../api'
+import { apiUrl, fmtTime, get, post } from '../api'
 import type { ChatMessage, MessageRow, Paged } from '../types'
 import { Card, Pager } from '../components/ui'
 
@@ -25,7 +25,7 @@ function Live() {
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
     get<ChatMessage[]>('/api/chat/recent?limit=300').then(setMessages).catch(() => {})
-    const es = new EventSource('/api/chat/stream')
+    const es = new EventSource(apiUrl('/api/chat/stream'))
     es.addEventListener('chat', (ev: MessageEvent) => {
       try { const m = JSON.parse(ev.data) as ChatMessage; setMessages(prev => [...prev.slice(-499), m]) } catch { }
     })

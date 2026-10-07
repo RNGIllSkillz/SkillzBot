@@ -222,7 +222,7 @@ def _quote(s):
 def step_init(host, args):
     print("== host setup (runtime libraries, Node, service, nginx)")
     host.put_dir(ALPINE, "/root/skillzbot-setup")
-    host.sh(f"APP_DIR='{args.dir}' CHANNEL='{args.channel}' TZ='{args.tz}' API_PORT='{args.api_port}' sh /root/skillzbot-setup/install.sh")
+    host.sh(f"APP_DIR='{args.dir}' ROLE='{args.role}' CHANNEL='{args.channel}' TZ='{args.tz}' API_PORT='{args.api_port}' sh /root/skillzbot-setup/install.sh")
 
 
 def step_data(host, args):
@@ -272,7 +272,8 @@ def main():
     ap.add_argument("--port", type=int, default=22)
     ap.add_argument("--password", default=None, help="SSH password (otherwise SKILLZBOT_SSH_PASSWORD or a hidden prompt)")
     ap.add_argument("--dir", default="/opt/skillzbot", help="install directory on the host")
-    ap.add_argument("--channel", default="general_hs_", help="ENV_CHANNEL_NAME")
+    ap.add_argument("--role", choices=["hub", "channel"], default="hub", help="hub: one hub + a process per channel (default); channel: single-channel bot of --channel (used with --init)")
+    ap.add_argument("--channel", default="general_hs_", help="ENV_CHANNEL_NAME for --role channel; with --role hub only its data folder is pre-created")
     ap.add_argument("--tz", default="Europe/Moscow", help="time zone for the service (used with --init)")
     ap.add_argument("--api-port", type=int, default=8080, help="bot API port nginx proxies to (used with --init)")
     ap.add_argument("--init", action="store_true", help="first-time host setup: packages, service, nginx")

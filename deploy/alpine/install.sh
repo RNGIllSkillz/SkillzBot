@@ -1,9 +1,11 @@
 #!/bin/sh
 # One-time setup of an Alpine host for SkillzBot + web panel. Run as root from this directory:
-#   APP_DIR=/opt/skillzbot CHANNEL=general_hs_ TZ=Europe/Moscow API_PORT=8080 sh install.sh
+#   APP_DIR=/opt/skillzbot ROLE=hub CHANNEL=general_hs_ TZ=Europe/Moscow API_PORT=8080 sh install.sh
+# ROLE=hub (default) runs the hub with one process per channel; ROLE=channel runs only CHANNEL, the old way.
 # Afterwards copy Channels_Data into $APP_DIR and run deploy/deploy.py from your PC.
 set -eu
 APP_DIR="${APP_DIR:-/opt/skillzbot}"
+ROLE="${ROLE:-hub}"
 CHANNEL="${CHANNEL:-general_hs_}"
 TZ="${TZ:-Europe/Moscow}"
 API_PORT="${API_PORT:-8080}"
@@ -20,11 +22,11 @@ if [ -f "/usr/share/zoneinfo/$TZ" ]; then
 fi
 
 echo "== layout under $APP_DIR"
-mkdir -p "$APP_DIR/web" "$APP_DIR/src" "$APP_DIR/Channels_Data/$CHANNEL/DATA/logs" "$APP_DIR/Channels_Data/_shared" "$APP_DIR/proxy"
+mkdir -p "$APP_DIR/web" "$APP_DIR/src" "$APP_DIR/Channels_Data/$CHANNEL/DATA/logs" "$APP_DIR/Channels_Data/hub/DATA/logs" "$APP_DIR/Channels_Data/_shared" "$APP_DIR/proxy"
 
 echo "== OpenRC service"
 install -m 0755 "$HERE/skillzbot.initd" /etc/init.d/skillzbot
-sed "s|@APP_DIR@|$APP_DIR|g; s|@CHANNEL@|$CHANNEL|g; s|@TZ@|$TZ|g" "$HERE/skillzbot.confd" > /etc/conf.d/skillzbot
+sed "s|@APP_DIR@|$APP_DIR|g; s|@ROLE@|$ROLE|g; s|@CHANNEL@|$CHANNEL|g; s|@TZ@|$TZ|g" "$HERE/skillzbot.confd" > /etc/conf.d/skillzbot
 rc-update add skillzbot default >/dev/null 2>&1 || true
 
 echo "== nginx site"
@@ -50,4 +52,6 @@ Done. Next steps:
   2. If the proxy is used, put the xray/hysteria binary under $APP_DIR/proxy/ and point ProxyCorePath at it.
   3. On your PC:  python deploy/deploy.py --host <this host>   (publishes the bot there, uploads it with the panel sources, builds the panel here, starts the service)
   4. Check:       rc-service skillzbot status;  tail -f $APP_DIR/Channels_Data/$CHANNEL/DATA/logs/bot-*.log
+  Hub mode (ROLE=hub): the hub writes $APP_DIR/Channels_Data/hub.json from the first channel config it finds
+  (review ApiPublicUrl there), registers existing channel folders in channels.json and logs to Channels_Data/hub/DATA/logs.
 MSG

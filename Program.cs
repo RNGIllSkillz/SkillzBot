@@ -39,7 +39,9 @@ namespace IllSkillzBot
                 Log.Information("Building Host...");
 
                 var hostBuilders = new IHostBuilders(levelSwitch);
-                using var host = hostBuilders.BuildMainApplicationHost(args);
+                bool hub = SkillzBot.Services.Twitch.HubSignature.IsHubProcess;
+                if (hub) Environment.SetEnvironmentVariable("ENV_CHANNEL_NAME", "hub"); // the hub's own folder, whatever conf.d exports
+                using var host = hub ? hostBuilders.BuildHubHost(args) : hostBuilders.BuildMainApplicationHost(args);
 
                 Log.Information("Starting Host...");
                 await host.RunAsync();

@@ -49,17 +49,27 @@ namespace SkillzBot.Api
 
         public bool Configured => !string.IsNullOrWhiteSpace(_config.ApiClientId) && !string.IsNullOrWhiteSpace(_config.TApiClientSecret) && !string.IsNullOrWhiteSpace(_config.ApiPublicUrl);
 
+        /// <summary>A channel run by the hub: the hub owns login and grants; this process only redirects there.</summary>
+        public bool Managed => HubSignature.IsManagedProcess;
+        private string HubUrl => (_config.ApiPublicUrl ?? "").TrimEnd('/');
+
         private string RedirectUri => _config.ApiPublicUrl.TrimEnd('/') + "/api/auth/callback";
 
         public Task Login(HttpContext ctx)
         {
+            if (Managed)
+            {
+                string back = ctx.Request.Query["returnTo"].ToString();
+                ctx.Response.Redirect(HubUrl + "/api/auth/login?returnTo=" + Uri.EscapeDataString(string.IsNullOrEmpty(back) ? "/c/" + _config.ChannelName + "/" : back));
+                return Task.CompletedTask;
+            }
             if (!Configured)
             {
                 ctx.Response.StatusCode = 503;
                 return ctx.Response.WriteAsync("Login is not configured: set ApiClientId, TApiClientSecret and ApiPublicUrl in the channel config.");
             }
             string returnTo = ctx.Request.Query["returnTo"].ToString();
-            if (string.IsNullOrEmpty(returnTo) || !returnTo.StartsWith('/') || returnTo.StartsWith("//")) returnTo = "/";
+            returnTo = SafeReturnPath(returnTo);
             string state = NewState();
             ctx.Response.Cookies.Append(StateCookie, state + "|" + returnTo, StateCookieOptions(ctx));
             ctx.Response.Redirect(AuthorizeUrl(state, ""));
@@ -72,6 +82,16 @@ namespace SkillzBot.Api
         /// </summary>
         public Task Authorize(HttpContext ctx, TwitchIdentity identity)
         {
+            if (Managed)
+            {
+                if (identity == TwitchIdentity.Bot)
+                {
+                    ctx.Response.StatusCode = 400;
+                    return ctx.Response.WriteAsJsonAsync(new { error = "the bot account is authorized on the hub by root" });
+                }
+                ctx.Response.Redirect(HubUrl + "/api/hub/grant?channel=" + Uri.EscapeDataString(_config.ChannelName));
+                return Task.CompletedTask;
+            }
             if (!Configured)
             {
                 ctx.Response.StatusCode = 503;
@@ -211,10 +231,25 @@ namespace SkillzBot.Api
             return null;
         }
 
+        /// <summary>A returnTo the browser can only resolve inside this site: a plain absolute path, no scheme-relative or backslash tricks.</summary>
+        public static string SafeReturnPath(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length > 2048 || value[0] != '/') return "/";
+            if (value.Length > 1 && (value[1] == '/' || value[1] == '\\')) return "/";
+            foreach (char c in value) if (c == '\\' || c <= ' ' || c == '\x7f') return "/";
+            return value;
+        }
+
         public static UserInfoDto Describe(ClaimsPrincipal user)
         {
             long.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out long id);
             return new UserInfoDto(id, user.Identity?.Name, user.FindFirstValue(ClaimTypes.Role));
+        }
+
+        public object DescribeForPanel(ClaimsPrincipal user)
+        {
+            var dto = Describe(user);
+            return new { twitchId = dto.TwitchId, login = dto.Login, role = dto.Role, managed = Managed, channel = _config.ChannelName };
         }
 
         private string AuthorizeUrl(string state, string scopes) =>

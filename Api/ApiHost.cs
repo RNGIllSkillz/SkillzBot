@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using SkillzBot.IllConfiguration;
@@ -37,6 +39,8 @@ namespace SkillzBot.Api
             try
             {
                 var paths = new Services.Infrastructure.PathProvider();
+                // The hub assigns the port of a managed channel process.
+                if (int.TryParse(Environment.GetEnvironmentVariable(HubSignature.EnvApiPort), out int envPort)) return envPort;
                 string path = File.Exists(paths.ConfigPath) ? paths.ConfigPath : paths.LegacyConfigPath;
                 if (!File.Exists(path)) return 8080;
                 var root = JObject.Parse(File.ReadAllText(path));
@@ -50,9 +54,21 @@ namespace SkillzBot.Api
             services.AddRouting();
             services.AddHttpClient(TwitchAuth.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(15));
             services.AddSingleton<TwitchAuth>();
+            if (HubSignature.IsManagedProcess)
+            {
+                // Run by the hub: the hub logs people in and vouches for them with a signed header; no cookies here.
+                services.AddAuthentication(HubHeaderAuthHandler.SchemeName).AddScheme<AuthenticationSchemeOptions, HubHeaderAuthHandler>(HubHeaderAuthHandler.SchemeName, null);
+                services.AddAuthorization(o =>
+                {
+                    o.AddPolicy("editor", p => p.RequireAuthenticatedUser());
+                    o.AddPolicy("admin", p => p.RequireRole(TwitchAuth.RoleAdmin, TwitchAuth.RoleRoot));
+                    o.AddPolicy("root", p => p.RequireRole(TwitchAuth.RoleRoot));
+                });
+                return;
+            }
             services.AddDataProtection()
                 .SetApplicationName("SkillzBot")
-                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(new Services.Infrastructure.PathProvider().DataPath, "keys")));
+                .PersistKeysToFileSystem(PrivateKeyDirectory(Path.Combine(new Services.Infrastructure.PathProvider().DataPath, "keys")));
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o =>
             {
                 o.Cookie.Name = "skillzbot.session";
@@ -118,8 +134,22 @@ namespace SkillzBot.Api
             e.MapGet("/api/auth/callback", ctx => S<TwitchAuth>(ctx).Callback(ctx));
             e.MapPost("/api/auth/logout", ctx => S<TwitchAuth>(ctx).Logout(ctx));
             e.MapGet("/api/auth/me", ctx => ctx.User?.Identity?.IsAuthenticated == true
-                ? Results.Json(TwitchAuth.Describe(ctx.User)).ExecuteAsync(ctx)
-                : Results.Json(new { error = "unauthenticated", loginConfigured = S<TwitchAuth>(ctx).Configured }, statusCode: 401).ExecuteAsync(ctx));
+                ? Results.Json(S<TwitchAuth>(ctx).DescribeForPanel(ctx.User)).ExecuteAsync(ctx)
+                : Results.Json(new { error = "unauthenticated", loginConfigured = S<TwitchAuth>(ctx).Configured, managed = HubSignature.IsManagedProcess, login = ctx.Items[HubHeaderAuthHandler.RefusedLoginItem] as string, roleError = ctx.Items.ContainsKey(HubHeaderAuthHandler.RoleErrorItem) }, statusCode: 401).ExecuteAsync(ctx));
+
+            // ---- internal: called by the hub over loopback with its own signed identity (root) ----
+            e.MapGet("/api/internal/ping", ctx => Results.Json(new { ok = true, channel = S<BotConfigModel>(ctx).ChannelName, managed = HubSignature.IsManagedProcess }).ExecuteAsync(ctx)).RequireAuthorization("root");
+            e.MapPost("/api/internal/tokens/broadcaster", async ctx =>
+            {
+                var body = await Body(ctx);
+                string access = Str(body, "accessToken"), refresh = Str(body, "refreshToken"), userId = Str(body, "userId"), login = Str(body, "login"), clientId = Str(body, "clientId");
+                int expiresIn = body.TryGetValue("expiresIn", out var ei) && ei.TryGetInt32(out int e2) ? e2 : 14400;
+                var scopes = body.TryGetValue("scopes", out var sc) && sc.ValueKind == JsonValueKind.Array ? sc.EnumerateArray().Select(x => x.GetString()).Where(x => x != null).ToList() : new List<string>();
+                if (string.IsNullOrEmpty(access) || string.IsNullOrEmpty(userId)) { await Results.Json(new { error = "accessToken and userId required" }, statusCode: 400).ExecuteAsync(ctx); return; }
+                if (userId != S<BotConfigModel>(ctx).BroadcasterId) { await Results.Json(new { error = "token belongs to another user" }, statusCode: 400).ExecuteAsync(ctx); return; }
+                await S<TwitchTokenService>(ctx).StoreAuthorizationAsync(TwitchIdentity.Broadcaster, access, refresh, expiresIn, scopes, userId, login, clientId);
+                await Results.Json(new { stored = true }).ExecuteAsync(ctx);
+            }).RequireAuthorization("root");
 
             // ---- status, state, config ----
             e.MapGet("/api/status", ctx => Results.Json(S<HealthReporter>(ctx).BuildSnapshot()).ExecuteAsync(ctx)).RequireAuthorization("editor");
@@ -355,6 +385,14 @@ namespace SkillzBot.Api
         }
 
         /// <summary>Server-Sent Events: chat messages as they arrive plus a health snapshot every 5 seconds.</summary>
+        /// <summary>The cookie keys sign sessions; the directory is 0700 so no other local account can mint one.</summary>
+        public static DirectoryInfo PrivateKeyDirectory(string path)
+        {
+            var dir = Directory.CreateDirectory(path);
+            try { if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute); } catch { }
+            return dir;
+        }
+
         private static async Task StreamAsync(HttpContext ctx)
         {
             var feed = S<ChatFeed>(ctx);
@@ -364,7 +402,9 @@ namespace SkillzBot.Api
             ctx.Response.Headers["X-Accel-Buffering"] = "no"; // nginx: do not buffer the stream
             var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
             var writeLock = new SemaphoreSlim(1, 1);
-            var token = ctx.RequestAborted;
+            // the stream ends when the browser leaves or the process shuts down; it must not hold a restart up
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted, S<IHostApplicationLifetime>(ctx).ApplicationStopping);
+            var token = cts.Token;
 
             async Task WriteEvent(string type, object data)
             {

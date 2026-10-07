@@ -1,5 +1,13 @@
 export type Role = 'root' | 'admin' | 'editor'
-export interface Me { twitchId: number; login: string; role: Role }
+export interface Me { twitchId: number; login: string; role: Role; managed?: boolean; channel?: string }
+
+// ---- hub (several channels, one process each) ----
+export type HubRole = 'root' | 'user'
+export interface HubChannelLink { login: string; displayName: string; enabled: boolean; role: 'root' | 'admin'; panelUrl: string }
+export interface HubMe { twitchId: number; login: string; role: HubRole; hub: true; channels: HubChannelLink[]; botTwitchName: string | null; canOnboard: boolean }
+export interface HubProcess { state: string; pid: number | null; startedUtc: string | null; restarts: number; lastExitCode: number | null; lastExitUtc: string | null }
+export interface HubChannel { login: string; displayName: string; broadcasterId: string; apiPort: number; enabled: boolean; createdUtc: string; addedBy: string | null; panelUrl: string; process: HubProcess }
+export interface HubStatus { version: string; startedUtc: string; uptimeSeconds: number; channels: number; running: number; bot: string; publicUrl: string | null; missing: string[] }
 
 export interface Status {
   timeUtc: string; version: string; uptimeSeconds: number; ramMb: number; threads: number
@@ -62,7 +70,7 @@ export interface EditorRow { twitchId: number; login: string; addedBy: string | 
 export interface PredictionsStatus { summary: string; active: BotState['activePrediction']; poll: BotState['activePoll']; nextKind: string | null; kinds: string }
 
 export interface TwitchTokenStatus {
-  identity: 'broadcaster' | 'bot'; source: 'oauth' | 'config' | 'none'
+  identity: 'broadcaster' | 'bot'; source: 'oauth' | 'config' | 'none' | 'hub'
   login: string | null; userId: string | null; expectedLogin: string | null; expectedUserId: string | null
   scopes: string[]; requiredScopes: string[]; missingScopes: string[]
   expiresUtc: string | null; expiresInSeconds: number | null; lastRefreshUtc: string | null

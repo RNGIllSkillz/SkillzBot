@@ -2,20 +2,27 @@
 # SkillzBot: Twitch bot with the web panel API. Supervised by OpenRC, so a restart requested from
 # the panel (the process exits) or a crash is followed by an automatic relaunch a few seconds later.
 # Settings live in /etc/conf.d/skillzbot.
+#
+# SKILLZBOT_ROLE=hub (default): one hub process on the API port that logs users in, onboards channels
+#   and runs one child process per channel (Channels_Data/channels.json). Stopping the service stops them all.
+# SKILLZBOT_ROLE=channel: the old single-channel mode, the bot of ENV_CHANNEL_NAME on the API port.
 
 description="SkillzBot Twitch bot"
 
 : "${SKILLZBOT_DIR:=/opt/skillzbot}"
+: "${SKILLZBOT_ROLE:=hub}"
 : "${ENV_CHANNEL_NAME:=general_hs_}"
 : "${TZ:=UTC}"
+[ "${SKILLZBOT_ROLE}" = "hub" ] && ENV_CHANNEL_NAME=hub
 
 export ENV_CHANNEL_NAME TZ
+export ENV_SKILLZBOT_ROLE="${SKILLZBOT_ROLE}"
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 
 supervisor=supervise-daemon
 command="${SKILLZBOT_DIR}/SkillzBot"
 directory="${SKILLZBOT_DIR}"
-supervise_daemon_args="-e ENV_CHANNEL_NAME=${ENV_CHANNEL_NAME} -e TZ=${TZ} -e DOTNET_CLI_TELEMETRY_OPTOUT=1"
+supervise_daemon_args="-e ENV_CHANNEL_NAME=${ENV_CHANNEL_NAME} -e ENV_SKILLZBOT_ROLE=${SKILLZBOT_ROLE} -e TZ=${TZ} -e DOTNET_CLI_TELEMETRY_OPTOUT=1"
 respawn_delay=3
 respawn_max=0
 respawn_period=60
@@ -30,6 +37,7 @@ depend() {
 
 start_pre() {
     checkpath -d -m 0755 "${SKILLZBOT_DIR}/Channels_Data/${ENV_CHANNEL_NAME}/DATA/logs"
+    checkpath -d -m 0755 "${SKILLZBOT_DIR}/Channels_Data/_shared"
     if [ ! -x "${command}" ]; then
         eerror "${command} is missing or not executable; run deploy.py first"
         return 1

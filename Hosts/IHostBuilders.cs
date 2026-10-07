@@ -56,6 +56,48 @@ namespace SkillzBot.Hosts
         private static Func<IServiceProvider, HttpMessageHandler> PrimaryHandler(string purpose) =>
             sp => sp.GetRequiredService<ProxyService>().CreateHandler(purpose);
 
+        /// <summary>The hub: login, onboarding, the bot token, one supervised process per channel, and the proxy to their panels.</summary>
+        public IHost BuildHubHost(string[] args)
+        {
+            var paths = new PathProvider(); // ENV_CHANNEL_NAME=hub: Channels_Data/hub/DATA for keys, logs and the bot token
+            string channelsDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(paths.DataPath, "..", ".."));
+            var bootLogger = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddSerilog()).CreateLogger("Hub");
+            var hub = Hub.HubHost.LoadOrBootstrap(channelsDir, bootLogger) ?? throw new InvalidOperationException("hub.json is missing; see hub.example.json");
+
+            var builder = Host.CreateDefaultBuilder(args)
+                .UseSerilog((context, services, configuration) => ConfigureSerilog(configuration, paths))
+                .ConfigureServices((context, services) =>
+                {
+                    services.AddSingleton<IPathProvider>(paths);
+                    services.AddSingleton(_levelSwitch);
+                    Hub.HubHost.ConfigureServices(services, hub, channelsDir, paths);
+                })
+                .ConfigureWebHostDefaults(web =>
+                {
+                    web.ConfigureKestrel(k => k.ListenAnyIP(hub.HubPort));
+                    web.Configure(Hub.HubHost.Configure);
+                });
+            return builder.Build();
+        }
+
+        private void ConfigureSerilog(LoggerConfiguration configuration, IPathProvider paths)
+        {
+            const string compactTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{Component:l}] {Message:lj}{ExceptionShort:l}{NewLine}";
+            const string consoleTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] [{Component:l}] {Message:lj}{ExceptionShort:l}{NewLine}";
+            const string detailedTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{Component:l}] {Message:lj}{NewLine}{Exception}";
+            configuration
+                .MinimumLevel.ControlledBy(_levelSwitch)
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+                .MinimumLevel.Override("System", LogEventLevel.Warning)
+                .Enrich.FromLogContext()
+                .Enrich.With<CompactLogEnricher>()
+                .WriteTo.Console(outputTemplate: consoleTemplate);
+            string logDir = System.IO.Path.Combine(paths.DataPath, "logs");
+            configuration.WriteTo.Async(sink => sink.File(System.IO.Path.Combine(logDir, "bot-.log"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30, shared: false, outputTemplate: compactTemplate));
+            configuration.WriteTo.Async(sink => sink.File(System.IO.Path.Combine(logDir, "errors-.log"), restrictedToMinimumLevel: LogEventLevel.Warning, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 60, shared: false, outputTemplate: detailedTemplate));
+        }
+
         public IHost BuildMainApplicationHost(string[] args)
         {
             var builder = Host.CreateDefaultBuilder(args)
@@ -201,6 +243,8 @@ namespace SkillzBot.Hosts
                     services.AddHostedService<TwitchTokenRefresher>();    // Renews Twitch tokens before they expire
                     services.AddHostedService<TTVEventSub>();             // EventSub websocket + watchdog
                     services.AddHostedService<TwitchIrcHostedService>();  // IRC + chat loop
+                    if (Services.Twitch.HubSignature.IsManagedProcess) services.AddHostedService<ManagedProcessGuard>(); // exits with the hub
+                    services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(15)); // under the hub's 25s grace; OpenRC restarts us anyway
                     services.AddHostedService<MatchMonitoringService>();  // Riot polling
                     services.AddSingleton<HealthReporter>();              // Periodic one-line health log + API snapshot
                     services.AddHostedService(sp => sp.GetRequiredService<HealthReporter>());
@@ -215,7 +259,7 @@ namespace SkillzBot.Hosts
             {
                 builder.ConfigureWebHostDefaults(web =>
                 {
-                    web.ConfigureKestrel(k => k.ListenAnyIP(apiPort));
+                    web.ConfigureKestrel(k => { if (Services.Twitch.HubSignature.IsManagedProcess) k.ListenLocalhost(apiPort); else k.ListenAnyIP(apiPort); }); // behind the hub only the hub talks to us
                     web.ConfigureServices(Api.ApiHost.ConfigureWebServices);
                     web.Configure(Api.ApiHost.Configure);
                 });
